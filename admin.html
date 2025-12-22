@@ -1,1 +1,88 @@
+<!doctype html>
+<html lang="hu">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Admin</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div id="loader">
+    <div class="loaderCard">
+      <h3 class="loaderTitle">Admin betöltés</h3>
+      <p class="loaderText">Ellenőrzöm a hozzáférést…</p>
+      <div class="loaderBar"><div></div></div>
+    </div>
+  </div>
 
+  <div class="main adminWrap" id="admin">
+    <div class="topbar">
+      <div>
+        <div style="font-weight:800;font-size:18px">Admin</div>
+        <div style="color:var(--muted);font-size:13px">Termék hozzáadás / készlet állítás</div>
+      </div>
+      <a class="smallLink" href="index.html">Vissza</a>
+    </div>
+
+    <div class="panel">
+      <h2>Termék hozzáadás / szerkesztés</h2>
+
+      <div class="formGrid">
+        <div class="field">
+          <label>ID (hagyd üresen, generál)</label>
+          <input id="a_id" placeholder="pl. p3" />
+        </div>
+
+        <div class="field">
+          <label>Név</label>
+          <input id="a_name" placeholder="pl. Logitech G..." />
+        </div>
+
+        <div class="field">
+          <label>Kategória</label>
+          <select id="a_category"></select>
+        </div>
+
+        <div class="field">
+          <label>Készlet (db)</label>
+          <input id="a_qty" type="number" value="0" />
+        </div>
+
+        <div class="field" style="grid-column:1/-1">
+          <label>Kép URL (pl. webes link)</label>
+          <input id="a_img" placeholder="https://..." />
+        </div>
+
+        <div class="field" style="grid-column:1/-1">
+          <label>Leírás</label>
+          <textarea id="a_desc" placeholder="Rövid, normális leírás…"></textarea>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button class="btn primary" id="a_save">Mentés a listába</button>
+        <button class="btn" id="a_clear">Űrlap ürít</button>
+        <button class="btn" id="a_export">Export products.json</button>
+      </div>
+
+      <div style="margin-top:10px;color:var(--muted);font-size:12px">
+        Export után a letöltött <span class="mono">products.json</span>-t cseréld ki a repóban: <span class="mono">data/products.json</span>.
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Gyors készlet állítás</h2>
+      <table class="table">
+        <thead>
+          <tr>
+            <th>ID</th><th>Név</th><th>Kategória</th><th>Készlet</th><th>Művelet</th>
+          </tr>
+        </thead>
+        <tbody id="a_tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
