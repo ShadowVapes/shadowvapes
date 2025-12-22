@@ -2,48 +2,51 @@
 <html lang="hu">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Termékek</title>
-  <link rel="stylesheet" href="styles.css" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ShadowVapes</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./styles.css" />
 </head>
 <body>
-  <div id="loader">
-    <div class="loaderCard">
-      <h3 class="loaderTitle">Betöltés</h3>
-      <p id="loaderText" class="loaderText">Készül a felület…</p>
-      <div class="loaderBar"><div></div></div>
+  <!-- Loading overlay -->
+  <div id="loader" class="loader">
+    <div class="loader__card">
+      <div class="spinner"></div>
+      <div class="loader__text">Betöltés...</div>
     </div>
   </div>
 
-  <div class="shell">
+  <div class="layout">
     <aside class="sidebar">
       <div class="brand">
-        <div class="logo"></div>
-        <div>
-          <h1>Készlet / Terméklista</h1>
-          <p>Egyszerű, letisztult</p>
-        </div>
+        <div class="brand__logo">ShadowVapes</div>
+        <div class="brand__sub">Készlet & termékek</div>
       </div>
 
-      <div id="nav" class="nav"></div>
+      <nav class="nav">
+        <button class="nav__btn is-active" data-cat="all">Összes termék</button>
+        <div id="catButtons"></div>
+      </nav>
+
+      <div class="sidebar__footer">
+        <div class="hint">A készletet az admin oldalon tudod frissíteni.</div>
+      </div>
     </aside>
 
     <main class="main">
-      <div class="topbar">
-        <div class="search">
-          <input id="searchInput" placeholder="Keresés név / leírás alapján…" />
-        </div>
-        <a class="smallLink" href="admin.html">Admin</a>
-      </div>
+      <header class="topbar">
+        <div class="topbar__title" id="pageTitle">Összes termék</div>
+      </header>
 
-      <div id="grid" class="grid"></div>
-
-      <div class="footerNote">
-        Tipp: a “készlet” simán frissíthető adminból, aztán exportálod a JSON-t és feltöltöd GitHubra.
+      <section class="grid" id="productGrid"></section>
+      <div class="empty" id="emptyState" hidden>
+        Nincs termék ebben a kategóriában.
       </div>
     </main>
   </div>
 
-  <script src="app.js"></script>
+  <script src="./app.js"></script>
 </body>
 </html>
