@@ -1,1 +1,18 @@
-
+[
+  {
+    "id": "p1",
+    "name": "Gamer egér X1",
+    "category": "gamer eger",
+    "qty": 7,
+    "desc": "Kényelmes forma, jó szenzor, RGB.",
+    "img": "https://images.unsplash.com/photo-1527814050087-3793815479db?auto=format&fit=crop&w=900&q=60"
+  },
+  {
+    "id": "p2",
+    "name": "Gamer billentyűzet K2",
+    "category": "gamer billentyuzet",
+    "qty": 3,
+    "desc": "Mechanikus érzés, kompakt, backlight.",
+    "img": "https://images.unsplash.com/photo-1618384887929-16ec33fab9ef?auto=format&fit=crop&w=900&q=60"
+  }
+]
