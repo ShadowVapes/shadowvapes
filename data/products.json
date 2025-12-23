@@ -1,5 +1,37 @@
 {
-  "updatedAt": "2025-12-23T17:09:43.039Z",
-  "categories": [],
-  "products": []
+  "updatedAt": "2025-12-23T17:14:07.504Z",
+  "categories": [
+    {
+      "id": "Elfbar Ice King 30k",
+      "label_hu": "Elfbar Ice King 30k",
+      "label_en": "Elfbar Ice King 30k",
+      "defaultPrice": 6000
+    }
+  ],
+  "products": [
+    {
+      "id": "p_642900c249b74_19b4c31a511",
+      "categoryId": "",
+      "status": "ok",
+      "stock": 0,
+      "price": null,
+      "image": "",
+      "name_hu": "",
+      "name_en": "",
+      "flavor_hu": "",
+      "flavor_en": ""
+    },
+    {
+      "id": "p_7cc15f4801b098_19b4c332ecc",
+      "categoryId": "Elfbar Ice King 30k",
+      "status": "ok",
+      "stock": 10,
+      "price": null,
+      "image": "https://ezigisale.com/wp-content/uploads/2025/03/Grape_ice.png",
+      "name_hu": "Elfbar Ice King 30k",
+      "name_en": "Elfbar Ice King 30k",
+      "flavor_hu": "Szőlő Jég",
+      "flavor_en": "Grape Ice"
+    }
+  ]
 }
