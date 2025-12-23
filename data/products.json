@@ -1,20 +1,19 @@
 {
-  "updatedAt": "2025-12-23T12:00:00.000Z",
   "categories": [
-    { "id": "elf", "label_hu": "ELF", "label_en": "ELF", "defaultPrice": 5990 }
+    { "id": "elf", "label_hu": "ELF", "label_en": "ELF", "basePrice": 6000 }
   ],
   "products": [
     {
-      "id": "p1",
+      "id": "p_elf_1",
       "categoryId": "elf",
       "status": "ok",
       "stock": 10,
       "price": null,
-      "image": "https://....",
-      "name_hu": "ELF Bar",
-      "name_en": "ELF Bar",
-      "flavor_hu": "Blue Razz",
-      "flavor_en": "Blue Razz"
+      "image": "https://...",
+      "name_hu": "Elfbar Ice King 30k",
+      "name_en": "Elfbar Ice King 30k",
+      "flavor_hu": "Jég",
+      "flavor_en": "Ice"
     }
   ]
 }
