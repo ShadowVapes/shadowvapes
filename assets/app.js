@@ -1,249 +1,269 @@
 (() => {
   const $ = (s) => document.querySelector(s);
 
+  const LS = {
+    lang: "sv_lang",
+    owner: "sv_gh_owner",
+    repo: "sv_gh_repo",
+    branch: "sv_gh_branch",
+    useRaw: "sv_use_raw" // "1" = próbál RAW-ot a gyorsabb frissüléshez
+  };
+
   const state = {
-    lang: localStorage.getItem("sv_lang") || "hu",
-    active: "all",
+    lang: localStorage.getItem(LS.lang) || "hu",
     productsDoc: { categories: [], products: [] },
-    search: ""
+    activeCategory: "all",
+    q: ""
   };
 
-  const TXT = {
-    hu: { all:"Összes termék", soon:"Hamarosan", stock:"Készlet", pcs:"db", out:"Elfogyott" },
-    en: { all:"All products", soon:"Coming soon", stock:"Stock", pcs:"pcs", out:"Sold out" }
+  const T = {
+    hu: { all: "Összes termék", soon: "Hamarosan", stock: "Készlet", pcs: "db", out: "Elfogyott", soonBadge: "Hamarosan" },
+    en: { all: "All products", soon: "Coming soon", stock: "Stock", pcs: "pcs", out: "Sold out", soonBadge: "Coming soon" }
   };
-  const t = (k) => (TXT[state.lang] && TXT[state.lang][k]) || k;
 
-  const norm = (s) => (s || "").toString().toLowerCase()
-    .normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-
-  function getOwnerRepoFromUrl(){
-    // https://username.github.io/repo/...
-    const host = location.hostname;
-    if(!host.endsWith(".github.io")) return null;
-    const owner = host.replace(".github.io", "");
-    const parts = location.pathname.split("/").filter(Boolean);
-    const repo = parts.length ? parts[0] : null;
-    if(!repo) return null;
-    return { owner, repo };
+  function tr(k){ return (T[state.lang] && T[state.lang][k]) || k; }
+  function norm(s){
+    return (s||"").toString().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
   }
-
-  async function fetchJsonSmart(path){
-    // 1) raw github main/master (gyorsabb mint pages cache)
-    const or = getOwnerRepoFromUrl();
-    const ts = Date.now();
-    if(or){
-      for(const br of ["main","master"]){
-        const raw = `https://raw.githubusercontent.com/${or.owner}/${or.repo}/${br}/${path}?v=${ts}`;
-        try{
-          const r = await fetch(raw, { cache:"no-store" });
-          if(r.ok) return await r.json();
-        }catch{}
-      }
-    }
-    // 2) fallback relative
-    const rel = `${path}?v=${ts}`;
-    const r2 = await fetch(rel, { cache:"no-store" });
-    if(!r2.ok) throw new Error(`Nem tudtam betölteni: ${path}`);
-    return await r2.json();
-  }
-
   function getName(p){
-    return state.lang === "en"
-      ? (p.name_en || p.name_hu || p.name || "")
-      : (p.name_hu || p.name_en || p.name || "");
+    return state.lang === "en" ? (p.name_en || p.name_hu || "") : (p.name_hu || p.name_en || "");
   }
   function getFlavor(p){
-    return state.lang === "en"
-      ? (p.flavor_en || p.flavor_hu || p.flavor || "")
-      : (p.flavor_hu || p.flavor_en || p.flavor || "");
+    return state.lang === "en" ? (p.flavor_en || p.flavor_hu || "") : (p.flavor_hu || p.flavor_en || "");
   }
 
   function catLabel(c){
-    if(!c) return "";
     return state.lang === "en" ? (c.label_en || c.label_hu || c.id) : (c.label_hu || c.label_en || c.id);
   }
 
+  function catMap(){
+    const m = new Map();
+    for(const c of (state.productsDoc.categories || [])){
+      if(!c || !c.id) continue;
+      m.set(String(c.id), c);
+    }
+    return m;
+  }
+
+  function resolvePrice(p, cmap){
+    const pv = Number(p.price);
+    if(Number.isFinite(pv) && pv > 0) return pv;
+    const c = cmap.get(String(p.categoryId||""));
+    const cv = c ? Number(c.basePrice) : 0;
+    return Number.isFinite(cv) ? cv : 0;
+  }
+
+  // --- Data loading with cache bust, optional RAW fallback (gyorsabb frissülés)
+  async function fetchJSON(url){
+    const res = await fetch(url, { cache: "no-store" });
+    if(!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.json();
+  }
+
+  function rawUrl(){
+    const owner = (localStorage.getItem(LS.owner) || "").trim();
+    const repo = (localStorage.getItem(LS.repo) || "").trim();
+    const branch = (localStorage.getItem(LS.branch) || "main").trim() || "main";
+    if(!owner || !repo) return null;
+    return `https://raw.githubusercontent.com/${owner}/${repo}/${encodeURIComponent(branch)}/data/products.json`;
+  }
+
+  async function load(){
+    const v = Date.now();
+    const useRaw = (localStorage.getItem(LS.useRaw) === "1");
+    const r = useRaw ? rawUrl() : null;
+
+    try{
+      if(r){
+        state.productsDoc = await fetchJSON(`${r}?v=${v}`);
+      }else{
+        state.productsDoc = await fetchJSON(`data/products.json?v=${v}`);
+      }
+    }catch(e){
+      // fallback: ha RAW elhasal, próbáljuk a site-os json-t
+      try{
+        state.productsDoc = await fetchJSON(`data/products.json?v=${v}`);
+      }catch(e2){
+        alert("Betöltés hiba: Nem tudtam betölteni products.json.");
+        console.error(e, e2);
+        return;
+      }
+    }
+
+    // kompatibilitás: ha array volt régi formátum
+    if(Array.isArray(state.productsDoc)){
+      state.productsDoc = { categories: [], products: state.productsDoc };
+    }
+    if(!state.productsDoc.categories) state.productsDoc.categories = [];
+    if(!state.productsDoc.products) state.productsDoc.products = [];
+
+    renderSidebar();
+    renderGrid();
+  }
+
   function orderedCategories(){
+    // all first, soon last
     const cats = (state.productsDoc.categories || [])
       .filter(c => c && c.id)
-      .map(c => ({
-        id: String(c.id),
-        label_hu: c.label_hu || c.id,
-        label_en: c.label_en || c.label_hu || c.id,
-        basePrice: Number(c.basePrice || 0)
-      }))
-      .sort((a,b) => catLabel(a).localeCompare(catLabel(b), "hu"));
+      .map(c => ({...c, id:String(c.id)}));
 
-    // Összes első, Hamarosan utolsó (fixen)
+    cats.sort((a,b)=> catLabel(a).localeCompare(catLabel(b), state.lang === "hu" ? "hu" : "en"));
+
     return [
-      { id:"all", label_hu:t("all"), label_en:t("all"), virtual:true },
+      { id:"all", virtual:true },
       ...cats,
-      { id:"soon", label_hu:t("soon"), label_en:t("soon"), virtual:true }
+      { id:"soon", virtual:true }
     ];
   }
 
-  function effectivePrice(p){
-    const price = p.price;
-    if(price !== null && price !== undefined && price !== "" && Number.isFinite(Number(price)) && Number(price) > 0){
-      return Number(price);
-    }
-    const c = (state.productsDoc.categories || []).find(x => String(x.id) === String(p.categoryId));
-    const bp = c ? Number(c.basePrice || 0) : 0;
-    return Number.isFinite(bp) ? bp : 0;
-  }
+  function renderSidebar(){
+    const nav = document.querySelector(".nav");
+    if(!nav) return;
 
-  function isOut(p){
-    const st = (p.status || "ok");
-    const stock = Math.max(0, Number(p.stock || 0));
-    return st === "out" || stock <= 0;
-  }
-
-  function filterList(){
-    const q = norm(state.search);
-
-    let list = (state.productsDoc.products || []).map(p => ({
-      ...p,
-      categoryId: String(p.categoryId || ""),
-      status: (p.status === "soon" || p.status === "out" || p.status === "ok") ? p.status : "ok",
-      stock: Math.max(0, Number(p.stock || 0))
-    }));
-
-    if(state.active === "soon"){
-      list = list.filter(p => p.status === "soon");
-    }else{
-      // soon termékek csak hamarosan tabban
-      list = list.filter(p => p.status !== "soon");
-      if(state.active !== "all"){
-        list = list.filter(p => String(p.categoryId) === String(state.active));
-      }
-    }
-
-    if(q){
-      list = list.filter(p => {
-        const hay = norm(getName(p) + " " + getFlavor(p));
-        return hay.includes(q);
-      });
-    }
-
-    // ✅ out mindenhol leghátul: két szekció
-    const okPart = list.filter(p => !isOut(p));
-    const outPart = list.filter(p => isOut(p));
-
-    const groupSort = (arr) => {
-      const map = new Map();
-      for(const p of arr){
-        const key = norm(getName(p));
-        if(!map.has(key)) map.set(key, []);
-        map.get(key).push(p);
-      }
-      const keys = [...map.keys()].sort((a,b)=> a.localeCompare(b, state.lang === "hu" ? "hu" : "en"));
-      const out = [];
-      for(const k of keys){
-        const items = map.get(k);
-        items.sort((a,b) => norm(getFlavor(a)).localeCompare(norm(getFlavor(b))));
-        out.push(...items);
-      }
-      return out;
-    };
-
-    return [...groupSort(okPart), ...groupSort(outPart)];
-  }
-
-  function renderNav(){
-    const nav = $("#nav");
     nav.innerHTML = "";
-
     const cats = orderedCategories();
+
     for(const c of cats){
       const btn = document.createElement("button");
-      btn.textContent = c.id === "all" ? t("all") : (c.id === "soon" ? t("soon") : catLabel(c));
-      if(state.active === c.id) btn.classList.add("active");
+      btn.className = (state.activeCategory === c.id) ? "active" : "";
+      btn.textContent = (c.id==="all") ? tr("all") : (c.id==="soon" ? tr("soon") : catLabel(c));
       btn.onclick = () => {
-        state.active = c.id;
-        $("#title").textContent = btn.textContent;
-        renderNav();
+        state.activeCategory = c.id;
+        renderSidebar();
         renderGrid();
       };
       nav.appendChild(btn);
     }
   }
 
-  function fmtFt(n){
-    const v = Number(n || 0);
-    return v.toLocaleString(state.lang === "hu" ? "hu-HU" : "en-US") + " Ft";
+  function filteredProducts(){
+    const q = norm(state.q);
+    const list = (state.productsDoc.products || []).filter(p => p && p.id);
+
+    // soon csak a "soon" tabban
+    const visible = list.filter(p => {
+      const st = (p.status || "ok");
+      if(st === "soon") return state.activeCategory === "soon";
+      if(state.activeCategory === "soon") return false;
+
+      if(state.activeCategory === "all") return true;
+      return String(p.categoryId||"") === String(state.activeCategory);
+    });
+
+    const searched = q ? visible.filter(p => {
+      const n = norm(getName(p));
+      const f = norm(getFlavor(p));
+      return n.includes(q) || f.includes(q);
+    }) : visible;
+
+    // group same name together + sold out last
+    const groups = new Map();
+    for(const p of searched){
+      const key = norm(getName(p));
+      if(!groups.has(key)) groups.set(key, []);
+      groups.get(key).push(p);
+    }
+
+    const groupArr = [];
+    for(const [key, items] of groups.entries()){
+      // item rank: out last
+      items.sort((a,b)=>{
+        const ra = isOut(a) ? 1 : 0;
+        const rb = isOut(b) ? 1 : 0;
+        if(ra !== rb) return ra - rb;
+        return norm(getFlavor(a)).localeCompare(norm(getFlavor(b)), "hu");
+      });
+
+      // group rank: ha van legalább 1 nem-out, akkor előre
+      const grpRank = items.some(x => !isOut(x)) ? 0 : 1;
+      const displayName = getName(items[0]) || key;
+      groupArr.push({ key, items, grpRank, displayName });
+    }
+
+    groupArr.sort((a,b)=>{
+      if(a.grpRank !== b.grpRank) return a.grpRank - b.grpRank;
+      return norm(a.displayName).localeCompare(norm(b.displayName), "hu");
+    });
+
+    const out = [];
+    for(const g of groupArr) out.push(...g.items);
+    return out;
+  }
+
+  function isOut(p){
+    const st = (p.status || "ok");
+    const stock = Number(p.stock || 0);
+    return (st === "out") || (Number.isFinite(stock) && stock <= 0);
   }
 
   function renderGrid(){
-    const grid = $("#grid");
-    const empty = $("#empty");
+    const grid = document.querySelector(".grid");
+    if(!grid) return;
+
     grid.innerHTML = "";
-
-    const list = filterList();
-    $("#count").textContent = String(list.length);
-
-    empty.style.display = list.length ? "none" : "block";
+    const cmap = catMap();
+    const list = filteredProducts();
 
     for(const p of list){
       const name = getName(p);
       const flavor = getFlavor(p);
       const stock = Math.max(0, Number(p.stock || 0));
-      const out = isOut(p);
-      const price = effectivePrice(p);
+      const st = (p.status || "ok");
+      const price = resolvePrice(p, cmap);
 
       const card = document.createElement("div");
-      card.className = "card fade-in" + (out ? " dim" : "");
+      card.className = "card fade-in" + (isOut(p) ? " dim" : "");
 
+      // hero (1:1)
       const hero = document.createElement("div");
       hero.className = "hero";
 
       const img = document.createElement("img");
       img.loading = "lazy";
-      img.alt = (name + (flavor ? " - " + flavor : "")).trim();
+      img.alt = `${name}${flavor ? " - " + flavor : ""}`;
       img.src = p.image || "";
       hero.appendChild(img);
 
       const badges = document.createElement("div");
       badges.className = "badges";
-      if(p.status === "soon"){
+
+      if(st === "soon"){
         const b = document.createElement("div");
         b.className = "badge soon";
-        b.textContent = t("soon");
+        b.textContent = tr("soonBadge");
         badges.appendChild(b);
-      }else if(out){
+      }else if(isOut(p)){
         const b = document.createElement("div");
         b.className = "badge out";
-        b.textContent = t("out");
+        b.textContent = tr("out");
         badges.appendChild(b);
       }
       hero.appendChild(badges);
 
-      const ov = document.createElement("div");
-      ov.className = "overlay-title";
-      const n = document.createElement("div");
-      n.className = "name";
-      n.textContent = name || "—";
-      const f = document.createElement("div");
-      f.className = "flavor";
-      f.textContent = flavor || "";
-      ov.appendChild(n);
-      ov.appendChild(f);
-      hero.appendChild(ov);
+      // overlay title (név+íz a képen)
+      const overlay = document.createElement("div");
+      overlay.className = "overlay-title";
+      overlay.innerHTML = `
+        <div class="name"></div>
+        <div class="flavor"></div>
+      `;
+      overlay.querySelector(".name").textContent = name || "";
+      overlay.querySelector(".flavor").textContent = flavor || "";
+      hero.appendChild(overlay);
 
+      // body: csak ár + készlet (AHOGY KÉRTED)
       const body = document.createElement("div");
       body.className = "card-body";
-
-      // ✅ ár + készlet CSAK a kép alatt (ahogy kérted)
       const meta = document.createElement("div");
       meta.className = "meta-row";
 
       const priceEl = document.createElement("div");
       priceEl.className = "price";
-      priceEl.textContent = fmtFt(price);
+      priceEl.textContent = (price || 0).toLocaleString("hu-HU") + " Ft";
 
       const stockEl = document.createElement("div");
       stockEl.className = "stock";
-      stockEl.innerHTML = `${t("stock")}: <b>${p.status === "soon" ? "—" : stock}</b> ${p.status === "soon" ? "" : t("pcs")}`;
+      stockEl.innerHTML = `${tr("stock")}: <b>${st==="soon" ? "—" : stock}</b> ${st==="soon" ? "" : tr("pcs")}`;
 
       meta.appendChild(priceEl);
       meta.appendChild(stockEl);
@@ -255,42 +275,31 @@
     }
   }
 
-  async function init(){
-    $("#langLabel").textContent = state.lang.toUpperCase();
-    $("#langBtn").onclick = () => {
-      state.lang = state.lang === "hu" ? "en" : "hu";
-      localStorage.setItem("sv_lang", state.lang);
-      $("#langLabel").textContent = state.lang.toUpperCase();
-      renderNav();
-      renderGrid();
-    };
-
-    $("#search").addEventListener("input", (e) => {
-      state.search = e.target.value || "";
+  // kereső input (ha van)
+  function bindSearch(){
+    const inp = document.querySelector('input[type="search"], #search, .search');
+    if(!inp) return;
+    inp.addEventListener("input", (e)=>{
+      state.q = e.target.value || "";
       renderGrid();
     });
-
-    $("#loaderText").textContent = "Termékek betöltése...";
-    const data = await fetchJsonSmart("data/products.json");
-    if(Array.isArray(data)){
-      state.productsDoc = { categories: [], products: data };
-    }else{
-      state.productsDoc = {
-        categories: Array.isArray(data.categories) ? data.categories : [],
-        products: Array.isArray(data.products) ? data.products : []
-      };
-    }
-
-    renderNav();
-    renderGrid();
-
-    $("#loader").style.display = "none";
-    $("#app").style.display = "grid";
   }
 
-  init().catch(err => {
-    console.error(err);
-    $("#loaderText").textContent = "Betöltési hiba. Nézd meg a konzolt.";
-    // nincs alert/prompt (kérted)
+  // nyelv váltó (ha van)
+  function bindLang(){
+    const btn = document.querySelector("#langToggle");
+    if(!btn) return;
+    btn.addEventListener("click", ()=>{
+      state.lang = (state.lang === "hu") ? "en" : "hu";
+      localStorage.setItem(LS.lang, state.lang);
+      renderSidebar();
+      renderGrid();
+    });
+  }
+
+  document.addEventListener("DOMContentLoaded", ()=>{
+    bindSearch();
+    bindLang();
+    load();
   });
 })();
