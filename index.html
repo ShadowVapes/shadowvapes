@@ -2,31 +2,47 @@
 <html lang="hu">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>ShadowVapes</title>
-  <link rel="stylesheet" href="./styles.css" />
+  <link rel="stylesheet" href="assets/style.css" />
 </head>
 <body>
-  <div class="app fade-in">
-    <aside class="sidebar">
-      <div class="logo">ShadowVapes</div>
-      <div class="nav" id="catNav"></div>
-      <div style="margin-top:14px" class="smallmuted">
-        Admin: <a href="./admin.html">/admin.html</a>
+  <div id="loader" class="loader" style="display:none">
+    <div class="loaderCard">
+      <div class="skel big"></div>
+      <div class="skel mid"></div>
+      <div class="skel sm"></div>
+      <div class="bottomRow">
+        <span>töltögetem…</span><span id="loadHint">ShadowVapes</span>
       </div>
-    </aside>
-
-    <main class="main">
-      <div class="topbar">
-        <div>
-          <div class="smallmuted" id="infoLine">Betöltés...</div>
-        </div>
-      </div>
-
-      <section class="grid" id="grid"></section>
-    </main>
+    </div>
   </div>
 
-  <script type="module" src="./app.js"></script>
+  <div class="container">
+    <div class="topbar">
+      <div class="brand"><span id="brandName">ShadowVapes</span></div>
+      <div class="pillrow">
+        <button id="langToggle" class="langBtn" title="Nyelv váltás">HU/EN</button>
+      </div>
+    </div>
+
+    <div class="layout">
+      <aside class="sidebar">
+        <div class="sideTitle">Kategóriák</div>
+        <div id="catList"></div>
+      </aside>
+
+      <main>
+        <div class="pillrow" style="margin-bottom:12px">
+          <button class="pill active" data-tab="all">Összes termék</button>
+          <button class="pill" data-tab="comingsoon">Hamarosan</button>
+        </div>
+
+        <div id="grid" class="grid"></div>
+      </main>
+    </div>
+  </div>
+
+  <script src="assets/app.js"></script>
 </body>
 </html>
