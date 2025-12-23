@@ -2,6 +2,8 @@
   "categories": [
     "Összes termék",
     "ELF",
+    "SOLO",
+    "Vapsolo 80k",
     "Hamarosan"
   ],
   "products": [
@@ -36,6 +38,23 @@
       "price": 6000,
       "stock": 10,
       "image": "https://ezigisale.com/wp-content/uploads/2025/03/Elf_bull.png",
+      "status": "ok",
+      "statusLocked": false
+    },
+    {
+      "id": "94b5301b7457e19b4bf5a679",
+      "name": {
+        "hu": "Vapsolo Quads 80k",
+        "en": "Vapsolo Quads 80k"
+      },
+      "flavor": {
+        "hu": "Mojito & Mangós Monster & Lady Gyilkos & Pink Limonádé",
+        "en": "Mojito & Monster Mango & Lady Killer & Pink Lemonade"
+      },
+      "category": "ELF",
+      "price": 6500,
+      "stock": 10,
+      "image": "https://ezigisale.com/wp-content/uploads/2025/10/10.MOJITO-MONSTER-MANGO-LADY-KILLER-PINK-LEMONADE.png",
       "status": "ok",
       "statusLocked": false
     }
