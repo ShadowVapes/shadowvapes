@@ -1,3 +1,18 @@
 {
-  "sales": []
+  "sales": [
+    {
+      "id": "dd7831fb8f19519b4bed1cfe",
+      "date": "2025-12-23",
+      "items": [
+        {
+          "productId": "ae77efe4da06c819b4be36bd1",
+          "name": "Elfbar Ice King 30k",
+          "flavor": "Pink Limonádé",
+          "qty": 4,
+          "unitPrice": 6000
+        }
+      ],
+      "total": 24000
+    }
+  ]
 }
