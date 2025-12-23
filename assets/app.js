@@ -1,482 +1,316 @@
-:root{
-  --bg:#0b0f17;
-  --panel:#0f1624;
-  --card:#121b2c;
-  --text:#e8eefc;
-  --muted:#92a0bf;
-  --brand:#7c5cff;
-  --brand2:#28d7ff;
-  --danger:#ff4d6d;
-  --ok:#34d399;
-  --shadow: 0 20px 60px rgba(0,0,0,.45);
-  --radius: 18px;
+const $ = (sel) => document.querySelector(sel);
+
+const state = {
+  lang: localStorage.getItem("sv_lang") || "hu",
+  products: [],
+  categories: [],
+  activeCategory: "all",
+  search: ""
+};
+
+const T = {
+  hu: {
+    brandSub: "Prémium katalógus",
+    title: "Termékek",
+    subtitle: "Válassz kategóriát, és válogass.",
+    searchPh: "Keresés...",
+    all: "Összes termék",
+    soon: "Hamarosan",
+    stock: "Készlet",
+    pcs: "db",
+    sold: "Elfogyott",
+    coming: "Hamarosan",
+    ok: "Elérhető",
+    emptyTitle: "Nincs találat",
+    emptySub: "Próbáld más kulcsszóval vagy kategóriával."
+  },
+  en: {
+    brandSub: "Premium catalog",
+    title: "Products",
+    subtitle: "Pick a category and browse.",
+    searchPh: "Search...",
+    all: "All products",
+    soon: "Coming soon",
+    stock: "Stock",
+    pcs: "pcs",
+    sold: "Sold out",
+    coming: "Coming soon",
+    ok: "Available",
+    emptyTitle: "No results",
+    emptySub: "Try a different keyword or category."
+  }
+};
+
+function tr(key){ return (T[state.lang] && T[state.lang][key]) || key; }
+
+function normalize(s){
+  return (s || "").toString().toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 }
 
-*{ box-sizing:border-box; }
-html,body{ height:100%; }
-body{
-  margin:0;
-  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
-  background: radial-gradient(1200px 600px at 10% 10%, rgba(124,92,255,.25), transparent 60%),
-              radial-gradient(900px 500px at 90% 20%, rgba(40,215,255,.18), transparent 55%),
-              var(--bg);
-  color:var(--text);
+function getName(p){
+  return state.lang === "en"
+    ? (p.name_en || p.name_hu || p.name || "")
+    : (p.name_hu || p.name_en || p.name || "");
+}
+function getFlavor(p){
+  return state.lang === "en"
+    ? (p.flavor_en || p.flavor_hu || p.flavor || "")
+    : (p.flavor_hu || p.flavor_en || p.flavor || "");
+}
+function getCategoryLabel(cat){
+  if(!cat) return "";
+  return state.lang === "en"
+    ? (cat.label_en || cat.label_hu || cat.id)
+    : (cat.label_hu || cat.label_en || cat.id);
 }
 
-a{ color:inherit; text-decoration:none; }
-button, input, select{
-  font: inherit;
+async function load(){
+  $("#year").textContent = new Date().getFullYear();
+
+  // UI text
+  $("#brandSub").textContent = tr("brandSub");
+  $("#title").textContent = tr("title");
+  $("#subtitle").textContent = tr("subtitle");
+  $("#search").placeholder = tr("searchPh");
+  $("#emptyTitle").textContent = tr("emptyTitle");
+  $("#emptySub").textContent = tr("emptySub");
+  $("#langLabel").textContent = state.lang.toUpperCase();
+
+  const productsRes = await fetch("data/products.json", { cache: "no-store" });
+  const productsData = await productsRes.json();
+
+  state.products = Array.isArray(productsData.products)
+    ? productsData.products
+    : (Array.isArray(productsData) ? productsData : []);
+
+  state.categories = Array.isArray(productsData.categories) ? productsData.categories : [];
+
+  // Fallback categories if none
+  if(state.categories.length === 0){
+    const seen = new Map();
+    for(const p of state.products){
+      if(p.categoryId && !seen.has(p.categoryId)){
+        seen.set(p.categoryId, { id: String(p.categoryId), label_hu: String(p.categoryId), label_en: String(p.categoryId) });
+      }
+    }
+    state.categories = [...seen.values()];
+  }
+
+  // sanitize categories
+  state.categories = state.categories
+    .filter(c => c && c.id && c.id !== "all")
+    .map(c => ({ id: String(c.id), label_hu: c.label_hu || c.id, label_en: c.label_en || c.label_hu || c.id }));
+
+  renderTabs();
+  render();
+  bind();
 }
 
-.fade-in{
-  animation: fadeIn .35s ease-out both;
-}
-@keyframes fadeIn{
-  from{ opacity:0; transform: translateY(6px); }
-  to{ opacity:1; transform: translateY(0); }
+function bind(){
+  $("#langToggle").onclick = () => {
+    state.lang = state.lang === "hu" ? "en" : "hu";
+    localStorage.setItem("sv_lang", state.lang);
+
+    $("#langLabel").textContent = state.lang.toUpperCase();
+    $("#brandSub").textContent = tr("brandSub");
+    $("#title").textContent = tr("title");
+    $("#subtitle").textContent = tr("subtitle");
+    $("#search").placeholder = tr("searchPh");
+    $("#emptyTitle").textContent = tr("emptyTitle");
+    $("#emptySub").textContent = tr("emptySub");
+
+    renderTabs();
+    render();
+  };
+
+  $("#search").addEventListener("input", (e) => {
+    state.search = e.target.value || "";
+    render();
+  });
+
+  $("#clearSearch").onclick = () => {
+    state.search = "";
+    $("#search").value = "";
+    render();
+  };
 }
 
-#loader{
-  position:fixed; inset:0;
-  display:flex; align-items:center; justify-content:center;
-  background: rgba(11,15,23,.9);
-  backdrop-filter: blur(10px);
-  z-index:9999;
-}
-.loader-card{
-  width:min(520px, 92vw);
-  background: linear-gradient(180deg, rgba(124,92,255,.20), rgba(18,27,44,.95));
-  border: 1px solid rgba(124,92,255,.25);
-  border-radius: 22px;
-  padding: 22px;
-  box-shadow: var(--shadow);
-}
-.loader-top{
-  display:flex; justify-content:space-between; align-items:center;
-  gap:12px;
-}
-.loader-logo{
-  font-weight:800;
-  letter-spacing:.3px;
-  font-size: 20px;
-}
-.pulse{
-  height:10px; width:10px; border-radius:999px;
-  background: var(--brand2);
-  box-shadow: 0 0 0 0 rgba(40,215,255,.8);
-  animation: pulse 1.2s infinite;
-}
-@keyframes pulse{
-  0%{ box-shadow:0 0 0 0 rgba(40,215,255,.65); }
-  70%{ box-shadow:0 0 0 16px rgba(40,215,255,0); }
-  100%{ box-shadow:0 0 0 0 rgba(40,215,255,0); }
-}
-.loader-bar{
-  margin-top:16px;
-  height:10px; border-radius:999px;
-  background: rgba(255,255,255,.08);
-  overflow:hidden;
-}
-.loader-bar > div{
-  height:100%;
-  width: 35%;
-  background: linear-gradient(90deg, var(--brand), var(--brand2));
-  border-radius:999px;
-  animation: slide 1.1s ease-in-out infinite;
-}
-@keyframes slide{
-  0%{ transform: translateX(-120%); }
-  100%{ transform: translateX(320%); }
-}
-.loader-sub{
-  margin-top:12px;
-  color: var(--muted);
-  font-size: 13px;
+function orderedCategories(){
+  // "Összes termék" first (virtual), "Hamarosan" last (virtual)
+  const cats = [...state.categories].filter(c => c.id !== "soon");
+  cats.sort((a,b) => getCategoryLabel(a).localeCompare(getCategoryLabel(b), state.lang === "hu" ? "hu" : "en"));
+  return [
+    { id: "all", virtual: true },
+    ...cats,
+    { id: "soon", virtual: true }
+  ];
 }
 
-.wrap{
-  display:grid;
-  grid-template-columns: 270px 1fr;
-  min-height:100vh;
+function renderTabs(){
+  const el = $("#categoryTabs");
+  el.innerHTML = "";
+
+  const cats = orderedCategories();
+  for(const c of cats){
+    const btn = document.createElement("button");
+    btn.className = "tab" + (state.activeCategory === c.id ? " active" : "");
+    btn.textContent = c.id === "all" ? tr("all") : (c.id === "soon" ? tr("soon") : getCategoryLabel(c));
+    btn.onclick = () => {
+      state.activeCategory = c.id;
+      renderTabs();
+      render();
+    };
+    el.appendChild(btn);
+  }
 }
 
-.sidebar{
-  position:sticky; top:0; height:100vh;
-  padding: 18px;
-  background: rgba(15,22,36,.75);
-  border-right: 1px solid rgba(255,255,255,.06);
-  backdrop-filter: blur(12px);
-}
-.brand{
-  font-weight: 900;
-  font-size: 22px;
-  letter-spacing: .2px;
-  margin: 6px 6px 16px;
-}
-.brand span{
-  background: linear-gradient(90deg, var(--brand), var(--brand2));
-  -webkit-background-clip:text;
-  background-clip:text;
-  color:transparent;
-}
-.nav{
-  display:flex; flex-direction:column; gap:8px;
-}
-.nav button{
-  width:100%;
-  padding: 12px 12px;
-  border-radius: 14px;
-  border: 1px solid rgba(255,255,255,.06);
-  background: rgba(18,27,44,.55);
-  color: var(--text);
-  text-align:left;
-  cursor:pointer;
-  transition: .18s;
-}
-.nav button:hover{
-  transform: translateY(-1px);
-  border-color: rgba(124,92,255,.35);
-}
-.nav button.active{
-  background: linear-gradient(180deg, rgba(124,92,255,.22), rgba(18,27,44,.65));
-  border-color: rgba(124,92,255,.45);
-}
-.sidebar-bottom{
-  margin-top:auto;
-  padding-top: 14px;
-  display:flex;
-  flex-direction:column;
-  gap:10px;
-}
-.pill{
-  display:flex; gap:8px; align-items:center;
-  border: 1px solid rgba(255,255,255,.06);
-  background: rgba(18,27,44,.55);
-  border-radius: 999px;
-  padding: 10px 12px;
-  color: var(--muted);
-  font-size: 13px;
-}
-.pill b{ color: var(--text); font-weight:700; }
-.pill button{
-  margin-left:auto;
-  border:none;
-  background: rgba(124,92,255,.16);
-  color: var(--text);
-  padding: 7px 10px;
-  border-radius: 999px;
-  cursor:pointer;
-}
-.pill button:hover{ background: rgba(124,92,255,.26); }
+function groupProducts(list){
+  // Group by name so same names are next to each other
+  const map = new Map();
+  for(const p of list){
+    const key = normalize(getName(p));
+    if(!map.has(key)) map.set(key, []);
+    map.get(key).push(p);
+  }
 
-.main{
-  padding: 18px;
-}
-.topbar{
-  display:flex; align-items:center; justify-content:space-between;
-  gap: 14px;
-  margin-bottom: 14px;
-}
-.h1{
-  font-size: 18px;
-  color: var(--muted);
-}
-.grid{
-  display:grid;
-  grid-template-columns: repeat( auto-fill, minmax(250px, 1fr) );
-  gap: 14px;
+  const locale = state.lang === "hu" ? "hu" : "en";
+  const keys = [...map.keys()].sort((a,b) => a.localeCompare(b, locale));
+
+  const out = [];
+  for(const k of keys){
+    const items = map.get(k);
+    items.sort((a,b) => normalize(getFlavor(a)).localeCompare(normalize(getFlavor(b)), locale));
+    out.push(...items);
+  }
+  return out;
 }
 
-.card{
-  background: rgba(18,27,44,.70);
-  border: 1px solid rgba(255,255,255,.06);
-  border-radius: var(--radius);
-  overflow:hidden;
-  box-shadow: 0 10px 40px rgba(0,0,0,.25);
-  transition: .18s;
-}
-.card:hover{ transform: translateY(-2px); border-color: rgba(124,92,255,.35); }
-.card.dim{
-  opacity:.45;
-  filter: grayscale(.2);
+function filterProducts(){
+  const q = normalize(state.search);
+
+  let list = state.products.filter(p => {
+    const st = p.status || "ok";
+
+    if(st === "soon"){
+      return state.activeCategory === "soon";
+    }
+    if(state.activeCategory === "soon") return false;
+
+    if(state.activeCategory !== "all"){
+      return String(p.categoryId || "") === String(state.activeCategory);
+    }
+    return true;
+  });
+
+  if(q){
+    list = list.filter(p => {
+      const n = normalize(getName(p));
+      const f = normalize(getFlavor(p));
+      return n.includes(q) || f.includes(q);
+    });
+  }
+
+  // ok first, out after (still visible)
+  list.sort((a,b) => {
+    const rank = (s) => (s === "ok" ? 0 : (s === "out" ? 1 : 2));
+    return rank(a.status || "ok") - rank(b.status || "ok");
+  });
+
+  return groupProducts(list);
 }
 
-/* ===========================
-   1000x1000 FIX (FONTOS RÉSZ)
-   =========================== */
-
-/* A hero legyen mindig négyzet, így 1000×1000 képhez tökéletes */
-.hero{
-  position:relative;
-  aspect-ratio: 1 / 1;       /* <<< EZ A LÉNYEG */
-  height: auto;              /* ne fix 170px */
-  min-height: 210px;         /* safety, ha nagyon keskeny */
-  background: linear-gradient(135deg, rgba(124,92,255,.18), rgba(40,215,255,.10));
+function fmtPrice(p){
+  const v = Number(p.price || 0);
+  if(!Number.isFinite(v)) return "—";
+  return v.toLocaleString(state.lang === "hu" ? "hu-HU" : "en-US") + " Ft";
 }
 
-/* Kép töltse ki a négyzetet */
-.hero img{
-  width:100%;
-  height:100%;
-  object-fit: cover;
-  object-position: center;
-  display:block;
+function statusBadge(p){
+  const st = p.status || "ok";
+  if(st === "soon") return { text: tr("coming"), cls: "warn" };
+  const stock = Number(p.stock || 0);
+  if(st === "out" || stock <= 0) return { text: tr("sold"), cls: "bad" };
+  return { text: tr("ok"), cls: "good" };
 }
 
-/* plusz: enyhe alsó sötétítés, hogy az overlay mindig olvasható legyen */
-.hero::after{
-  content:"";
-  position:absolute;
-  left:0; right:0; bottom:0;
-  height: 46%;
-  background: linear-gradient(180deg, rgba(0,0,0,0), rgba(0,0,0,.55));
-  pointer-events:none;
+function render(){
+  const grid = $("#grid");
+  const empty = $("#emptyState");
+
+  const list = filterProducts();
+  $("#countPill").textContent = `${list.length} ${tr("pcs")}`;
+
+  grid.innerHTML = "";
+  empty.hidden = list.length !== 0;
+
+  for(const p of list){
+    const name = getName(p);
+    const flavor = getFlavor(p);
+    const stock = Math.max(0, Number(p.stock || 0));
+    const st = p.status || "ok";
+
+    const card = document.createElement("div");
+    card.className = "card" + ((st === "out" || stock <= 0) ? " sold" : "") + (st === "soon" ? " soon" : "");
+
+    const imgwrap = document.createElement("div");
+    imgwrap.className = "imgwrap";
+
+    const img = document.createElement("img");
+    img.loading = "lazy";
+    img.alt = `${name}${flavor ? " - " + flavor : ""}`;
+    img.src = p.image || "";
+    img.onerror = () => { img.src = ""; imgwrap.style.background = "rgba(255,255,255,.05)"; };
+    imgwrap.appendChild(img);
+
+    const b = statusBadge(p);
+    const badge = document.createElement("div");
+    badge.className = `badge ${b.cls}`;
+    badge.textContent = b.text;
+    imgwrap.appendChild(badge);
+
+    // Overlay text (name + flavor + price + stock) on the image
+    const overlay = document.createElement("div");
+    overlay.className = "overlay";
+
+    const pname = document.createElement("div");
+    pname.className = "pname";
+    pname.textContent = name || "";
+
+    const pflavor = document.createElement("div");
+    pflavor.className = "pflavor";
+    pflavor.textContent = flavor || "";
+
+    const meta = document.createElement("div");
+    meta.className = "ometa";
+
+    const price = document.createElement("div");
+    price.className = "price";
+    price.textContent = fmtPrice(p);
+
+    const stockEl = document.createElement("div");
+    stockEl.className = "stock";
+    if(st === "soon"){
+      stockEl.textContent = "—";
+    }else{
+      stockEl.textContent = `${tr("stock")}: ${stock} ${tr("pcs")}`;
+    }
+
+    meta.appendChild(price);
+    meta.appendChild(stockEl);
+
+    overlay.appendChild(pname);
+    overlay.appendChild(pflavor);
+    overlay.appendChild(meta);
+
+    imgwrap.appendChild(overlay);
+
+    card.appendChild(imgwrap);
+    grid.appendChild(card);
+  }
 }
 
-/* badge-ek maradnak fent, felette legyenek a gradientnek */
-.badges{
-  position:absolute; top:10px; left:10px;
-  display:flex; gap:8px; flex-wrap:wrap;
-  z-index:2;
-}
-.badge{
-  font-size: 12px;
-  padding: 6px 10px;
-  border-radius: 999px;
-  background: rgba(0,0,0,.45);
-  border: 1px solid rgba(255,255,255,.12);
-}
-.badge.out{ background: rgba(255,77,109,.18); border-color: rgba(255,77,109,.35); }
-.badge.soon{ background: rgba(40,215,255,.14); border-color: rgba(40,215,255,.35); }
-
-/* Overlay: fix alul, szépen, clampelve, nem csúszik szét */
-.overlay-title{
-  position:absolute;
-  left:12px; right:12px;
-  bottom: 12px;
-  display:flex; flex-direction:column; gap:4px;
-  background: rgba(11,15,23,.58);
-  border: 1px solid rgba(255,255,255,.12);
-  border-radius: 14px;
-  padding: 10px 10px;
-  backdrop-filter: blur(10px);
-  z-index:2;
-
-  /* fontos: ne nyúljon túl, és ne ugráljon */
-  min-height: 58px;
-}
-
-/* Név: max 2 sor, ne törje szét a kártyát */
-.overlay-title .name{
-  font-weight: 900;
-  letter-spacing: .2px;
-  font-size: 15px;
-  line-height: 1.15;
-
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-/* Íz: max 2 sor, szintén clamp */
-.overlay-title .flavor{
-  color: var(--muted);
-  font-size: 13px;
-  line-height: 1.2;
-
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-/* ===========================
-   END 1000x1000 FIX
-   =========================== */
-
-.card-body{
-  padding: 12px 12px 14px;
-  display:flex; flex-direction:column; gap:10px;
-}
-.meta-row{
-  display:flex; justify-content:space-between; gap:10px; align-items:center;
-}
-.price{
-  font-weight: 900;
-  font-size: 16px;
-}
-.stock{
-  color: var(--muted);
-  font-size: 13px;
-}
-.stock b{ color: var(--text); }
-
-.modal-backdrop{
-  position:fixed; inset:0;
-  background: rgba(0,0,0,.55);
-  display:none;
-  align-items:center;
-  justify-content:center;
-  z-index: 9998;
-  padding: 18px;
-}
-.modal{
-  width:min(520px, 94vw);
-  background: rgba(15,22,36,.92);
-  border: 1px solid rgba(255,255,255,.08);
-  border-radius: 22px;
-  padding: 18px;
-  box-shadow: var(--shadow);
-}
-.modal h2{ margin:0 0 6px; }
-.modal p{ margin:0 0 14px; color: var(--muted); }
-.modal .row{ display:flex; gap:10px; flex-wrap:wrap; }
-.modal .row button{
-  flex:1;
-  border:none;
-  border-radius: 16px;
-  padding: 12px 12px;
-  cursor:pointer;
-  background: rgba(124,92,255,.18);
-  color: var(--text);
-}
-.modal .row button:hover{
-  background: rgba(124,92,255,.28);
-}
-
-.small-muted{ color: var(--muted); font-size: 13px; }
-
-.admin-wrap{
-  max-width: 1200px;
-  margin:0 auto;
-  padding: 18px;
-}
-.admin-top{
-  display:flex; align-items:center; justify-content:space-between; gap:12px;
-}
-.tabs{
-  margin-top: 14px;
-  display:flex; gap:10px; flex-wrap:wrap;
-}
-.tabs button{
-  border:none;
-  padding: 10px 12px;
-  border-radius: 14px;
-  background: rgba(18,27,44,.70);
-  border: 1px solid rgba(255,255,255,.06);
-  color: var(--text);
-  cursor:pointer;
-}
-.tabs button.active{
-  border-color: rgba(124,92,255,.45);
-  background: rgba(124,92,255,.18);
-}
-.panel{
-  margin-top: 14px;
-  background: rgba(18,27,44,.70);
-  border: 1px solid rgba(255,255,255,.06);
-  border-radius: 18px;
-  padding: 14px;
-}
-.form-grid{
-  display:grid;
-  grid-template-columns: repeat(12, 1fr);
-  gap:10px;
-}
-.field{
-  grid-column: span 6;
-  display:flex; flex-direction:column; gap:6px;
-}
-.field.full{ grid-column: span 12; }
-.field.third{ grid-column: span 4; }
-.field label{ font-size: 12px; color: var(--muted); }
-.field input, .field select{
-  border-radius: 14px;
-  border: 1px solid rgba(255,255,255,.08);
-  background: rgba(11,15,23,.45);
-  color: var(--text);
-  padding: 10px 12px;
-  outline:none;
-}
-.actions{
-  display:flex; gap:10px; flex-wrap:wrap;
-  margin-top: 10px;
-}
-.primary{
-  border:none;
-  background: linear-gradient(90deg, var(--brand), var(--brand2));
-  color: #061018;
-  font-weight: 900;
-  padding: 10px 14px;
-  border-radius: 14px;
-  cursor:pointer;
-}
-.ghost{
-  border: 1px solid rgba(255,255,255,.10);
-  background: rgba(11,15,23,.35);
-  color: var(--text);
-  padding: 10px 14px;
-  border-radius: 14px;
-  cursor:pointer;
-}
-.danger{
-  border: 1px solid rgba(255,77,109,.35);
-  background: rgba(255,77,109,.10);
-  color: var(--text);
-  padding: 10px 14px;
-  border-radius: 14px;
-  cursor:pointer;
-}
-.rowline{
-  display:flex; gap:10px; align-items:center; justify-content:space-between;
-  padding: 10px 10px;
-  border-radius: 14px;
-  border: 1px solid rgba(255,255,255,.06);
-  background: rgba(11,15,23,.25);
-  margin-top:10px;
-}
-.rowline .left{
-  display:flex; flex-direction:column; gap:2px;
-}
-.kpi{
-  display:flex; gap:10px; flex-wrap:wrap;
-}
-.kpi .box{
-  flex:1;
-  min-width: 220px;
-  border: 1px solid rgba(255,255,255,.06);
-  background: rgba(11,15,23,.25);
-  border-radius: 18px;
-  padding: 12px;
-}
-.kpi .box .t{ color: var(--muted); font-size:12px; }
-.kpi .box .v{ font-weight: 900; font-size: 18px; margin-top:4px; }
-.table{
-  width:100%;
-  border-collapse: collapse;
-  margin-top: 10px;
-}
-.table th, .table td{
-  padding: 10px;
-  border-bottom: 1px solid rgba(255,255,255,.08);
-  text-align:left;
-  font-size: 13px;
-}
-.table th{ color: var(--muted); font-weight: 700; }
-.save-ind{
-  color: var(--muted);
-  font-size: 13px;
-  display:flex; align-items:center; gap:8px;
-}
-.dot{
-  width:10px; height:10px; border-radius:999px;
-  background: rgba(146,160,191,.55);
-}
-.dot.ok{ background: rgba(52,211,153,.9); }
-.dot.busy{ background: rgba(40,215,255,.9); }
-
-@media (max-width: 860px){
-  .wrap{ grid-template-columns: 1fr; }
-  .sidebar{ height:auto; position:relative; }
-}
+load().catch(err => {
+  console.error(err);
+  alert("Hiba a betöltésnél: " + err.message);
+});
