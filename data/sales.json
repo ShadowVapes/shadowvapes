@@ -4,7 +4,7 @@
       "id": "4309b90c228ef19b492c546d",
       "ts": "2025-12-23T03:06:00.000Z",
       "buyer": "B. Zsolt",
-      "pay": "VÃÂ¡sÃÂ¡rlÃÂ¡skor kp",
+      "pay": "VÃÂÃÂ¡sÃÂÃÂ¡rlÃÂÃÂ¡skor kp",
       "note": "",
       "item": {
         "productId": "9e1a214d6df2219b491fd485",
@@ -22,10 +22,24 @@
       "note": "",
       "item": {
         "productId": "cb7fa66a7786b819b492e455e",
-        "nameHu": "Vapsolo Quads 80k 4 Ã­zÅ±",
-        "nameEn": "Vapsolo Quads 80k 4 Ã­zÅ±",
+        "nameHu": "Vapsolo Quads 80k 4 ÃÂ­zÃÂ±",
+        "nameEn": "Vapsolo Quads 80k 4 ÃÂ­zÃÂ±",
         "qty": 4,
         "unit": 6500
+      }
+    },
+    {
+      "id": "b1754efbccae519b493c8b70",
+      "ts": "2025-12-23T03:23:00.000Z",
+      "buyer": "sdf",
+      "pay": "sdf",
+      "note": "",
+      "item": {
+        "productId": "9e1a214d6df2219b491fd485",
+        "nameHu": "Elfbar Ice King 30k slukk",
+        "nameEn": "Elfbar Ice King 30k slukk",
+        "qty": 8,
+        "unit": 6000
       }
     }
   ]
