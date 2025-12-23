@@ -2,61 +2,97 @@
 <html lang="hu">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Admin • ShadowVapes</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>ShadowVapes Admin</title>
   <link rel="stylesheet" href="assets/styles.css" />
 </head>
 <body>
   <div class="admin-wrap">
     <div class="admin-top">
-      <div class="brand"><span>ShadowVapes</span> <span class="small-muted">• Admin</span></div>
-      <div class="save-ind">
-        <div class="dot" id="saveDot"></div>
-        <div id="saveText">Nincs mentés folyamatban</div>
+      <div>
+        <div class="brand">Shadow<span>Vapes</span> Admin</div>
+        <div class="small-muted">Products • Categories • Sales • GitHub Save</div>
+      </div>
+      <div class="actions">
+        <a class="ghost" href="index.html">Katalógus</a>
+        <button class="ghost" id="loadBtn">Betölt</button>
+        <button class="primary" id="saveBtn">Mentés</button>
       </div>
     </div>
 
-    <div class="panel fade-in">
-      <div class="small-muted">GitHub beállítás (csak egyszer kell):</div>
+    <div class="tabs">
+      <button class="active" data-tab="settings">Beállítások</button>
+      <button data-tab="categories">Kategóriák</button>
+      <button data-tab="products">Termékek</button>
+      <button data-tab="sales">Eladások</button>
+    </div>
+
+    <div class="panel" id="tab-settings">
+      <div class="save-ind">
+        <span class="dot" id="saveDot"></span>
+        <span id="saveText">Készen áll</span>
+      </div>
+
       <div class="form-grid" style="margin-top:10px;">
         <div class="field third">
-          <label>Owner (felhasználónév)</label>
+          <label>Owner</label>
           <input id="ghOwner" placeholder="pl. tesouser" />
         </div>
         <div class="field third">
-          <label>Repo név</label>
+          <label>Repo</label>
           <input id="ghRepo" placeholder="pl. shadowvapes" />
         </div>
         <div class="field third">
           <label>Branch</label>
-          <input id="ghBranch" value="main" />
+          <input id="ghBranch" placeholder="main" />
         </div>
         <div class="field full">
-          <label>GitHub Token (Fine-grained vagy classic)</label>
-          <input id="ghToken" placeholder="ghp_..." />
+          <label>Token</label>
+          <input id="ghToken" type="password" placeholder="ghp_ / fine-grained token" />
         </div>
       </div>
-      <div class="actions">
-        <button class="primary" id="btnSaveCfg">Mentem a beállítást</button>
-        <button class="ghost" id="btnLoad">Betöltés GitHub-ról</button>
+
+      <div class="small-muted" style="margin-top:10px;">
+        Mentés után automatikusan újratölt (fix kérés).
       </div>
-      <div class="small-muted" id="cfgHint" style="margin-top:10px;"></div>
     </div>
 
-    <div class="tabs">
-      <button class="active" data-tab="products">Termékek</button>
-      <button data-tab="categories">Kategóriák</button>
-      <button data-tab="sales">Eladás rögzítése</button>
-      <button data-tab="reports">Bevétel</button>
+    <div class="panel" id="tab-categories" style="display:none;">
+      <div class="actions">
+        <button class="primary" id="addCatBtn">+ Kategória</button>
+      </div>
+      <table class="table" id="catTable"></table>
     </div>
 
-    <div class="panel" id="tabProducts"></div>
-    <div class="panel" id="tabCategories" style="display:none;"></div>
-    <div class="panel" id="tabSales" style="display:none;"></div>
-    <div class="panel" id="tabReports" style="display:none;"></div>
+    <div class="panel" id="tab-products" style="display:none;">
+      <div class="actions">
+        <input id="pSearch" placeholder="Keresés név/íz..." style="flex:1; min-width:240px;" />
+        <button class="primary" id="addProdBtn">+ Termék</button>
+      </div>
+      <table class="table" id="prodTable"></table>
+    </div>
+
+    <div class="panel" id="tab-sales" style="display:none;">
+      <div class="actions">
+        <button class="primary" id="addSaleBtn">+ Eladás</button>
+      </div>
+
+      <div class="kpi" style="margin-top:10px;">
+        <div class="box">
+          <div class="t">Összes bevétel</div>
+          <div class="v" id="revAll">0 Ft</div>
+        </div>
+        <div class="box">
+          <div class="t">Mai bevétel (dátum)</div>
+          <div class="v" id="revToday">0 Ft</div>
+        </div>
+      </div>
+
+      <table class="table" id="salesTable"></table>
+      <table class="table" id="revTable"></table>
+    </div>
   </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script src="assets/github.js"></script>
   <script src="assets/admin.js"></script>
 </body>
