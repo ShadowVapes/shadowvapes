@@ -1,11 +1,15 @@
-[
-  {
-    "id": "p2",
-    "name": "Shadow Keys K2",
-    "description": "Tiszta look, jó gépelés, gamer vibe.",
-    "image": "https://images.unsplash.com/photo-1618384887929-16ec33fab9ef?auto=format&fit=crop&w=1200&q=70",
-    "categoryId": "gamer_bill",
-    "stock": 2,
-    "soldOut": false
-  }
-]
+{
+  "categories": ["Összes termék", "gamer egér", "gamer billentyűzet"],
+  "products": [
+    {
+      "id": "p1",
+      "name": "Példa Egér",
+      "category": "gamer egér",
+      "image": "https://picsum.photos/seed/mouse/800/600",
+      "description": "Ez csak egy példa termék.",
+      "quantity": 3,
+      "soldOut": false,
+      "updatedAt": "2025-12-23T00:00:00.000Z"
+    }
+  ]
+}
