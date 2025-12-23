@@ -7,42 +7,18 @@
   <link rel="stylesheet" href="assets/style.css">
 </head>
 <body>
-  <div id="loader" class="loader" style="display:none">
-    <div class="loaderCard">
-      <div class="skel big"></div>
-      <div class="skel mid"></div>
-      <div class="skel sm"></div>
-      <div class="bottomRow">
-        <span>töltögetem…</span><span id="loadHint">ShadowVapes</span>
-      </div>
-    </div>
-  </div>
+  <div class="app">
+  <aside class="sidebar">
+    <div class="logo">ShadowVapes</div>
+    <div id="cats"></div>
+  </aside>
 
-  <div class="container">
-    <div class="topbar">
-      <div class="brand"><span id="brandName">ShadowVapes</span></div>
-      <div class="pillrow">
-        <button id="langToggle" class="langBtn" title="Nyelv váltás">HU/EN</button>
-      </div>
-    </div>
+  <main class="main">
+    <div class="grid" id="grid"></div>
+  </main>
+</div>
 
-    <div class="layout">
-      <aside class="sidebar">
-        <div class="sideTitle">Kategóriák</div>
-        <div id="catList"></div>
-      </aside>
+<script src="assets/app.js"></script>
 
-      <main>
-        <div class="pillrow" style="margin-bottom:12px">
-          <button class="pill active" data-tab="all">Összes termék</button>
-          <button class="pill" data-tab="comingsoon">Hamarosan</button>
-        </div>
-
-        <div id="grid" class="grid"></div>
-      </main>
-    </div>
-  </div>
-
-  <script src="assets/app.js"></script>
 </body>
 </html>
