@@ -1,4 +1,27 @@
 {
-  "categories": ["Összes termék", "ELF", "SOLO", "Hamarosan"],
-  "products": []
+  "categories": [
+    "Összes termék",
+    "ELF",
+    "SOLO",
+    "Hamarosan"
+  ],
+  "products": [
+    {
+      "id": "ae77efe4da06c819b4be36bd1",
+      "name": {
+        "hu": "Elfbar Ice King 30k",
+        "en": "Elfbar Ice King 30k"
+      },
+      "flavor": {
+        "hu": "Pink Limonádé",
+        "en": "Pink Limonade"
+      },
+      "category": "ELF",
+      "price": 6000,
+      "stock": 10,
+      "image": "https://ezigisale.com/wp-content/uploads/2025/03/Pinke_lemonade.png",
+      "status": "ok",
+      "statusLocked": false
+    }
+  ]
 }
