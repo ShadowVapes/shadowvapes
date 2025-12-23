@@ -1,44 +1,5 @@
 {
-  "categories": [
-    { "id": "elf", "label_hu": "ELF", "label_en": "ELF" },
-    { "id": "lostmary", "label_hu": "Lost Mary", "label_en": "Lost Mary" }
-  ],
-  "products": [
-    {
-      "id": "p_elf_1",
-      "categoryId": "elf",
-      "status": "ok",
-      "stock": 12,
-      "price": 5990,
-      "image": "https://via.placeholder.com/1000",
-      "name_hu": "ELF Bar",
-      "name_en": "ELF Bar",
-      "flavor_hu": "Blue Razz",
-      "flavor_en": "Blue Razz"
-    },
-    {
-      "id": "p_elf_2",
-      "categoryId": "elf",
-      "status": "out",
-      "stock": 0,
-      "price": 5990,
-      "image": "https://via.placeholder.com/1000",
-      "name_hu": "ELF Bar",
-      "name_en": "ELF Bar",
-      "flavor_hu": "Watermelon",
-      "flavor_en": "Watermelon"
-    },
-    {
-      "id": "p_lm_1",
-      "categoryId": "lostmary",
-      "status": "soon",
-      "stock": 0,
-      "price": 6490,
-      "image": "https://via.placeholder.com/1000",
-      "name_hu": "Lost Mary",
-      "name_en": "Lost Mary",
-      "flavor_hu": "Strawberry Ice",
-      "flavor_en": "Strawberry Ice"
-    }
-  ]
+  "shopName": "ShadowVapes",
+  "categories": ["Összes termék", "Hamarosan"],
+  "products": []
 }
