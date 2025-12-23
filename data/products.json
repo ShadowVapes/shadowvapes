@@ -15,15 +15,15 @@
       "flavorEn": "Elf Bull",
       "image": "https://ezigisale.com/wp-content/uploads/2025/03/Elf_bull.png",
       "price": 6000,
-      "stock": 8,
-      "status": "ok"
+      "stock": 0,
+      "status": "out"
     },
     {
       "id": "cb7fa66a7786b819b492e455e",
       "category": "Vapsolo",
-      "nameHu": "Vapsolo Quads 80k 4 Ã­zÅ±",
-      "nameEn": "Vapsolo Quads 80k 4 Ã­zÅ±",
-      "flavorHu": "Mojito & MangÃ³s Monster & Lady gyilkos & Pink LimonÃ¡dÃ©",
+      "nameHu": "Vapsolo Quads 80k 4 ÃÂ­zÃÂ±",
+      "nameEn": "Vapsolo Quads 80k 4 ÃÂ­zÃÂ±",
+      "flavorHu": "Mojito & MangÃÂ³s Monster & Lady gyilkos & Pink LimonÃÂ¡dÃÂ©",
       "flavorEn": "Mojito & Monster Mango & Lady Killer & Pink Lemonade",
       "image": "https://ezigisale.com/wp-content/uploads/2025/10/10.MOJITO-MONSTER-MANGO-LADY-KILLER-PINK-LEMONADE.png",
       "price": 6500,
