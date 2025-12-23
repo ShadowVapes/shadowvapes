@@ -1,270 +1,265 @@
-const $ = (s) => document.querySelector(s);
+(() => {
+  const $ = (s) => document.querySelector(s);
 
-const state = {
-  lang: localStorage.getItem("sv_lang") || "hu",
-  active: "all",
-  search: "",
-  categories: [],
-  products: []
-};
+  const state = {
+    lang: localStorage.getItem("sv_lang") || "hu",
+    doc: { categories: [], products: [] },
+    activeCat: "all", // all | soon | categoryId
+    search: ""
+  };
 
-const TXT = {
-  hu: { all: "Összes termék", soon: "Hamarosan", stock: "Készlet", pcs: "db" },
-  en: { all: "All products",  soon: "Coming soon", stock: "Stock", pcs: "pcs" }
-};
+  const T = {
+    hu: { all: "Összes termék", soon: "Hamarosan", stock: "Készlet", pcs: "db", sold: "Elfogyott", coming: "Hamarosan", products: "termék", loading: "Betöltés..." },
+    en: { all: "All products", soon: "Coming soon", stock: "Stock", pcs: "pcs", sold: "Sold out", coming: "Coming soon", products: "products", loading: "Loading..." }
+  };
+  const tr = (k) => (T[state.lang] && T[state.lang][k]) || k;
 
-const tr = (k) => (TXT[state.lang] && TXT[state.lang][k]) || k;
+  const norm = (s) => (s || "")
+    .toString()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
 
-function norm(s){
-  return (s || "").toString().toLowerCase()
-    .normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-}
+  const getName = (p) => state.lang === "en" ? (p.name_en || p.name_hu || p.name || "") : (p.name_hu || p.name_en || p.name || "");
+  const getFlavor = (p) => state.lang === "en" ? (p.flavor_en || p.flavor_hu || p.flavor || "") : (p.flavor_hu || p.flavor_en || p.flavor || "");
 
-function getName(p){
-  return state.lang === "en"
-    ? (p.name_en || p.name_hu || p.name || "")
-    : (p.name_hu || p.name_en || p.name || "");
-}
-function getFlavor(p){
-  return state.lang === "en"
-    ? (p.flavor_en || p.flavor_hu || p.flavor || "")
-    : (p.flavor_hu || p.flavor_en || p.flavor || "");
-}
-function catLabel(c){
-  return state.lang === "en" ? (c.label_en || c.label_hu || c.id) : (c.label_hu || c.label_en || c.id);
-}
-
-function hideLoader(){
-  const l = $("#loader");
-  if(l) l.style.display = "none";
-}
-
-function buildCategories(){
-  // kategóriák a products.json-ből, + virtuális all/soon
-  const cats = (state.categories || [])
-    .filter(c => c && c.id && c.id !== "all" && c.id !== "soon")
-    .map(c => ({
-      id: String(c.id),
-      label_hu: c.label_hu || c.id,
-      label_en: c.label_en || c.label_hu || c.id
-    }));
-
-  // stabil rendezés név szerint
-  cats.sort((a,b) => catLabel(a).localeCompare(catLabel(b), state.lang === "hu" ? "hu" : "en"));
-
-  // ✅ all first, ✅ soon last
-  return [
-    { id: "all", virtual: true },
-    ...cats,
-    { id: "soon", virtual: true }
-  ];
-}
-
-function renderNav(){
-  const nav = $("#nav");
-  nav.innerHTML = "";
-
-  const cats = buildCategories();
-  for(const c of cats){
-    const btn = document.createElement("button");
-    const label = c.id === "all" ? tr("all") : (c.id === "soon" ? tr("soon") : catLabel(c));
-    btn.textContent = label;
-    btn.className = (state.active === c.id) ? "active" : "";
-    btn.onclick = () => {
-      state.active = c.id;
-      $("#title").textContent = label;
-      renderNav();
-      renderGrid();
-    };
-    nav.appendChild(btn);
+  function showLoader(on) {
+    const l = $("#loader");
+    const r = $("#appRoot");
+    $("#loaderText").textContent = tr("loading");
+    l.style.display = on ? "flex" : "none";
+    r.style.display = on ? "none" : "";
   }
-}
 
-function filterList(){
-  const q = norm(state.search);
+  async function load() {
+    showLoader(true);
+    const res = await fetch("data/products.json", { cache: "no-store" });
+    const data = await res.json();
 
-  let list = state.products.filter(p => {
-    const st = (p.status || "ok");
-    const stock = Math.max(0, Number(p.stock || 0));
+    // support old format: array -> products
+    if (Array.isArray(data)) state.doc = { categories: [], products: data };
+    else state.doc = { categories: data.categories || [], products: data.products || [] };
 
-    // ✅ soon csak a Hamarosanban
-    if(st === "soon") return state.active === "soon";
-    if(state.active === "soon") return false;
+    // sanitize
+    if (!Array.isArray(state.doc.categories)) state.doc.categories = [];
+    if (!Array.isArray(state.doc.products)) state.doc.products = [];
 
-    // ✅ kategória filter
-    if(state.active !== "all"){
-      return String(p.categoryId || "") === String(state.active);
-    }
-    return true;
-  });
+    // ensure category IDs are strings
+    state.doc.categories = state.doc.categories
+      .filter(c => c && c.id)
+      .map(c => ({ id: String(c.id), label_hu: c.label_hu || c.id, label_en: c.label_en || c.label_hu || c.id }));
 
-  // search (név+íz mindkét nyelven)
-  if(q){
-    list = list.filter(p => {
-      const hay = norm([
-        p.name_hu, p.name_en, p.flavor_hu, p.flavor_en, p.name, p.flavor
-      ].filter(Boolean).join(" "));
-      return hay.includes(q);
+    // store language ui
+    $("#langLabel").textContent = state.lang.toUpperCase();
+
+    renderNav();
+    render();
+    bind();
+    showLoader(false);
+  }
+
+  function bind() {
+    $("#search").addEventListener("input", (e) => {
+      state.search = e.target.value || "";
+      render();
+    });
+
+    $("#langBtn").addEventListener("click", () => {
+      state.lang = state.lang === "hu" ? "en" : "hu";
+      localStorage.setItem("sv_lang", state.lang);
+      $("#langLabel").textContent = state.lang.toUpperCase();
+      renderNav();
+      render();
     });
   }
 
-  // ✅ csoportosítás: azonos nevűek egymás mellett
-  // kulcs: name_hu fallback name_en, így stabil
-  const groupMap = new Map();
-  for(const p of list){
-    const key = norm(p.name_hu || p.name_en || p.name || "");
-    if(!groupMap.has(key)) groupMap.set(key, []);
-    groupMap.get(key).push(p);
+  function orderedCategories() {
+    // All first, Soon last ALWAYS
+    const cats = [...state.doc.categories];
+
+    // stable sort by HU label (jó default)
+    cats.sort((a, b) => (a.label_hu || a.id).localeCompare((b.label_hu || b.id), "hu"));
+
+    return {
+      normal: cats,
+      all: { id: "all", label: tr("all") },
+      soon: { id: "soon", label: tr("soon") }
+    };
   }
 
-  const keys = [...groupMap.keys()].sort((a,b)=> a.localeCompare(b, "hu"));
-  const out = [];
-  for(const k of keys){
-    const items = groupMap.get(k);
-    items.sort((a,b) => norm(getFlavor(a)).localeCompare(norm(getFlavor(b)), "hu"));
-    out.push(...items);
+  function renderNav() {
+    const nav = $("#catNav");
+    nav.innerHTML = "";
+
+    const { normal, all, soon } = orderedCategories();
+
+    const mkBtn = (id, label) => {
+      const b = document.createElement("button");
+      b.textContent = label;
+      b.className = (state.activeCat === id) ? "active" : "";
+      b.addEventListener("click", () => {
+        state.activeCat = id;
+        renderNav();
+        render();
+      });
+      return b;
+    };
+
+    nav.appendChild(mkBtn(all.id, all.label));
+    for (const c of normal) nav.appendChild(mkBtn(c.id, state.lang === "en" ? (c.label_en || c.id) : (c.label_hu || c.id)));
+    nav.appendChild(mkBtn(soon.id, soon.label)); // <-- ALWAYS last
   }
 
-  return out;
-}
+  function filterProducts() {
+    const q = norm(state.search);
 
-function badgeInfo(p){
-  const st = (p.status || "ok");
-  const stock = Math.max(0, Number(p.stock || 0));
-  if(st === "soon") return { txt: tr("soon"), cls: "soon" };
-  if(st === "out" || stock <= 0) return { txt: "Elfogyott", cls: "out" };
-  return { txt: "Elérhető", cls: "ok" };
-}
+    let list = state.doc.products.filter(p => {
+      const status = (p.status || "ok").toLowerCase();
+      const stock = Number(p.stock || 0);
 
-function fmtPrice(p){
-  const v = Number(p.price || 0);
-  if(!Number.isFinite(v)) return "—";
-  return v.toLocaleString(state.lang === "hu" ? "hu-HU" : "en-US") + " Ft";
-}
+      // soon csak a soon tabban
+      if (status === "soon") return state.activeCat === "soon";
+      if (state.activeCat === "soon") return false;
 
-function renderGrid(){
-  const grid = $("#grid");
-  const empty = $("#empty");
-  grid.innerHTML = "";
+      // kategória szűrés
+      if (state.activeCat !== "all") {
+        return String(p.categoryId || "") === String(state.activeCat);
+      }
+      return true;
+    });
 
-  const list = filterList();
-  $("#count").textContent = String(list.length);
-  empty.style.display = list.length ? "none" : "block";
-
-  for(const p of list){
-    const st = (p.status || "ok");
-    const stock = Math.max(0, Number(p.stock || 0));
-    const sold = (st === "out" || stock <= 0);
-
-    const card = document.createElement("div");
-    card.className = "card fade-in" + (sold ? " dim" : "");
-
-    const hero = document.createElement("div");
-    hero.className = "hero";
-
-    const img = document.createElement("img");
-    img.src = p.image || "";
-    img.alt = getName(p);
-    img.loading = "lazy";
-    img.onerror = () => { img.removeAttribute("src"); };
-    hero.appendChild(img);
-
-    const badges = document.createElement("div");
-    badges.className = "badges";
-
-    const b = badgeInfo(p);
-    const badge = document.createElement("div");
-    badge.className = "badge " + b.cls;
-    badge.textContent = b.txt;
-    badges.appendChild(badge);
-
-    hero.appendChild(badges);
-
-    // ✅ név+íz overlay a képen (1000×1000-re fix)
-    const ov = document.createElement("div");
-    ov.className = "overlay-title";
-
-    const name = document.createElement("div");
-    name.className = "name";
-    name.textContent = getName(p);
-
-    const flavor = document.createElement("div");
-    flavor.className = "flavor";
-    flavor.textContent = getFlavor(p) || "";
-
-    ov.appendChild(name);
-    ov.appendChild(flavor);
-    hero.appendChild(ov);
-
-    const body = document.createElement("div");
-    body.className = "card-body";
-
-    const meta = document.createElement("div");
-    meta.className = "meta-row";
-
-    const price = document.createElement("div");
-    price.className = "price";
-    price.textContent = fmtPrice(p);
-
-    const stockEl = document.createElement("div");
-    stockEl.className = "stock";
-    if(st === "soon"){
-      stockEl.innerHTML = `${tr("stock")}: <b>—</b>`;
-    }else{
-      stockEl.innerHTML = `${tr("stock")}: <b>${stock}</b> ${tr("pcs")}`;
+    if (q) {
+      list = list.filter(p => {
+        const n = norm(getName(p));
+        const f = norm(getFlavor(p));
+        return n.includes(q) || f.includes(q);
+      });
     }
 
-    meta.appendChild(price);
-    meta.appendChild(stockEl);
-    body.appendChild(meta);
+    // Group by name so same-name products are ALWAYS next to each other
+    const map = new Map();
+    for (const p of list) {
+      const key = norm(getName(p));
+      if (!map.has(key)) map.set(key, []);
+      map.get(key).push(p);
+    }
 
-    card.appendChild(hero);
-    card.appendChild(body);
+    const keys = [...map.keys()].sort((a, b) => a.localeCompare(b, state.lang === "hu" ? "hu" : "en"));
 
-    grid.appendChild(card);
+    const out = [];
+    for (const k of keys) {
+      const arr = map.get(k);
+      // inside group by flavor
+      arr.sort((a, b) => norm(getFlavor(a)).localeCompare(norm(getFlavor(b)), "hu"));
+      out.push(...arr);
+    }
+
+    return out;
   }
-}
 
-async function init(){
-  $("#langBtn").textContent = state.lang.toUpperCase();
+  function badgeFor(p) {
+    const status = (p.status || "ok").toLowerCase();
+    const stock = Math.max(0, Number(p.stock || 0));
 
-  $("#langBtn").onclick = () => {
-    state.lang = state.lang === "hu" ? "en" : "hu";
-    localStorage.setItem("sv_lang", state.lang);
-    $("#langBtn").textContent = state.lang.toUpperCase();
-    renderNav();
-    renderGrid();
-  };
+    if (status === "soon") return { text: tr("coming"), cls: "soon" };
+    if (status === "out" || stock <= 0) return { text: tr("sold"), cls: "out" };
+    return null;
+  }
 
-  $("#search").addEventListener("input", (e) => {
-    state.search = e.target.value || "";
-    renderGrid();
+  function render() {
+    const grid = $("#grid");
+    const empty = $("#empty");
+    const title = $("#pageTitle");
+    const countText = $("#countText");
+
+    const { normal } = orderedCategories();
+    const catLabel = (id) => {
+      if (id === "all") return tr("all");
+      if (id === "soon") return tr("soon");
+      const c = normal.find(x => x.id === id);
+      if (!c) return tr("all");
+      return state.lang === "en" ? (c.label_en || c.id) : (c.label_hu || c.id);
+    };
+
+    title.textContent = catLabel(state.activeCat);
+
+    const list = filterProducts();
+
+    // counts
+    countText.textContent = String(list.length);
+    empty.style.display = list.length ? "none" : "block";
+
+    grid.innerHTML = "";
+
+    for (const p of list) {
+      const name = getName(p);
+      const flavor = getFlavor(p);
+      const stock = Math.max(0, Number(p.stock || 0));
+      const status = (p.status || "ok").toLowerCase();
+
+      const card = document.createElement("div");
+      const dim = (status === "out" || stock <= 0);
+      card.className = "card fade-in" + (dim ? " dim" : "");
+
+      const hero = document.createElement("div");
+      hero.className = "hero";
+
+      const img = document.createElement("img");
+      img.alt = `${name}${flavor ? " - " + flavor : ""}`;
+      img.loading = "lazy";
+      img.src = p.image || "";
+      hero.appendChild(img);
+
+      const badges = document.createElement("div");
+      badges.className = "badges";
+      const b = badgeFor(p);
+      if (b) {
+        const bd = document.createElement("div");
+        bd.className = "badge " + b.cls;
+        bd.textContent = b.text;
+        badges.appendChild(bd);
+      }
+      hero.appendChild(badges);
+
+      const overlay = document.createElement("div");
+      overlay.className = "overlay-title";
+      overlay.innerHTML = `
+        <div class="name">${escapeHtml(name)}</div>
+        <div class="flavor">${escapeHtml(flavor || "")}</div>
+      `;
+      hero.appendChild(overlay);
+
+      const body = document.createElement("div");
+      body.className = "card-body";
+
+      const price = Number(p.price || 0);
+      body.innerHTML = `
+        <div class="meta-row">
+          <div class="price">${fmt(price)} Ft</div>
+          <div class="stock">${status === "soon" ? "" : `${tr("stock")}: <b>${stock}</b> ${tr("pcs")}`}</div>
+        </div>
+      `;
+
+      card.appendChild(hero);
+      card.appendChild(body);
+      grid.appendChild(card);
+    }
+  }
+
+  function fmt(n) {
+    const v = Number(n || 0);
+    return v.toLocaleString(state.lang === "en" ? "en-US" : "hu-HU");
+  }
+
+  function escapeHtml(s) {
+    return String(s || "").replace(/[&<>"']/g, (m) => ({
+      "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;"
+    }[m]));
+  }
+
+  load().catch(err => {
+    console.error(err);
+    alert("Hiba: " + err.message);
+    showLoader(false);
   });
-
-  $("#clear").onclick = () => {
-    state.search = "";
-    $("#search").value = "";
-    renderGrid();
-  };
-
-  const res = await fetch("data/products.json", { cache: "no-store" });
-  const data = await res.json();
-
-  // kompatibilis: tömb vagy doc
-  if(Array.isArray(data)){
-    state.products = data;
-    state.categories = [];
-  }else{
-    state.products = Array.isArray(data.products) ? data.products : [];
-    state.categories = Array.isArray(data.categories) ? data.categories : [];
-  }
-
-  renderNav();
-  renderGrid();
-  hideLoader();
-}
-
-init().catch(err => {
-  console.error(err);
-  alert("Betöltési hiba: " + err.message);
-});
+})();
