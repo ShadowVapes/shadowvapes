@@ -1,7 +1,21 @@
 {
   "shopName": "ShadowVapes",
   "categories": [
-    "Hamarosan"
+    "Hamarosan",
+    "Elfbar"
   ],
-  "products": []
+  "products": [
+    {
+      "id": "9e1a214d6df2219b491fd485",
+      "category": "Elfbar",
+      "nameHu": "Elfbar Ice King 30k slukk",
+      "nameEn": "Elfbar Ice King 30k slukk",
+      "flavorHu": "Energiaital",
+      "flavorEn": "Elf Bull",
+      "image": "https://ezigisale.com/wp-content/uploads/2025/03/Elf_bull.png",
+      "price": 6000,
+      "stock": 10,
+      "status": "ok"
+    }
+  ]
 }
