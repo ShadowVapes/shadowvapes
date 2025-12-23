@@ -6,7 +6,7 @@
     "image": "https://images.unsplash.com/photo-1527814050087-3793815479db?auto=format&fit=crop&w=1200&q=70",
     "categoryId": "gamer_eger",
     "stock": 7,
-    "soldOut": false
+    "soldOut": true
   },
   {
     "id": "p2",
@@ -15,6 +15,6 @@
     "image": "https://images.unsplash.com/photo-1618384887929-16ec33fab9ef?auto=format&fit=crop&w=1200&q=70",
     "categoryId": "gamer_bill",
     "stock": 2,
-    "soldOut": false
+    "soldOut": true
   }
 ]
