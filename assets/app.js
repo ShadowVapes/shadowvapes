@@ -49,25 +49,24 @@ function normalize(s){
 }
 
 function getName(p){
-  return state.lang === "en" ? (p.name_en || p.name_hu || p.name) : (p.name_hu || p.name_en || p.name);
+  return state.lang === "en"
+    ? (p.name_en || p.name_hu || p.name || "")
+    : (p.name_hu || p.name_en || p.name || "");
 }
 function getFlavor(p){
-  return state.lang === "en" ? (p.flavor_en || p.flavor_hu || p.flavor || "") : (p.flavor_hu || p.flavor_en || p.flavor || "");
+  return state.lang === "en"
+    ? (p.flavor_en || p.flavor_hu || p.flavor || "")
+    : (p.flavor_hu || p.flavor_en || p.flavor || "");
 }
 function getCategoryLabel(cat){
   if(!cat) return "";
-  return state.lang === "en" ? (cat.label_en || cat.label_hu || cat.id) : (cat.label_hu || cat.label_en || cat.id);
-}
-
-function computeCategories(products){
-  // categories derived from product.categoryId plus stored labels if present inside products meta
-  // BUT we also allow a special products._categories in JSON? (admin saves categories in products.json)
-  // We'll read categories from products.json root if exists.
+  return state.lang === "en"
+    ? (cat.label_en || cat.label_hu || cat.id)
+    : (cat.label_hu || cat.label_en || cat.id);
 }
 
 async function load(){
-  const year = new Date().getFullYear();
-  $("#year").textContent = year;
+  $("#year").textContent = new Date().getFullYear();
 
   // UI text
   $("#brandSub").textContent = tr("brandSub");
@@ -81,26 +80,28 @@ async function load(){
   const productsRes = await fetch("data/products.json", { cache: "no-store" });
   const productsData = await productsRes.json();
 
-  state.products = Array.isArray(productsData.products) ? productsData.products : (Array.isArray(productsData) ? productsData : []);
+  state.products = Array.isArray(productsData.products)
+    ? productsData.products
+    : (Array.isArray(productsData) ? productsData : []);
+
   state.categories = Array.isArray(productsData.categories) ? productsData.categories : [];
 
-  // Default categories if none
+  // Fallback categories if none
   if(state.categories.length === 0){
     const seen = new Map();
     for(const p of state.products){
       if(p.categoryId && !seen.has(p.categoryId)){
-        seen.set(p.categoryId, { id: p.categoryId, label_hu: p.categoryId, label_en: p.categoryId });
+        seen.set(p.categoryId, { id: String(p.categoryId), label_hu: String(p.categoryId), label_en: String(p.categoryId) });
       }
     }
     state.categories = [...seen.values()];
   }
 
-  // Ensure unique category ids, filter empty
+  // sanitize categories
   state.categories = state.categories
     .filter(c => c && c.id && c.id !== "all")
     .map(c => ({ id: String(c.id), label_hu: c.label_hu || c.id, label_en: c.label_en || c.label_hu || c.id }));
 
-  // Render
   renderTabs();
   render();
   bind();
@@ -110,6 +111,7 @@ function bind(){
   $("#langToggle").onclick = () => {
     state.lang = state.lang === "hu" ? "en" : "hu";
     localStorage.setItem("sv_lang", state.lang);
+
     $("#langLabel").textContent = state.lang.toUpperCase();
     $("#brandSub").textContent = tr("brandSub");
     $("#title").textContent = tr("title");
@@ -117,6 +119,7 @@ function bind(){
     $("#search").placeholder = tr("searchPh");
     $("#emptyTitle").textContent = tr("emptyTitle");
     $("#emptySub").textContent = tr("emptySub");
+
     renderTabs();
     render();
   };
@@ -125,6 +128,7 @@ function bind(){
     state.search = e.target.value || "";
     render();
   });
+
   $("#clearSearch").onclick = () => {
     state.search = "";
     $("#search").value = "";
@@ -134,14 +138,11 @@ function bind(){
 
 function orderedCategories(){
   // "Összes termék" first (virtual), "Hamarosan" last (virtual)
-  const cats = [...state.categories];
-
-  // sort stable by HU label as default, but keep consistent
-  cats.sort((a,b) => getCategoryLabel(a).localeCompare(getCategoryLabel(b), "hu"));
-
+  const cats = [...state.categories].filter(c => c.id !== "soon");
+  cats.sort((a,b) => getCategoryLabel(a).localeCompare(getCategoryLabel(b), state.lang === "hu" ? "hu" : "en"));
   return [
     { id: "all", virtual: true },
-    ...cats.filter(c => c.id !== "soon"),
+    ...cats,
     { id: "soon", virtual: true }
   ];
 }
@@ -165,8 +166,7 @@ function renderTabs(){
 }
 
 function groupProducts(list){
-  // Group by name so same names are next to each other regardless creation
-  // Sort groups by name (lang-aware), then inside group by flavor
+  // Group by name so same names are next to each other
   const map = new Map();
   for(const p of list){
     const key = normalize(getName(p));
@@ -174,12 +174,13 @@ function groupProducts(list){
     map.get(key).push(p);
   }
 
-  const groupKeys = [...map.keys()].sort((a,b) => a.localeCompare(b, state.lang === "hu" ? "hu" : "en"));
+  const locale = state.lang === "hu" ? "hu" : "en";
+  const keys = [...map.keys()].sort((a,b) => a.localeCompare(b, locale));
 
   const out = [];
-  for(const k of groupKeys){
+  for(const k of keys){
     const items = map.get(k);
-    items.sort((a,b) => normalize(getFlavor(a)).localeCompare(normalize(getFlavor(b))));
+    items.sort((a,b) => normalize(getFlavor(a)).localeCompare(normalize(getFlavor(b)), locale));
     out.push(...items);
   }
   return out;
@@ -188,13 +189,12 @@ function groupProducts(list){
 function filterProducts(){
   const q = normalize(state.search);
 
-  // Coming soon products only visible in "soon" category tab
   let list = state.products.filter(p => {
     const st = p.status || "ok";
+
     if(st === "soon"){
       return state.activeCategory === "soon";
     }
-    // non-soon products: not shown in "soon" tab
     if(state.activeCategory === "soon") return false;
 
     if(state.activeCategory !== "all"){
@@ -211,15 +211,10 @@ function filterProducts(){
     });
   }
 
-  // Sort by: ok first, out last (but still visible), then grouped by name
-  // We'll keep both ok/out in same list, but grouping next.
+  // ok first, out after (still visible)
   list.sort((a,b) => {
-    const sa = a.status || "ok";
-    const sb = b.status || "ok";
-    const rank = (s) => s === "ok" ? 0 : (s === "out" ? 1 : 2);
-    const ra = rank(sa), rb = rank(sb);
-    if(ra !== rb) return ra - rb;
-    return 0;
+    const rank = (s) => (s === "ok" ? 0 : (s === "out" ? 1 : 2));
+    return rank(a.status || "ok") - rank(b.status || "ok");
   });
 
   return groupProducts(list);
@@ -228,7 +223,6 @@ function filterProducts(){
 function fmtPrice(p){
   const v = Number(p.price || 0);
   if(!Number.isFinite(v)) return "—";
-  // HU format but ok for EN too, simple
   return v.toLocaleString(state.lang === "hu" ? "hu-HU" : "en-US") + " Ft";
 }
 
@@ -245,7 +239,6 @@ function render(){
   const empty = $("#emptyState");
 
   const list = filterProducts();
-
   $("#countPill").textContent = `${list.length} ${tr("pcs")}`;
 
   grid.innerHTML = "";
@@ -269,48 +262,27 @@ function render(){
     img.src = p.image || "";
     img.onerror = () => { img.src = ""; imgwrap.style.background = "rgba(255,255,255,.05)"; };
     imgwrap.appendChild(img);
-// text overlay (1000x1000 safe)
-const overlay = document.createElement("div");
-overlay.className = "overlay";
 
-const on = document.createElement("div");
-on.className = "overlay-name";
-on.textContent = name;
-
-const of = document.createElement("div");
-of.className = "overlay-flavor";
-of.textContent = flavor || "";
-
-overlay.appendChild(on);
-if(flavor) overlay.appendChild(of);
-
-imgwrap.appendChild(overlay);
-
-    
     const b = statusBadge(p);
     const badge = document.createElement("div");
     badge.className = `badge ${b.cls}`;
     badge.textContent = b.text;
     imgwrap.appendChild(badge);
 
-    const body = document.createElement("div");
-    body.className = "card-body";
-
-    const nameRow = document.createElement("div");
-    nameRow.className = "name-row";
+    // Overlay text (name + flavor + price + stock) on the image
+    const overlay = document.createElement("div");
+    overlay.className = "overlay";
 
     const pname = document.createElement("div");
     pname.className = "pname";
-    pname.textContent = name;
-
-    nameRow.appendChild(pname);
+    pname.textContent = name || "";
 
     const pflavor = document.createElement("div");
     pflavor.className = "pflavor";
     pflavor.textContent = flavor || "";
 
     const meta = document.createElement("div");
-    meta.className = "meta";
+    meta.className = "ometa";
 
     const price = document.createElement("div");
     price.className = "price";
@@ -327,10 +299,13 @@ imgwrap.appendChild(overlay);
     meta.appendChild(price);
     meta.appendChild(stockEl);
 
-    body.appendChild(meta);
+    overlay.appendChild(pname);
+    overlay.appendChild(pflavor);
+    overlay.appendChild(meta);
+
+    imgwrap.appendChild(overlay);
 
     card.appendChild(imgwrap);
-    card.appendChild(body);
     grid.appendChild(card);
   }
 }
