@@ -461,3 +461,70 @@ button, input, select{
   .wrap{ grid-template-columns: 1fr; }
   .sidebar{ height:auto; position:relative; }
 }
+
+/* =========================
+   SHADOWVAPES PATCH (ONLY)
+   1000x1000 + visibility fixes
+   ========================= */
+
+/* 1000×1000 image friendly hero: ne fix 170px legyen */
+.hero{
+  height: auto;
+  aspect-ratio: 1 / 1;
+}
+
+/* Overlay szöveg ne csússzon, hosszú név se ölje meg */
+.overlay-title{
+  max-width: 100%;
+}
+.overlay-title .name{
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.overlay-title .flavor{
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Ár + készlet legyen feltűnőbb, és csak a kép alatt */
+.price{
+  font-size: 18px;
+  letter-spacing: .2px;
+}
+.stock{
+  font-size: 14px;
+}
+.stock b{
+  font-weight: 900;
+}
+
+/* Elfogyott termékek: szürkébb + sötétebb */
+.card.dim{
+  opacity: .55;
+  filter: grayscale(.35) saturate(.75);
+}
+.card.dim .hero img{
+  filter: grayscale(.75) brightness(.82);
+}
+
+/* Admin táblázat inputok: ne fehér “szemkiverős” legyen */
+.table input, .table select{
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,.10);
+  background: rgba(11,15,23,.45);
+  color: var(--text);
+  padding: 8px 10px;
+  outline: none;
+}
+.table input:focus, .table select:focus{
+  border-color: rgba(124,92,255,.45);
+}
+
+/* Admin modal (nem prompt) */
+.modal-backdrop.show{
+  display:flex;
+}
