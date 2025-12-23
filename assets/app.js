@@ -1,215 +1,326 @@
+const $ = (sel) => document.querySelector(sel);
+
 const state = {
-  data: null,
-  lang: localStorage.getItem("sv_lang") || null,
-  activeCategory: "Összes termék"
+  lang: localStorage.getItem("sv_lang") || "hu",
+  products: [],
+  categories: [],
+  activeCategory: "all",
+  search: ""
 };
 
-function qs(sel){ return document.querySelector(sel); }
-function el(tag, cls){ const e=document.createElement(tag); if(cls) e.className=cls; return e; }
-
-function showLoader(text="Betöltés..."){
-  qs("#loader").style.display="flex";
-  qs("#loader .loader-sub").textContent = text;
-}
-function hideLoader(){
-  const l = qs("#loader");
-  l.style.opacity = "0";
-  setTimeout(()=>{ l.style.display="none"; l.style.opacity="1"; }, 220);
-}
-
-async function loadData(){
-  // Live from repo raw (fast) -> if fails, fallback to local file
-  const owner = localStorage.getItem("gh_owner");
-  const repo  = localStorage.getItem("gh_repo");
-  const branch= localStorage.getItem("gh_branch") || "main";
-
-  const urls = [];
-  if(owner && repo){
-    urls.push(`https://raw.githubusercontent.com/${owner}/${repo}/${branch}/data/products.json?ts=${Date.now()}`);
+const T = {
+  hu: {
+    brandSub: "Prémium katalógus",
+    title: "Termékek",
+    subtitle: "Válassz kategóriát, és válogass.",
+    searchPh: "Keresés...",
+    all: "Összes termék",
+    soon: "Hamarosan",
+    stock: "Készlet",
+    pcs: "db",
+    sold: "Elfogyott",
+    coming: "Hamarosan",
+    ok: "Elérhető",
+    emptyTitle: "Nincs találat",
+    emptySub: "Próbáld más kulcsszóval vagy kategóriával."
+  },
+  en: {
+    brandSub: "Premium catalog",
+    title: "Products",
+    subtitle: "Pick a category and browse.",
+    searchPh: "Search...",
+    all: "All products",
+    soon: "Coming soon",
+    stock: "Stock",
+    pcs: "pcs",
+    sold: "Sold out",
+    coming: "Coming soon",
+    ok: "Available",
+    emptyTitle: "No results",
+    emptySub: "Try a different keyword or category."
   }
-  urls.push(`data/products.json?ts=${Date.now()}`);
+};
 
-  for(const u of urls){
-    try{
-      const r = await fetch(u, { cache:"no-store" });
-      if(!r.ok) continue;
-      return await r.json();
-    }catch{}
-  }
-  throw new Error("Nem tudtam betölteni a products.json-t.");
+function tr(key){ return (T[state.lang] && T[state.lang][key]) || key; }
+
+function normalize(s){
+  return (s || "").toString().toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 }
 
-function ensureLangModal(){
-  const backdrop = qs("#langModal");
-  if(state.lang) return;
+function getName(p){
+  return state.lang === "en" ? (p.name_en || p.name_hu || p.name) : (p.name_hu || p.name_en || p.name);
+}
+function getFlavor(p){
+  return state.lang === "en" ? (p.flavor_en || p.flavor_hu || p.flavor || "") : (p.flavor_hu || p.flavor_en || p.flavor || "");
+}
+function getCategoryLabel(cat){
+  if(!cat) return "";
+  return state.lang === "en" ? (cat.label_en || cat.label_hu || cat.id) : (cat.label_hu || cat.label_en || cat.id);
+}
 
-  backdrop.style.display="flex";
-  const setLang = (l)=>{
-    state.lang = l;
-    localStorage.setItem("sv_lang", l);
-    backdrop.style.display="none";
+function computeCategories(products){
+  // categories derived from product.categoryId plus stored labels if present inside products meta
+  // BUT we also allow a special products._categories in JSON? (admin saves categories in products.json)
+  // We'll read categories from products.json root if exists.
+}
+
+async function load(){
+  const year = new Date().getFullYear();
+  $("#year").textContent = year;
+
+  // UI text
+  $("#brandSub").textContent = tr("brandSub");
+  $("#title").textContent = tr("title");
+  $("#subtitle").textContent = tr("subtitle");
+  $("#search").placeholder = tr("searchPh");
+  $("#emptyTitle").textContent = tr("emptyTitle");
+  $("#emptySub").textContent = tr("emptySub");
+  $("#langLabel").textContent = state.lang.toUpperCase();
+
+  const productsRes = await fetch("data/products.json", { cache: "no-store" });
+  const productsData = await productsRes.json();
+
+  state.products = Array.isArray(productsData.products) ? productsData.products : (Array.isArray(productsData) ? productsData : []);
+  state.categories = Array.isArray(productsData.categories) ? productsData.categories : [];
+
+  // Default categories if none
+  if(state.categories.length === 0){
+    const seen = new Map();
+    for(const p of state.products){
+      if(p.categoryId && !seen.has(p.categoryId)){
+        seen.set(p.categoryId, { id: p.categoryId, label_hu: p.categoryId, label_en: p.categoryId });
+      }
+    }
+    state.categories = [...seen.values()];
+  }
+
+  // Ensure unique category ids, filter empty
+  state.categories = state.categories
+    .filter(c => c && c.id && c.id !== "all")
+    .map(c => ({ id: String(c.id), label_hu: c.label_hu || c.id, label_en: c.label_en || c.label_hu || c.id }));
+
+  // Render
+  renderTabs();
+  render();
+  bind();
+}
+
+function bind(){
+  $("#langToggle").onclick = () => {
+    state.lang = state.lang === "hu" ? "en" : "hu";
+    localStorage.setItem("sv_lang", state.lang);
+    $("#langLabel").textContent = state.lang.toUpperCase();
+    $("#brandSub").textContent = tr("brandSub");
+    $("#title").textContent = tr("title");
+    $("#subtitle").textContent = tr("subtitle");
+    $("#search").placeholder = tr("searchPh");
+    $("#emptyTitle").textContent = tr("emptyTitle");
+    $("#emptySub").textContent = tr("emptySub");
+    renderTabs();
     render();
   };
 
-  qs("#btnHu").onclick = ()=> setLang("hu");
-  qs("#btnEn").onclick = ()=> setLang("en");
+  $("#search").addEventListener("input", (e) => {
+    state.search = e.target.value || "";
+    render();
+  });
+  $("#clearSearch").onclick = () => {
+    state.search = "";
+    $("#search").value = "";
+    render();
+  };
 }
 
-function setBrandName(name){
-  qs("#brandName").textContent = name || "ShadowVapes";
-  qs("#loaderBrand").textContent = name || "ShadowVapes";
+function orderedCategories(){
+  // "Összes termék" first (virtual), "Hamarosan" last (virtual)
+  const cats = [...state.categories];
+
+  // sort stable by HU label as default, but keep consistent
+  cats.sort((a,b) => getCategoryLabel(a).localeCompare(getCategoryLabel(b), "hu"));
+
+  return [
+    { id: "all", virtual: true },
+    ...cats.filter(c => c.id !== "soon"),
+    { id: "soon", virtual: true }
+  ];
 }
 
-function buildSidebar(categories){
-  const nav = document.getElementById("nav");
-  nav.innerHTML = "";
+function renderTabs(){
+  const el = $("#categoryTabs");
+  el.innerHTML = "";
 
-  const fixedTop = ["Összes termék"];
-  const fixedBottom = ["Hamarosan"];
-
-  const middle = categories.filter(
-    c => !fixedTop.includes(c) && !fixedBottom.includes(c)
-  );
-
-  const finalCats = [...fixedTop, ...middle, ...fixedBottom];
-
-  finalCats.forEach(cat=>{
-    const b = document.createElement("button");
-    b.textContent = cat;
-    if(state.activeCategory === cat) b.classList.add("active");
-    b.onclick = ()=>{
-      state.activeCategory = cat;
+  const cats = orderedCategories();
+  for(const c of cats){
+    const btn = document.createElement("button");
+    btn.className = "tab" + (state.activeCategory === c.id ? " active" : "");
+    btn.textContent = c.id === "all" ? tr("all") : (c.id === "soon" ? tr("soon") : getCategoryLabel(c));
+    btn.onclick = () => {
+      state.activeCategory = c.id;
+      renderTabs();
       render();
     };
-    nav.appendChild(b);
+    el.appendChild(btn);
+  }
+}
+
+function groupProducts(list){
+  // Group by name so same names are next to each other regardless creation
+  // Sort groups by name (lang-aware), then inside group by flavor
+  const map = new Map();
+  for(const p of list){
+    const key = normalize(getName(p));
+    if(!map.has(key)) map.set(key, []);
+    map.get(key).push(p);
+  }
+
+  const groupKeys = [...map.keys()].sort((a,b) => a.localeCompare(b, state.lang === "hu" ? "hu" : "en"));
+
+  const out = [];
+  for(const k of groupKeys){
+    const items = map.get(k);
+    items.sort((a,b) => normalize(getFlavor(a)).localeCompare(normalize(getFlavor(b))));
+    out.push(...items);
+  }
+  return out;
+}
+
+function filterProducts(){
+  const q = normalize(state.search);
+
+  // Coming soon products only visible in "soon" category tab
+  let list = state.products.filter(p => {
+    const st = p.status || "ok";
+    if(st === "soon"){
+      return state.activeCategory === "soon";
+    }
+    // non-soon products: not shown in "soon" tab
+    if(state.activeCategory === "soon") return false;
+
+    if(state.activeCategory !== "all"){
+      return String(p.categoryId || "") === String(state.activeCategory);
+    }
+    return true;
   });
-}
 
-
-function formatMoney(v){
-  if(v == null || v === "") return "—";
-  const n = Number(v);
-  if(Number.isNaN(n)) return String(v);
-  return `${n.toLocaleString("hu-HU")} Ft`;
-}
-
-function getLocalized(prod, keyBase){
-  // keyBase: name / flavor
-  if(state.lang === "en") return prod[`${keyBase}En`] || prod[`${keyBase}Hu`] || "";
-  return prod[`${keyBase}Hu`] || prod[`${keyBase}En`] || "";
-}
-
-function productCard(p){
-  const card = el("div", "card fade-in" + (p.status==="out" ? " dim" : ""));
-  const hero = el("div", "hero");
-
-  const img = el("img");
-  img.src = p.image || "https://images.unsplash.com/photo-1523978591478-c753949ff840?auto=format&fit=crop&w=1200&q=60";
-  img.alt = getLocalized(p,"name");
-  hero.appendChild(img);
-
-  const badges = el("div","badges");
-  if(p.status==="out"){
-    const bd = el("div","badge out");
-    bd.textContent = "Elfogyott";
-    badges.appendChild(bd);
+  if(q){
+    list = list.filter(p => {
+      const n = normalize(getName(p));
+      const f = normalize(getFlavor(p));
+      return n.includes(q) || f.includes(q);
+    });
   }
-  if(p.status==="soon"){
-    const bd = el("div","badge soon");
-    bd.textContent = "Hamarosan";
-    badges.appendChild(bd);
-  }
-  hero.appendChild(badges);
 
-  const overlay = el("div","overlay-title");
-  const name = el("div","name"); name.textContent = getLocalized(p,"name");
-  const flavor = el("div","flavor"); flavor.textContent = getLocalized(p,"flavor");
-  overlay.appendChild(name);
-  if(getLocalized(p,"flavor")) overlay.appendChild(flavor);
-  hero.appendChild(overlay);
+  // Sort by: ok first, out last (but still visible), then grouped by name
+  // We'll keep both ok/out in same list, but grouping next.
+  list.sort((a,b) => {
+    const sa = a.status || "ok";
+    const sb = b.status || "ok";
+    const rank = (s) => s === "ok" ? 0 : (s === "out" ? 1 : 2);
+    const ra = rank(sa), rb = rank(sb);
+    if(ra !== rb) return ra - rb;
+    return 0;
+  });
 
-  const body = el("div","card-body");
-  const row = el("div","meta-row");
-  const price = el("div","price"); price.textContent = formatMoney(p.price);
-  const stock = el("div","stock");
-  const stockNum = Number(p.stock || 0);
-  stock.innerHTML = `Készlet: <b>${stockNum}</b> db`;
-  row.appendChild(price);
-  row.appendChild(stock);
+  return groupProducts(list);
+}
 
-  body.appendChild(row);
+function fmtPrice(p){
+  const v = Number(p.price || 0);
+  if(!Number.isFinite(v)) return "—";
+  // HU format but ok for EN too, simple
+  return v.toLocaleString(state.lang === "hu" ? "hu-HU" : "en-US") + " Ft";
+}
 
-  card.appendChild(hero);
-  card.appendChild(body);
-  return card;
+function statusBadge(p){
+  const st = p.status || "ok";
+  if(st === "soon") return { text: tr("coming"), cls: "warn" };
+  const stock = Number(p.stock || 0);
+  if(st === "out" || stock <= 0) return { text: tr("sold"), cls: "bad" };
+  return { text: tr("ok"), cls: "good" };
 }
 
 function render(){
-  setBrandName(state.data?.shopName || "ShadowVapes");
-  buildSidebar(state.data?.categories || []);
-  ensureLangModal();
+  const grid = $("#grid");
+  const empty = $("#emptyState");
 
-  const title = qs("#pageTitle");
-  title.textContent = state.activeCategory;
+  const list = filterProducts();
 
-  const grid = qs("#grid");
+  $("#countPill").textContent = `${list.length} ${tr("pcs")}`;
+
   grid.innerHTML = "";
+  empty.hidden = list.length !== 0;
 
-  const products = (state.data?.products || []).slice();
+  for(const p of list){
+    const name = getName(p);
+    const flavor = getFlavor(p);
+    const stock = Math.max(0, Number(p.stock || 0));
+    const st = p.status || "ok";
 
-  // Filtering rules:
-  // - Összes termék: show ONLY status !== "soon"
-  // - Hamarosan: show ONLY status === "soon"
-  // - Category: show matching category, exclude soon unless category is Hamarosan
-  let list = [];
-  if(state.activeCategory === "Összes termék"){
-    list = products.filter(p=> p.status !== "soon");
-  } else if(state.activeCategory === "Hamarosan"){
-    list = products.filter(p=> p.status === "soon");
-  } else {
-    list = products.filter(p=> (p.category === state.activeCategory) && p.status !== "soon");
+    const card = document.createElement("div");
+    card.className = "card" + ((st === "out" || stock <= 0) ? " sold" : "") + (st === "soon" ? " soon" : "");
+
+    const imgwrap = document.createElement("div");
+    imgwrap.className = "imgwrap";
+
+    const img = document.createElement("img");
+    img.loading = "lazy";
+    img.alt = `${name}${flavor ? " - " + flavor : ""}`;
+    img.src = p.image || "";
+    img.onerror = () => { img.src = ""; imgwrap.style.background = "rgba(255,255,255,.05)"; };
+    imgwrap.appendChild(img);
+
+    const b = statusBadge(p);
+    const badge = document.createElement("div");
+    badge.className = `badge ${b.cls}`;
+    badge.textContent = b.text;
+    imgwrap.appendChild(badge);
+
+    const body = document.createElement("div");
+    body.className = "card-body";
+
+    const nameRow = document.createElement("div");
+    nameRow.className = "name-row";
+
+    const pname = document.createElement("div");
+    pname.className = "pname";
+    pname.textContent = name;
+
+    nameRow.appendChild(pname);
+
+    const pflavor = document.createElement("div");
+    pflavor.className = "pflavor";
+    pflavor.textContent = flavor || "";
+
+    const meta = document.createElement("div");
+    meta.className = "meta";
+
+    const price = document.createElement("div");
+    price.className = "price";
+    price.textContent = fmtPrice(p);
+
+    const stockEl = document.createElement("div");
+    stockEl.className = "stock";
+    if(st === "soon"){
+      stockEl.textContent = "—";
+    }else{
+      stockEl.textContent = `${tr("stock")}: ${stock} ${tr("pcs")}`;
+    }
+
+    meta.appendChild(price);
+    meta.appendChild(stockEl);
+
+    body.appendChild(nameRow);
+    body.appendChild(pflavor);
+    body.appendChild(meta);
+
+    card.appendChild(imgwrap);
+    card.appendChild(body);
+    grid.appendChild(card);
   }
-
-  // Sorting: in-stock first, out last
- list.sort((a,b)=>{
-  const nameA = (getLocalized(a,"name") || "").toLowerCase();
-  const nameB = (getLocalized(b,"name") || "").toLowerCase();
-
-  if(nameA !== nameB) return nameA.localeCompare(nameB);
-
-  const sa = a.status === "out" ? 1 : 0;
-  const sb = b.status === "out" ? 1 : 0;
-  return sa - sb;
-});
-
-
-  if(list.length === 0){
-    const empty = el("div","panel fade-in");
-    empty.innerHTML = `<div class="small-muted">Nincs mit mutatni itt még 👀</div>`;
-    grid.appendChild(empty);
-    return;
-  }
-
-  list.forEach(p=> grid.appendChild(productCard(p)));
 }
 
-function bindLangSwitcher(){
-  qs("#langSwitch").onclick = ()=>{
-    state.lang = (state.lang === "en") ? "hu" : "en";
-    localStorage.setItem("sv_lang", state.lang);
-    render();
-  };
-}
-
-async function main(){
-  showLoader("Adatok töltése...");
-  bindLangSwitcher();
-  state.data = await loadData();
-  hideLoader();
-  render();
-}
-
-main().catch(err=>{
+load().catch(err => {
   console.error(err);
-  showLoader("Hiba: " + err.message);
+  alert("Hiba a betöltésnél: " + err.message);
 });
