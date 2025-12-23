@@ -17,6 +17,18 @@
       "price": 6000,
       "stock": 8,
       "status": "ok"
+    },
+    {
+      "id": "cb7fa66a7786b819b492e455e",
+      "category": "Vapsolo",
+      "nameHu": "Vapsolo Quads 80k 4 ízű",
+      "nameEn": "Vapsolo Quads 80k 4 ízű",
+      "flavorHu": "Mojito & Mangós Monster & Lady gyilkos & Pink Limonádé",
+      "flavorEn": "Mojito & Monster Mango & Lady Killer & Pink Lemonade",
+      "image": "https://ezigisale.com/wp-content/uploads/2025/10/10.MOJITO-MONSTER-MANGO-LADY-KILLER-PINK-LEMONADE.png",
+      "price": 6500,
+      "stock": 10,
+      "status": "ok"
     }
   ]
 }
