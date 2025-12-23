@@ -14,39 +14,38 @@
         <div class="pulse"></div>
       </div>
       <div class="loader-bar"><div></div></div>
-      <div class="loader-sub">Betöltés…</div>
+      <div class="loader-sub" id="loaderText">Betöltés...</div>
     </div>
   </div>
 
-  <div class="wrap" id="app" style="display:none;">
+  <div class="wrap" style="display:none" id="app">
     <aside class="sidebar">
       <div class="brand">Shadow<span>Vapes</span></div>
 
-      <div class="nav" id="categoryNav"></div>
+      <div class="nav" id="nav"></div>
 
       <div class="sidebar-bottom">
         <div class="pill">
-          Nyelv: <b id="langLabel">HU</b>
+          <span>Nyelv:</span>
+          <b id="langLabel">HU</b>
           <button id="langBtn">Váltás</button>
         </div>
         <div class="pill">
-          Termékek: <b id="countLabel">0</b>
+          <span>Találat:</span>
+          <b id="count">0</b>
         </div>
       </div>
     </aside>
 
     <main class="main">
       <div class="topbar">
-        <div class="h1" id="pageTitle">Termékek</div>
-        <div class="search">
-          <input id="search" placeholder="Keresés név / íz..." />
-          <button id="clear">Törlés</button>
-        </div>
+        <div class="h1" id="title">Összes termék</div>
+        <input id="search" placeholder="Keresés..." style="width:min(420px,100%);border-radius:14px;border:1px solid rgba(255,255,255,.08);background:rgba(11,15,23,.35);color:var(--text);padding:10px 12px;outline:none;">
       </div>
 
       <div class="grid" id="grid"></div>
 
-      <div class="small-muted" id="empty" style="display:none; margin-top:14px;">
+      <div class="small-muted" id="empty" style="display:none;margin-top:12px;">
         Nincs találat.
       </div>
     </main>
