@@ -2,63 +2,68 @@
 <html lang="hu">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>ShadowVapes</title>
   <link rel="stylesheet" href="assets/styles.css" />
+  <meta name="color-scheme" content="dark light">
 </head>
 <body>
-  <!-- Animated loader -->
-  <div id="loader">
-    <div class="loader-card">
-      <div class="loader-top">
-        <div class="loader-logo" id="loaderBrand">ShadowVapes</div>
-        <div class="pulse"></div>
-      </div>
-      <div class="loader-bar"><div></div></div>
-      <div class="loader-sub">Betöltés...</div>
-    </div>
-  </div>
-
-  <!-- Language modal -->
-  <div class="modal-backdrop" id="langModal">
-    <div class="modal fade-in">
-      <h2>Nyelv beállítása</h2>
-      <p>Szeretnéd a termék neveit <b>magyarul</b> vagy <b>eredeti (angol)</b> nyelven látni?</p>
-      <div class="row">
-        <button id="btnHu">Magyar 🇭🇺</button>
-        <button id="btnEn">English 🇬🇧</button>
-      </div>
-      <p class="small-muted" style="margin-top:10px;">Később bal alul bármikor át tudod állítani.</p>
-    </div>
-  </div>
-
-  <div class="wrap">
-    <aside class="sidebar">
-      <div class="brand"><span id="brandName">ShadowVapes</span></div>
-
-      <div class="nav" id="nav"></div>
-
-      <div class="sidebar-bottom">
-        <div class="pill">
-          <b>Nyelv</b>
-          <span class="small-muted">HU/EN</span>
-          <button id="langSwitch">Váltás</button>
-        </div>
-        <div class="pill">
-          <span class="small-muted">Frissítéshez admin oldal:</span>
-          <b>/admin.html</b>
+  <div class="bg"></div>
+  <header class="topbar">
+    <div class="wrap topbar-inner">
+      <div class="brand">
+        <div class="logo">SV</div>
+        <div class="brand-text">
+          <div class="brand-name">ShadowVapes</div>
+          <div class="brand-sub" id="brandSub">Prémium katalógus</div>
         </div>
       </div>
-    </aside>
 
-    <main class="main">
-      <div class="topbar">
-        <div class="h1" id="pageTitle">Összes termék</div>
+      <div class="top-actions">
+        <button class="chip" id="langToggle" title="Nyelv váltása">
+          <span class="dot"></span>
+          <span id="langLabel">HU</span>
+        </button>
+        <a class="chip ghost" href="admin.html" title="Admin">Admin</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="wrap main">
+    <section class="panel">
+      <div class="panel-head">
+        <div>
+          <h1 id="title">Termékek</h1>
+          <p class="muted" id="subtitle">Válassz kategóriát, és válogass.</p>
+        </div>
+        <div class="searchbox">
+          <input id="search" type="search" placeholder="Keresés..." autocomplete="off" />
+          <button id="clearSearch" class="iconbtn" title="Törlés">✕</button>
+        </div>
+      </div>
+
+      <div class="tabs" id="categoryTabs"></div>
+
+      <div class="meta-row">
+        <div class="pill" id="countPill">0 db</div>
+        <div class="pill ghost" id="hintPill">1000×1000 képekhez optimalizálva</div>
       </div>
 
       <div class="grid" id="grid"></div>
-    </main>
-  </div>
+
+      <div class="empty" id="emptyState" hidden>
+        <div class="empty-card">
+          <div class="empty-title" id="emptyTitle">Nincs találat</div>
+          <div class="empty-sub" id="emptySub">Próbáld más kulcsszóval vagy kategóriával.</div>
+        </div>
+      </div>
+    </section>
+
+    <footer class="footer">
+      <div class="muted">© <span id="year"></span> ShadowVapes</div>
+      <div class="muted">GitHub Pages / statikus JSON</div>
+    </footer>
+  </main>
 
   <script src="assets/app.js"></script>
 </body>
