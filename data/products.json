@@ -18,16 +18,6 @@
       "quantity": 10,
       "soldOut": false,
       "updatedAt": "2025-12-23T01:11:07.147Z"
-    },
-    {
-      "id": "p1",
-      "name": "PÃÂÃÂ©lda EgÃÂÃÂ©r",
-      "category": "gamer egÃÂÃÂ©r",
-      "image": "https://picsum.photos/seed/mouse/800/600",
-      "description": "Ez csak egy pÃÂÃÂ©lda termÃÂÃÂ©k.",
-      "quantity": 3,
-      "soldOut": false,
-      "updatedAt": "2025-12-23T01:08:36.099Z"
     }
   ]
 }
