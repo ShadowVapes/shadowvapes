@@ -7,155 +7,48 @@
   <link rel="stylesheet" href="assets/styles.css" />
 </head>
 <body>
-
-<div class="admin-wrap">
-  <div class="admin-top">
-    <div>
-      <div class="brand">Shadow<span>Vapes</span> Admin</div>
-      <div class="small-muted">Mentés után automatikus reload ✅ • Eladás: több tétel ✅ • törlés rollback ✅</div>
-    </div>
-    <div class="save-ind">
-      <span class="dot ok" id="saveDot"></span>
-      <span id="saveText">Kész</span>
-      <a class="ghost" href="index.html">Katalógus</a>
-    </div>
-  </div>
-
-  <div class="tabs">
-    <button id="tabBtn_products" class="active" type="button">Termékek</button>
-    <button id="tabBtn_categories" type="button">Kategóriák</button>
-    <button id="tabBtn_sales" type="button">Eladások</button>
-    <button id="tabBtn_chart" type="button">Diagramm</button>
-    <button id="tabBtn_settings" type="button">Beállítások</button>
-  </div>
-
-  <!-- PRODUCTS -->
-  <section class="panel" id="tab_products">
-    <div class="filter-row">
-      <div class="field">
-        <label>Kategória szűrő</label>
-        <select id="prodCatFilter"></select>
-      </div>
-      <div class="field">
-        <label>Keresés (név / íz)</label>
-        <input id="prodSearch" placeholder="pl. ELF / Blue Razz" />
-      </div>
-      <div class="actions">
-        <button class="primary" id="addProductBtn" type="button">+ Termék</button>
-        <button class="ghost" id="saveBtnTop" type="button">Mentés</button>
-      </div>
-    </div>
-
-    <table class="table" id="productsTable">
-      <thead>
-        <tr>
-          <th>Név</th><th>Íz</th><th>Kategória</th><th>Ár</th><th>Készlet</th><th>Status</th><th></th>
-        </tr>
-      </thead>
-      <tbody></tbody>
-    </table>
-  </section>
-
-  <!-- CATEGORIES -->
-  <section class="panel" id="tab_categories" style="display:none;">
-    <div class="actions">
-      <button class="primary" id="addCategoryBtn" type="button">+ Kategória</button>
-      <button class="ghost" id="saveBtnCats" type="button">Mentés</button>
-    </div>
-    <table class="table" id="categoriesTable">
-      <thead>
-        <tr>
-          <th>ID</th><th>HU</th><th>EN</th><th>Alap ár (Ft)</th><th></th>
-        </tr>
-      </thead>
-      <tbody></tbody>
-    </table>
-    <div class="small-muted">Tipp: ha a terméknél az ár üres / null → a kategória alap ára megy.</div>
-  </section>
-
-  <!-- SALES -->
-  <section class="panel" id="tab_sales" style="display:none;">
-    <div class="filter-row">
-      <div class="field">
-        <label>Kategória szűrő</label>
-        <select id="saleCatFilter"></select>
-      </div>
-      <div class="field">
-        <label>Keresés (eladás név / mód)</label>
-        <input id="saleSearch" placeholder="pl. Zoli / KP / Revolut" />
-      </div>
-      <div class="actions">
-        <button class="primary" id="addSaleBtn" type="button">+ Eladás</button>
-        <button class="ghost" id="saveBtnSales" type="button">Mentés</button>
-      </div>
-    </div>
-
-    <div class="kpi">
-      <div class="box"><div class="t">Össz bevétel</div><div class="v" id="kpiRev">0 Ft</div></div>
-      <div class="box"><div class="t">Össz eladás</div><div class="v" id="kpiSales">0</div></div>
-      <div class="box"><div class="t">Össz mennyiség</div><div class="v" id="kpiQty">0</div></div>
-    </div>
-
-    <table class="table" id="salesTable">
-      <thead>
-        <tr>
-          <th>Dátum</th><th>Név</th><th>Mód</th><th>Tételek</th><th>Összeg</th><th></th>
-        </tr>
-      </thead>
-      <tbody></tbody>
-    </table>
-  </section>
-
-  <!-- CHART -->
-  <section class="panel" id="tab_chart" style="display:none;">
-    <div class="filter-row">
-      <div class="field">
-        <label>Kategória (diagram szűrő)</label>
-        <select id="chartCatFilter"></select>
-      </div>
-      <div class="field">
-        <label>Info</label>
-        <input disabled value="Bars = Bevétel / nap • Line = Eladások száma / nap" />
-      </div>
-    </div>
-
-    <div class="chartWrap">
-      <canvas id="revChart" width="1200" height="360"></canvas>
-      <div class="small-muted" id="chartHint" style="margin-top:10px;">—</div>
-    </div>
-  </section>
-
-  <!-- SETTINGS -->
-  <section class="panel" id="tab_settings" style="display:none;">
-    <div class="form-grid">
-      <div class="field">
-        <label>GitHub Owner</label>
-        <input id="ghOwner" placeholder="pl. tesouser" />
-      </div>
-      <div class="field">
-        <label>Repo</label>
-        <input id="ghRepo" placeholder="pl. shadowvapes" />
-      </div>
-      <div class="field">
-        <label>Branch</label>
-        <input id="ghBranch" placeholder="main" />
-      </div>
-      <div class="field">
-        <label>Token</label>
-        <input id="ghToken" type="password" placeholder="ghp_..." />
-      </div>
-      <div class="field full">
-        <div class="actions">
-          <button class="primary" id="loadBtn" type="button">Betöltés</button>
-          <button class="ghost" id="saveBtn" type="button">Mentés GitHub-ra</button>
+  <div class="admin-wrap">
+    <div class="admin-top">
+      <div>
+        <div class="brand">Shadow<span>Vapes</span> Admin</div>
+        <div class="save-ind">
+          <span class="dot ok" id="saveDot"></span>
+          <span id="saveText">Kész</span>
         </div>
-        <div class="small-muted">Ha nincs token/owner/repo → csak helyben frissít UI-t, GitHub-ra nem tud írni.</div>
+      </div>
+      <div class="actions" style="margin:0;">
+        <a class="ghost" href="index.html">Katalógus</a>
+        <button class="ghost" id="reloadBtn">Reload</button>
       </div>
     </div>
-  </section>
-</div>
 
-<script src="assets/github.js"></script>
-<script src="assets/admin.js"></script>
+    <div class="tabs" id="tabs">
+      <button data-tab="products" class="active">Termékek</button>
+      <button data-tab="categories">Kategóriák</button>
+      <button data-tab="sales">Eladások</button>
+      <button data-tab="chart">Diagramm</button>
+      <button data-tab="settings">Beállítások</button>
+    </div>
+
+    <div class="panel" id="tab-products"></div>
+    <div class="panel" id="tab-categories" style="display:none;"></div>
+    <div class="panel" id="tab-sales" style="display:none;"></div>
+    <div class="panel" id="tab-chart" style="display:none;"></div>
+    <div class="panel" id="tab-settings" style="display:none;"></div>
+  </div>
+
+  <div class="modal-backdrop" id="modalBackdrop">
+    <div class="modal" id="modal">
+      <h2 id="modalTitle">Modal</h2>
+      <div id="modalBody"></div>
+      <div class="row" style="margin-top:12px;">
+        <button id="modalCancel">Mégse</button>
+        <button id="modalOk">OK</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="assets/github.js"></script>
+  <script src="assets/admin.js"></script>
 </body>
 </html>
