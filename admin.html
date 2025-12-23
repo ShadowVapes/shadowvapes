@@ -2,43 +2,209 @@
 <html lang="hu">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>ShadowVapes Admin</title>
   <link rel="stylesheet" href="assets/styles.css" />
 </head>
 <body>
-  <div class="admin-wrap">
+  <div class="admin-wrap fade-in">
     <div class="admin-top">
       <div>
-        <div class="brand">Shadow<span>Vapes</span> Admin</div>
-        <div class="small-muted">Mentés után automatikus reload ✅ | Eladás: több tétel ✅ | törlés rollback ✅</div>
+        <div class="brand" style="margin:0;">Shadow<span>Vapes</span> Admin</div>
+        <div class="save-ind" style="margin-top:8px;">
+          <span class="dot" id="saveDot"></span>
+          <span id="saveText">Készen áll</span>
+        </div>
+        <div class="small-muted" id="modeText" style="margin-top:6px;"></div>
       </div>
-      <div class="save-ind">
-        <div class="dot" id="saveDot"></div>
-        <span id="saveText">Kész</span>
-        <a class="ghost" href="index.html" style="text-decoration:none">Katalógus</a>
+
+      <div style="display:flex; gap:10px; align-items:center;">
+        <a class="ghost" href="index.html">Katalógus</a>
       </div>
     </div>
 
-    <div class="tabs">
-      <button data-tab="products" class="active">Termékek</button>
+    <div class="tabs" id="tabs">
+      <button class="active" data-tab="products">Termékek</button>
       <button data-tab="categories">Kategóriák</button>
       <button data-tab="sales">Eladások</button>
       <button data-tab="settings">Beállítások</button>
     </div>
 
-    <section class="panel" id="tab-products"></section>
-    <section class="panel" id="tab-categories" style="display:none"></section>
-    <section class="panel" id="tab-sales" style="display:none"></section>
-    <section class="panel" id="tab-settings" style="display:none"></section>
+    <!-- PRODUCTS -->
+    <section class="panel" id="panel-products">
+      <div class="form-grid">
+        <input id="p-id" type="hidden" />
+
+        <div class="field">
+          <label>Név (HU)</label>
+          <input id="p-name-hu" placeholder="Pl.: ELF BAR" />
+        </div>
+        <div class="field">
+          <label>Name (EN)</label>
+          <input id="p-name-en" placeholder="Optional" />
+        </div>
+
+        <div class="field">
+          <label>Íz (HU)</label>
+          <input id="p-flavor-hu" placeholder="Pl.: Blue Razz" />
+        </div>
+        <div class="field">
+          <label>Flavor (EN)</label>
+          <input id="p-flavor-en" placeholder="Optional" />
+        </div>
+
+        <div class="field">
+          <label>Kategória</label>
+          <select id="p-category"></select>
+        </div>
+        <div class="field">
+          <label>Státusz</label>
+          <select id="p-status">
+            <option value="ok">Készleten (ok)</option>
+            <option value="out">Elfogyott (out)</option>
+            <option value="soon">Hamarosan (soon)</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label>Ár (Ft)</label>
+          <input id="p-price" type="number" min="0" step="1" />
+        </div>
+        <div class="field">
+          <label>Készlet</label>
+          <input id="p-stock" type="number" min="0" step="1" />
+        </div>
+
+        <div class="field full">
+          <label>Kép URL (1000×1000 ajánlott)</label>
+          <input id="p-image" placeholder="https://..." />
+        </div>
+      </div>
+
+      <div class="actions">
+        <button class="primary" id="p-save">Mentés / Új</button>
+        <button class="ghost" id="p-clear">Űrlap törlés</button>
+        <button class="danger" id="p-delete" disabled>Termék törlés</button>
+      </div>
+
+      <div class="rowline">
+        <div class="left">
+          <b>Termék lista</b>
+          <span class="small-muted">Kattints a sorra szerkesztéshez</span>
+        </div>
+        <input id="p-search" placeholder="Keresés..." style="max-width:320px;" />
+      </div>
+
+      <div id="productsList"></div>
+    </section>
+
+    <!-- CATEGORIES -->
+    <section class="panel" id="panel-categories" style="display:none;">
+      <div class="form-grid">
+        <div class="field full">
+          <label>Új kategória</label>
+          <input id="c-new" placeholder="Pl.: ELFBAR" />
+        </div>
+      </div>
+      <div class="actions">
+        <button class="primary" id="c-add">Hozzáadás</button>
+      </div>
+
+      <div class="rowline">
+        <div class="left">
+          <b>Kategóriák</b>
+          <span class="small-muted">Összes termék + Hamarosan fix, nem törölhető</span>
+        </div>
+      </div>
+
+      <div id="categoriesList"></div>
+    </section>
+
+    <!-- SALES -->
+    <section class="panel" id="panel-sales" style="display:none;">
+      <div class="kpi" id="kpi"></div>
+
+      <div class="rowline">
+        <div class="left">
+          <b>Új eladás</b>
+          <span class="small-muted">Több terméket is adhatsz egy eladásba</span>
+        </div>
+        <div style="display:flex; gap:10px; align-items:center;">
+          <label class="small-muted">Dátum</label>
+          <input id="sale-date" type="date" />
+        </div>
+      </div>
+
+      <div id="saleItems"></div>
+
+      <div class="actions">
+        <button class="ghost" id="sale-add-item">+ Tétel</button>
+        <button class="primary" id="sale-save">Eladás mentése</button>
+      </div>
+
+      <div class="rowline">
+        <div class="left">
+          <b>Eladások</b>
+          <span class="small-muted" id="salesCount"></span>
+        </div>
+      </div>
+
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Dátum</th>
+            <th>Tételek</th>
+            <th>Összeg</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="salesTable"></tbody>
+      </table>
+    </section>
+
+    <!-- SETTINGS -->
+    <section class="panel" id="panel-settings" style="display:none;">
+      <div class="form-grid">
+        <div class="field third">
+          <label>GitHub owner</label>
+          <input id="s-owner" placeholder="Pl.: ShadowVapes" />
+        </div>
+        <div class="field third">
+          <label>Repo</label>
+          <input id="s-repo" placeholder="Pl.: shadowvapes" />
+        </div>
+        <div class="field third">
+          <label>Branch</label>
+          <input id="s-branch" placeholder="main" />
+        </div>
+
+        <div class="field full">
+          <label>GitHub Token (csak localStorage, nem kerül fel sehova)</label>
+          <input id="s-token" type="password" placeholder="ghp_..." />
+        </div>
+
+        <div class="field">
+          <label>Products path</label>
+          <input id="s-products-path" placeholder="data/products.json" />
+        </div>
+        <div class="field">
+          <label>Sales path</label>
+          <input id="s-sales-path" placeholder="data/sales.json" />
+        </div>
+      </div>
+
+      <div class="actions">
+        <button class="primary" id="s-save">Beállítások mentése</button>
+        <button class="ghost" id="s-test">Kapcsolat teszt + betöltés</button>
+      </div>
+
+      <div class="small-muted" style="margin-top:10px;">
+        Tipp: ha GitHub mentés után “nem frissül”, az CDN cache. Ez a kód **API-ból tölti újra**, szóval azonnal látod.
+      </div>
+    </section>
   </div>
 
-  <!-- modal -->
-  <div class="modal-backdrop" id="modalBackdrop">
-    <div class="modal" id="modalBox"></div>
-  </div>
-
-  <script src="assets/github.js"></script>
-  <script src="assets/admin.js"></script>
+  <script src="assets/github.js" defer></script>
+  <script src="assets/admin.js" defer></script>
 </body>
 </html>
