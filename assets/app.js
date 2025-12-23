@@ -171,12 +171,17 @@ function render(){
   }
 
   // Sorting: in-stock first, out last
-  list.sort((a,b)=>{
-    const ao = (a.status==="out") ? 1 : 0;
-    const bo = (b.status==="out") ? 1 : 0;
-    if(ao !== bo) return ao - bo;
-    return (a.order||0) - (b.order||0);
-  });
+ list.sort((a,b)=>{
+  const nameA = (getLocalized(a,"name") || "").toLowerCase();
+  const nameB = (getLocalized(b,"name") || "").toLowerCase();
+
+  if(nameA !== nameB) return nameA.localeCompare(nameB);
+
+  const sa = a.status === "out" ? 1 : 0;
+  const sb = b.status === "out" ? 1 : 0;
+  return sa - sb;
+});
+
 
   if(list.length === 0){
     const empty = el("div","panel fade-in");
