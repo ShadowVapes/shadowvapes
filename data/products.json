@@ -2,19 +2,20 @@
   "categories": [
     "Összes termék",
     "Ãsszes termÃ©k",
-    "gamer egÃ©r",
-    "gamer billentyÅ±zet"
+    "ÃÂsszes termÃÂ©k",
+    "gamer egÃÂ©r",
+    "gamer billentyÃÂ±zet"
   ],
   "products": [
     {
       "id": "p1",
-      "name": "PÃ©lda EgÃ©r",
-      "category": "gamer egÃ©r",
+      "name": "PÃÂ©lda EgÃÂ©r",
+      "category": "gamer egÃÂ©r",
       "image": "https://picsum.photos/seed/mouse/800/600",
-      "description": "Ez csak egy pÃ©lda termÃ©k.",
+      "description": "Ez csak egy pÃÂ©lda termÃÂ©k.",
       "quantity": 3,
-      "soldOut": true,
-      "updatedAt": "2025-12-23T01:06:36.822Z"
+      "soldOut": false,
+      "updatedAt": "2025-12-23T01:08:36.099Z"
     }
   ]
 }
