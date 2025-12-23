@@ -10,15 +10,17 @@
   <div class="admin-wrap">
     <div class="admin-top">
       <div>
-        <div class="brand">Shadow<span>Vapes</span> Admin</div>
-        <div class="save-ind">
-          <span class="dot ok" id="saveDot"></span>
+        <div style="font-weight:900;font-size:22px;letter-spacing:.2px;">Shadow<span style="background:linear-gradient(90deg,var(--brand),var(--brand2));-webkit-background-clip:text;background-clip:text;color:transparent;">Vapes</span> Admin</div>
+        <div class="save-ind" style="margin-top:6px;">
+          <span class="dot" id="saveDot"></span>
           <span id="saveText">Kész</span>
+          <span style="opacity:.35">•</span>
+          <span>Auto-mentés</span>
         </div>
       </div>
-      <div class="actions" style="margin:0;">
-        <a class="ghost" href="index.html">Katalógus</a>
-        <button class="ghost" id="reloadBtn">Reload</button>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+        <a class="ghost" href="./">Katalógus</a>
+        <button class="ghost" id="btnReload">Reload</button>
       </div>
     </div>
 
@@ -30,21 +32,20 @@
       <button data-tab="settings">Beállítások</button>
     </div>
 
-    <div class="panel" id="tab-products"></div>
-    <div class="panel" id="tab-categories" style="display:none;"></div>
-    <div class="panel" id="tab-sales" style="display:none;"></div>
-    <div class="panel" id="tab-chart" style="display:none;"></div>
-    <div class="panel" id="tab-settings" style="display:none;"></div>
+    <div class="panel" id="panelProducts"></div>
+    <div class="panel" id="panelCategories" style="display:none"></div>
+    <div class="panel" id="panelSales" style="display:none"></div>
+    <div class="panel" id="panelChart" style="display:none"></div>
+    <div class="panel" id="panelSettings" style="display:none"></div>
   </div>
 
-  <div class="modal-backdrop" id="modalBackdrop">
-    <div class="modal" id="modal">
+  <!-- MODAL (prompt helyett) -->
+  <div class="modal-backdrop" id="modalBg">
+    <div class="modal">
       <h2 id="modalTitle">Modal</h2>
+      <p id="modalSub" class="small-muted"></p>
       <div id="modalBody"></div>
-      <div class="row" style="margin-top:12px;">
-        <button id="modalCancel">Mégse</button>
-        <button id="modalOk">OK</button>
-      </div>
+      <div class="row" style="margin-top:14px;" id="modalActions"></div>
     </div>
   </div>
 
