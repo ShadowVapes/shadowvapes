@@ -1,6 +1,11 @@
 {
   "categories": [
-    { "id": "elf", "label_hu": "ELF", "label_en": "ELF", "basePrice": 6000 }
+    {
+      "id": "elf",
+      "label_hu": "ELF",
+      "label_en": "ELF",
+      "basePrice": 6000
+    }
   ],
   "products": [
     {
@@ -9,11 +14,11 @@
       "status": "ok",
       "stock": 10,
       "price": null,
-      "image": "https://...",
+      "image": "https://ezigisale.com/wp-content/uploads/2025/03/Grape_ice.png",
       "name_hu": "Elfbar Ice King 30k",
       "name_en": "Elfbar Ice King 30k",
-      "flavor_hu": "Jég",
-      "flavor_en": "Ice"
+      "flavor_hu": "Szőlő Jég",
+      "flavor_en": "Grape Ice"
     }
   ]
 }
