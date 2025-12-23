@@ -1,1 +1,63 @@
+<!doctype html>
+<html lang="hu">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Admin • ShadowVapes</title>
+  <link rel="stylesheet" href="assets/styles.css" />
+</head>
+<body>
+  <div class="admin-wrap">
+    <div class="admin-top">
+      <div class="brand"><span>ShadowVapes</span> <span class="small-muted">• Admin</span></div>
+      <div class="save-ind">
+        <div class="dot" id="saveDot"></div>
+        <div id="saveText">Nincs mentés folyamatban</div>
+      </div>
+    </div>
 
+    <div class="panel fade-in">
+      <div class="small-muted">GitHub beállítás (csak egyszer kell):</div>
+      <div class="form-grid" style="margin-top:10px;">
+        <div class="field third">
+          <label>Owner (felhasználónév)</label>
+          <input id="ghOwner" placeholder="pl. tesouser" />
+        </div>
+        <div class="field third">
+          <label>Repo név</label>
+          <input id="ghRepo" placeholder="pl. shadowvapes" />
+        </div>
+        <div class="field third">
+          <label>Branch</label>
+          <input id="ghBranch" value="main" />
+        </div>
+        <div class="field full">
+          <label>GitHub Token (Fine-grained vagy classic)</label>
+          <input id="ghToken" placeholder="ghp_..." />
+        </div>
+      </div>
+      <div class="actions">
+        <button class="primary" id="btnSaveCfg">Mentem a beállítást</button>
+        <button class="ghost" id="btnLoad">Betöltés GitHub-ról</button>
+      </div>
+      <div class="small-muted" id="cfgHint" style="margin-top:10px;"></div>
+    </div>
+
+    <div class="tabs">
+      <button class="active" data-tab="products">Termékek</button>
+      <button data-tab="categories">Kategóriák</button>
+      <button data-tab="sales">Eladás rögzítése</button>
+      <button data-tab="reports">Bevétel</button>
+    </div>
+
+    <div class="panel" id="tabProducts"></div>
+    <div class="panel" id="tabCategories" style="display:none;"></div>
+    <div class="panel" id="tabSales" style="display:none;"></div>
+    <div class="panel" id="tabReports" style="display:none;"></div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="assets/github.js"></script>
+  <script src="assets/admin.js"></script>
+</body>
+</html>
