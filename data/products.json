@@ -10,6 +10,16 @@
   ],
   "products": [
     {
+      "id": "p_a5a1544189962_19b48c2888b",
+      "name": "Elfbar Ice King 30k",
+      "category": "Elfbar",
+      "image": "https://elfbarrendeleseu.com/wp-content/uploads/2025/07/MIAMIMINT-300x300.webp",
+      "description": "Nagyon fincsi",
+      "quantity": 10,
+      "soldOut": false,
+      "updatedAt": "2025-12-23T01:11:07.147Z"
+    },
+    {
       "id": "p1",
       "name": "PÃÂÃÂ©lda EgÃÂÃÂ©r",
       "category": "gamer egÃÂÃÂ©r",
