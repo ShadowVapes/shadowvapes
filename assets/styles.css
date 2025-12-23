@@ -203,17 +203,33 @@ h2{font-size:18px}
 .card.soon{
   opacity:.95;
 }
+
+/* 1000x1000 optimized */
 .imgwrap{
-  aspect-ratio:1/1; /* 1000x1000-re fix */
+  aspect-ratio: 1 / 1;
   width:100%;
   background: rgba(255,255,255,.03);
   position:relative;
+  overflow:hidden;
 }
 .imgwrap img{
   width:100%; height:100%;
   object-fit:cover;
   display:block;
+  transform: scale(1.01);
 }
+
+/* Bottom gradient so text always readable */
+.imgwrap::after{
+  content:"";
+  position:absolute;
+  inset:auto 0 0 0;
+  height:44%;
+  background: linear-gradient(180deg, transparent, rgba(0,0,0,.55) 40%, rgba(0,0,0,.78));
+  pointer-events:none;
+}
+
+/* Status badge stays top-left */
 .badge{
   position:absolute; top:10px; left:10px;
   padding:7px 9px;
@@ -222,44 +238,68 @@ h2{font-size:18px}
   border:1px solid var(--stroke);
   background: rgba(0,0,0,.35);
   backdrop-filter: blur(10px);
+  z-index:3;
 }
 .badge.good{color:rgba(56,242,179,.95); border-color: rgba(56,242,179,.25);}
 .badge.bad{color:rgba(255,92,122,.95); border-color: rgba(255,92,122,.25);}
 .badge.warn{color:rgba(255,211,106,.95); border-color: rgba(255,211,106,.25);}
 
-.card-body{padding:12px 12px 14px;}
-.name-row{display:flex; align-items:flex-start; justify-content:space-between; gap:10px;}
+/* Text overlay on image (for 1000x1000 cards) */
+.overlay{
+  position:absolute;
+  left:0; right:0; bottom:0;
+  padding: 12px 12px 12px;
+  z-index:2;
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+}
 .pname{
-  font-weight:800;
+  font-weight:900;
   letter-spacing:.2px;
   font-size:14px;
-  line-height:1.2;
+  line-height:1.15;
+  text-shadow: 0 8px 24px rgba(0,0,0,.55);
 }
 .pflavor{
-  margin-top:6px;
   font-size:13px;
-  color:var(--muted);
-  line-height:1.25;
-  min-height: 32px; /* 1000x1000 card text spacing */
+  color: rgba(255,255,255,.78);
+  line-height:1.2;
+  text-shadow: 0 8px 24px rgba(0,0,0,.55);
+
+  /* prevent crazy long flavor from breaking the card */
+  display:-webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow:hidden;
 }
-.meta{
-  display:flex; justify-content:space-between; align-items:center;
-  margin-top:10px;
+
+/* Price + stock row inside overlay */
+.ometa{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
   gap:10px;
+  margin-top:2px;
 }
 .price{
   font-family: var(--mono);
   font-size:13px;
-  color: rgba(255,255,255,.86);
+  color: rgba(255,255,255,.90);
+  text-shadow: 0 8px 24px rgba(0,0,0,.55);
 }
 .stock{
   font-size:12px;
-  color: var(--muted);
+  color: rgba(255,255,255,.72);
   padding:6px 8px;
-  border:1px solid var(--stroke);
+  border:1px solid rgba(255,255,255,.16);
   border-radius:999px;
-  background: rgba(255,255,255,.04);
+  background: rgba(0,0,0,.22);
+  backdrop-filter: blur(10px);
 }
+
+/* Old body is not used anymore, keep it harmless */
+.card-body{display:none;}
 
 .empty{padding:18px;}
 .empty-card{
@@ -277,7 +317,7 @@ h2{font-size:18px}
   display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap;
 }
 
-/* Admin UI */
+/* Admin UI (unchanged from previous) */
 .row{display:flex; gap:10px; align-items:center; flex-wrap:wrap;}
 .btn{
   padding:10px 12px;
@@ -449,50 +489,3 @@ h2{font-size:18px}
   display:flex; justify-content:flex-end; gap:10px; flex-wrap:wrap;
 }
 .hr{height:1px; background: var(--stroke); margin:12px 0;}
-/* ===== 1000x1000 IMAGE OVERLAY CARD ===== */
-
-.imgwrap{
-  position:relative;
-}
-
-.overlay{
-  position:absolute;
-  inset:0;
-  display:flex;
-  flex-direction:column;
-  justify-content:flex-end;
-  padding:14px;
-  background: linear-gradient(
-    to top,
-    rgba(0,0,0,.75),
-    rgba(0,0,0,.35) 40%,
-    rgba(0,0,0,0)
-  );
-}
-
-.overlay-name{
-  font-weight:900;
-  font-size:15px;
-  line-height:1.15;
-  letter-spacing:.2px;
-}
-
-.overlay-flavor{
-  margin-top:4px;
-  font-size:13px;
-  color:rgba(255,255,255,.8);
-}
-
-/* sold / soon finomítás */
-.card.sold .overlay{
-  background: linear-gradient(
-    to top,
-    rgba(0,0,0,.85),
-    rgba(0,0,0,.55),
-    rgba(0,0,0,.2)
-  );
-}
-
-.card.soon .overlay-name{
-  color: var(--warn);
-}
