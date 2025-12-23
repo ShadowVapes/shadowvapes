@@ -1,174 +1,55 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="hu">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ShadowVapes - Admin</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="assets/styles.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>ShadowVapes Admin</title>
+  <link rel="stylesheet" href="assets/styles.css" />
 </head>
 <body>
-
-    <nav class="navbar navbar-dark bg-dark mb-4">
-        <div class="container">
-            <a class="navbar-brand" href="index.html">ShadowVapes Admin</a>
-            <a href="index.html" class="btn btn-outline-light btn-sm">Vissza a boltba</a>
+  <div class="admin-wrap">
+    <div class="admin-top">
+      <div>
+        <div style="font-weight:900;font-size:22px;letter-spacing:.2px;">Shadow<span style="background:linear-gradient(90deg,var(--brand),var(--brand2));-webkit-background-clip:text;background-clip:text;color:transparent;">Vapes</span> Admin</div>
+        <div class="save-ind" style="margin-top:6px;">
+          <span class="dot" id="saveDot"></span>
+          <span id="saveText">Kész</span>
+          <span style="opacity:.35">•</span>
+          <span>Auto-mentés</span>
         </div>
-    </nav>
-
-    <div class="container">
-        <div class="row mb-4 text-center">
-            <div class="col-md-4">
-                <div class="card bg-primary text-white p-3">
-                    <h3>Összbevétel</h3>
-                    <h2 id="totalRevenue">0 Ft</h2>
-                </div>
-            </div>
-            <div class="col-md-4">
-                <div class="card bg-success text-white p-3">
-                    <h3>Terméktípusok</h3>
-                    <h2 id="productsCount">0</h2>
-                </div>
-            </div>
-            <div class="col-md-4">
-                <div class="card bg-warning text-dark p-3">
-                    <h3>Eladások száma</h3>
-                    <h2 id="salesCount">0</h2>
-                </div>
-            </div>
-        </div>
-
-        <ul class="nav nav-tabs mb-3" id="adminTab" role="tablist">
-            <li class="nav-item">
-                <button class="nav-link active" id="products-tab" data-bs-toggle="tab" data-bs-target="#products" type="button">Termékek Kezelése</button>
-            </li>
-            <li class="nav-item">
-                <button class="nav-link" id="sales-tab" data-bs-toggle="tab" data-bs-target="#sales" type="button">Eladások & Statisztika</button>
-            </li>
-        </ul>
-
-        <div class="tab-content" id="adminTabContent">
-            
-            <div class="tab-pane fade show active" id="products">
-                <button class="btn btn-success mb-3" data-bs-toggle="modal" data-bs-target="#productModal" onclick="resetProductForm()">+ Új Termék</button>
-                <div class="table-responsive">
-                    <table class="table table-hover table-bordered" id="productsTable">
-                        <thead class="table-dark">
-                            <tr>
-                                <th>Kép</th>
-                                <th>Név</th>
-                                <th>Íz</th>
-                                <th>Ár</th>
-                                <th>Készlet</th>
-                                <th>Státusz</th>
-                                <th>Művelet</th>
-                            </tr>
-                        </thead>
-                        <tbody></tbody>
-                    </table>
-                </div>
-            </div>
-
-            <div class="tab-pane fade" id="sales">
-                <button class="btn btn-primary mb-3" data-bs-toggle="modal" data-bs-target="#saleModal" onclick="prepareSaleModal()">+ Új Eladás Rögzítése</button>
-                <div class="table-responsive">
-                    <table class="table table-striped" id="salesTable">
-                        <thead class="table-dark">
-                            <tr>
-                                <th>Dátum</th>
-                                <th>Termékek</th>
-                                <th>Végösszeg</th>
-                                <th>Művelet</th>
-                            </tr>
-                        </thead>
-                        <tbody></tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
+      </div>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+        <a class="ghost" href="./">Katalógus</a>
+        <button class="ghost" id="btnReload">Reload</button>
+      </div>
     </div>
 
-    <div class="modal fade" id="productModal" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">Termék Adatok</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <form id="productForm">
-                        <input type="hidden" id="productId">
-                        <div class="mb-2">
-                            <label>Név</label>
-                            <input type="text" class="form-control" id="productName" required placeholder="pl. ELF BAR">
-                        </div>
-                        <div class="mb-2">
-                            <label>Íz</label>
-                            <input type="text" class="form-control" id="productFlavor" required placeholder="pl. Görögdinnye">
-                        </div>
-                        <div class="mb-2">
-                            <label>Ár (Ft)</label>
-                            <input type="number" class="form-control" id="productPrice" required>
-                        </div>
-                        <div class="mb-2">
-                            <label>Készlet (db)</label>
-                            <input type="number" class="form-control" id="productStock" required>
-                        </div>
-                        <div class="mb-2">
-                            <label>Kép URL</label>
-                            <input type="text" class="form-control" id="productImage" placeholder="https://...">
-                        </div>
-                        <div class="mb-3">
-                            <label>Státusz</label>
-                            <select class="form-control" id="productStatus">
-                                <option value="keszleten">Készleten</option>
-                                <option value="elfogyott">Elfogyott</option>
-                                <option value="hamarosan">Hamarosan</option>
-                            </select>
-                        </div>
-                        <button type="submit" class="btn btn-primary w-100">Mentés</button>
-                    </form>
-                </div>
-            </div>
-        </div>
+    <div class="tabs" id="tabs">
+      <button data-tab="products" class="active">Termékek</button>
+      <button data-tab="categories">Kategóriák</button>
+      <button data-tab="sales">Eladások</button>
+      <button data-tab="chart">Diagramm</button>
+      <button data-tab="settings">Beállítások</button>
     </div>
 
-    <div class="modal fade" id="saleModal" tabindex="-1">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">Eladás Rögzítése</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <form id="saleForm">
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">Dátum</label>
-                            <input type="date" class="form-control" id="saleDate" required>
-                        </div>
-                        
-                        <label class="form-label fw-bold">Kosár Tartalma:</label>
-                        <div id="sale-items-container" class="mb-3">
-                            </div>
-                        
-                        <button type="button" class="btn btn-outline-secondary btn-sm mb-3" id="add-product-row">
-                            <i class="fas fa-plus"></i> + Még egy termék hozzáadása
-                        </button>
+    <div class="panel" id="panelProducts"></div>
+    <div class="panel" id="panelCategories" style="display:none"></div>
+    <div class="panel" id="panelSales" style="display:none"></div>
+    <div class="panel" id="panelChart" style="display:none"></div>
+    <div class="panel" id="panelSettings" style="display:none"></div>
+  </div>
 
-                        <div class="alert alert-info text-end">
-                            <strong>Becsült végösszeg: <span id="liveTotal">0</span> Ft</strong>
-                        </div>
-
-                        <button type="submit" class="btn btn-primary w-100">Eladás Mentése</button>
-                    </form>
-                </div>
-            </div>
-        </div>
+  <!-- MODAL (prompt helyett) -->
+  <div class="modal-backdrop" id="modalBg">
+    <div class="modal">
+      <h2 id="modalTitle">Modal</h2>
+      <p id="modalSub" class="small-muted"></p>
+      <div id="modalBody"></div>
+      <div class="row" style="margin-top:14px;" id="modalActions"></div>
     </div>
+  </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="assets/admin.js"></script>
+  <script src="assets/github.js"></script>
+  <script src="assets/admin.js"></script>
 </body>
 </html>

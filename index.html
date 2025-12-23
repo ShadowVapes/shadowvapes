@@ -1,49 +1,56 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="hu">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ShadowVapes - Webshop</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="assets/styles.css">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>ShadowVapes</title>
+  <link rel="stylesheet" href="assets/styles.css" />
 </head>
 <body>
-
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-        <div class="container">
-            <a class="navbar-brand fw-bold" href="#">ShadowVapes</a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav ms-auto">
-                    <li class="nav-item"><a class="nav-link active" href="index.html">Főoldal</a></li>
-                    <li class="nav-item"><a class="nav-link" href="admin.html">Admin</a></li>
-                </ul>
-            </div>
-        </div>
-    </nav>
-
-    <header class="bg-primary text-white text-center py-5 mb-5" style="background: linear-gradient(45deg, #6a11cb, #2575fc);">
-        <div class="container">
-            <h1 class="fw-light">Üdvözöl a ShadowVapes-en!</h1>
-            <p class="lead text-white-50">A legjobb ízek egy helyen.</p>
-        </div>
-    </header>
-
-    <div class="container">
-        <div class="row" id="product-container">
-            </div>
+  <div id="loader">
+    <div class="loader-card">
+      <div class="loader-top">
+        <div class="loader-logo">Shadow<span style="background:linear-gradient(90deg,var(--brand),var(--brand2));-webkit-background-clip:text;background-clip:text;color:transparent;">Vapes</span></div>
+        <div class="pulse"></div>
+      </div>
+      <div class="loader-bar"><div></div></div>
+      <div class="loader-sub" id="loaderText">Betöltés...</div>
     </div>
+  </div>
 
-    <footer class="py-4 bg-dark text-white-50 text-center mt-5">
-        <div class="container">
-            <small>Copyright &copy; ShadowVapes 2024</small>
+  <div class="wrap" style="display:none" id="app">
+    <aside class="sidebar">
+      <div class="brand">Shadow<span>Vapes</span></div>
+
+      <div class="nav" id="nav"></div>
+
+      <div class="sidebar-bottom">
+        <div class="pill">
+          <span>Nyelv:</span>
+          <b id="langLabel">HU</b>
+          <button id="langBtn">Váltás</button>
         </div>
-    </footer>
+        <div class="pill">
+          <span>Találat:</span>
+          <b id="count">0</b>
+        </div>
+      </div>
+    </aside>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="assets/app.js"></script>
+    <main class="main">
+      <div class="topbar">
+        <div class="h1" id="title">Összes termék</div>
+        <input id="search" placeholder="Keresés..." style="width:min(420px,100%);border-radius:14px;border:1px solid rgba(255,255,255,.08);background:rgba(11,15,23,.35);color:var(--text);padding:10px 12px;outline:none;">
+      </div>
+
+      <div class="grid" id="grid"></div>
+
+      <div class="small-muted" id="empty" style="display:none;margin-top:12px;">
+        Nincs találat.
+      </div>
+    </main>
+  </div>
+
+  <script src="assets/app.js"></script>
 </body>
 </html>
