@@ -269,7 +269,24 @@ function render(){
     img.src = p.image || "";
     img.onerror = () => { img.src = ""; imgwrap.style.background = "rgba(255,255,255,.05)"; };
     imgwrap.appendChild(img);
+// text overlay (1000x1000 safe)
+const overlay = document.createElement("div");
+overlay.className = "overlay";
 
+const on = document.createElement("div");
+on.className = "overlay-name";
+on.textContent = name;
+
+const of = document.createElement("div");
+of.className = "overlay-flavor";
+of.textContent = flavor || "";
+
+overlay.appendChild(on);
+if(flavor) overlay.appendChild(of);
+
+imgwrap.appendChild(overlay);
+
+    
     const b = statusBadge(p);
     const badge = document.createElement("div");
     badge.className = `badge ${b.cls}`;
@@ -310,8 +327,6 @@ function render(){
     meta.appendChild(price);
     meta.appendChild(stockEl);
 
-    body.appendChild(nameRow);
-    body.appendChild(pflavor);
     body.appendChild(meta);
 
     card.appendChild(imgwrap);
