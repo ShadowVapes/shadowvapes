@@ -1,5 +1,7 @@
 {
   "shopName": "ShadowVapes",
-  "categories": ["Összes termék", "Hamarosan"],
+  "categories": [
+    "Hamarosan"
+  ],
   "products": []
 }
