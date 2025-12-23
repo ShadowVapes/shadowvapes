@@ -1,105 +1,78 @@
-const $ = (q) => document.querySelector(q);
+import { DATA_PATH } from "./config.js";
 
-const loader = $("#loader");
-const grid = $("#productGrid");
-const emptyState = $("#emptyState");
-const pageTitle = $("#pageTitle");
-const catButtonsWrap = $("#catButtons");
+const grid = document.getElementById("grid");
+const catNav = document.getElementById("catNav");
+const infoLine = document.getElementById("infoLine");
 
-let categories = [];
-let products = [];
-let activeCat = "all";
+let state = null;
+let activeCategory = "Összes termék";
 
-function showLoader() { loader.classList.remove("is-hidden"); }
-function hideLoader() { loader.classList.add("is-hidden"); }
-
-async function loadData() {
-  showLoader();
-  const [catsRes, prodRes] = await Promise.all([
-    fetch("./data/categories.json", { cache: "no-store" }),
-    fetch("./data/products.json", { cache: "no-store" }),
-  ]);
-
-  categories = await catsRes.json();
-  products = await prodRes.json();
-
-  renderCategoryButtons();
-  render();
-  setTimeout(hideLoader, 350); // kis “smooth” anim
+function escapeHtml(s=""){
+  return s.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 }
 
-function renderCategoryButtons() {
-  catButtonsWrap.innerHTML = "";
-  for (const c of categories) {
+async function loadData(){
+  // cache-bust, hogy ne ragadjon be a GitHub Pages cache
+  const url = `./${DATA_PATH}?v=${Date.now()}`;
+  const res = await fetch(url, { cache: "no-store" });
+  if(!res.ok) throw new Error(`Nem tudtam betölteni: ${res.status}`);
+  return await res.json();
+}
+
+function renderCategories(){
+  catNav.innerHTML = "";
+  const cats = state.categories || ["Összes termék"];
+  const unique = Array.from(new Set(cats));
+  unique.forEach(cat => {
     const btn = document.createElement("button");
-    btn.className = "nav__btn";
-    btn.dataset.cat = c.id;
-    btn.textContent = c.name;
-    btn.addEventListener("click", () => setCategory(c.id));
-    catButtonsWrap.appendChild(btn);
-  }
-
-  // active class frissítés
-  document.querySelectorAll(".nav__btn").forEach(b => {
-    b.classList.toggle("is-active", b.dataset.cat === activeCat);
+    btn.textContent = cat;
+    btn.className = (cat === activeCategory) ? "active" : "";
+    btn.onclick = () => {
+      activeCategory = cat;
+      renderCategories();
+      renderProducts();
+    };
+    catNav.appendChild(btn);
   });
 }
 
-function setCategory(catId) {
-  activeCat = catId;
-
-  document.querySelectorAll(".nav__btn").forEach(b => {
-    b.classList.toggle("is-active", b.dataset.cat === activeCat);
-  });
-
-  const title =
-    catId === "all"
-      ? "Összes termék"
-      : (categories.find(c => c.id === catId)?.name ?? "Termékek");
-  pageTitle.textContent = title;
-
-  render();
-}
-
-function render() {
-  grid.innerHTML = "";
-
-  const list = activeCat === "all"
+function renderProducts(){
+  const products = state.products || [];
+  const filtered = activeCategory === "Összes termék"
     ? products
-    : products.filter(p => p.categoryId === activeCat);
+    : products.filter(p => p.category === activeCategory);
 
-  emptyState.hidden = list.length !== 0;
+  infoLine.textContent = `${filtered.length} termék (${activeCategory})`;
 
-  list.forEach((p, i) => {
-    const card = document.createElement("article");
-    card.className = "card" + (p.soldOut ? " is-soldout" : "");
-    card.style.animationDelay = `${Math.min(i * 35, 220)}ms`;
-
-    card.innerHTML = `
-      <img class="card__img" src="${escapeHtml(p.image)}" alt="${escapeHtml(p.name)}" loading="lazy" />
-      <div class="card__body">
-        <h3 class="card__name">${escapeHtml(p.name)}</h3>
-        <p class="card__desc">${escapeHtml(p.description || "")}</p>
-        <div class="card__meta">
-          <span class="badge">${p.soldOut ? "Elfogyott" : "Elérhető"}</span>
-          <span class="stock">${p.soldOut ? "" : `Készlet: ${Number(p.stock ?? 0)} db`}</span>
+  grid.innerHTML = filtered.map(p => {
+    const sold = !!p.soldOut || (Number(p.quantity) <= 0);
+    return `
+      <article class="card ${sold ? "soldout":""}">
+        <img src="${escapeHtml(p.image || "")}" alt="${escapeHtml(p.name || "")}">
+        <div class="pad">
+          <h3>${escapeHtml(p.name || "")}</h3>
+          <p>${escapeHtml(p.description || "")}</p>
+          <div class="badges">
+            <span class="badge">${escapeHtml(p.category || "—")}</span>
+            <span class="badge">${sold ? "Elfogyott" : `Készlet: ${Number(p.quantity)||0}`}</span>
+          </div>
         </div>
-      </div>
+      </article>
     `;
-    grid.appendChild(card);
-  });
+  }).join("");
 }
 
-function escapeHtml(str) {
-  return String(str ?? "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
-}
-
-loadData().catch((e) => {
-  console.error(e);
-  loader.querySelector(".loader__text").textContent = "Hiba a betöltésnél.";
-});
+(async function init(){
+  try{
+    state = await loadData();
+    // biztos legyen benne az Összes termék
+    if(!state.categories?.includes("Összes termék")){
+      state.categories = ["Összes termék", ...(state.categories||[])];
+    }
+    renderCategories();
+    renderProducts();
+  }catch(err){
+    infoLine.textContent = "Hiba a betöltésnél.";
+    grid.innerHTML = `<div class="panel">Hiba: ${escapeHtml(String(err.message || err))}</div>`;
+  }
+})();
