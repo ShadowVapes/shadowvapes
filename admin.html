@@ -11,86 +11,31 @@
     <div class="admin-top">
       <div>
         <div class="brand">Shadow<span>Vapes</span> Admin</div>
-        <div class="small-muted">Products • Categories • Sales • GitHub Save</div>
+        <div class="small-muted">Mentés után automatikus reload ✅ | Eladás: több tétel ✅ | törlés rollback ✅</div>
       </div>
-      <div class="actions">
-        <a class="ghost" href="index.html">Katalógus</a>
-        <button class="ghost" id="loadBtn">Betölt</button>
-        <button class="primary" id="saveBtn">Mentés</button>
+      <div class="save-ind">
+        <div class="dot" id="saveDot"></div>
+        <span id="saveText">Kész</span>
+        <a class="ghost" href="index.html" style="text-decoration:none">Katalógus</a>
       </div>
     </div>
 
     <div class="tabs">
-      <button class="active" data-tab="settings">Beállítások</button>
+      <button data-tab="products" class="active">Termékek</button>
       <button data-tab="categories">Kategóriák</button>
-      <button data-tab="products">Termékek</button>
       <button data-tab="sales">Eladások</button>
+      <button data-tab="settings">Beállítások</button>
     </div>
 
-    <div class="panel" id="tab-settings">
-      <div class="save-ind">
-        <span class="dot" id="saveDot"></span>
-        <span id="saveText">Készen áll</span>
-      </div>
+    <section class="panel" id="tab-products"></section>
+    <section class="panel" id="tab-categories" style="display:none"></section>
+    <section class="panel" id="tab-sales" style="display:none"></section>
+    <section class="panel" id="tab-settings" style="display:none"></section>
+  </div>
 
-      <div class="form-grid" style="margin-top:10px;">
-        <div class="field third">
-          <label>Owner</label>
-          <input id="ghOwner" placeholder="pl. tesouser" />
-        </div>
-        <div class="field third">
-          <label>Repo</label>
-          <input id="ghRepo" placeholder="pl. shadowvapes" />
-        </div>
-        <div class="field third">
-          <label>Branch</label>
-          <input id="ghBranch" placeholder="main" />
-        </div>
-        <div class="field full">
-          <label>Token</label>
-          <input id="ghToken" type="password" placeholder="ghp_ / fine-grained token" />
-        </div>
-      </div>
-
-      <div class="small-muted" style="margin-top:10px;">
-        Mentés után automatikusan újratölt (fix kérés).
-      </div>
-    </div>
-
-    <div class="panel" id="tab-categories" style="display:none;">
-      <div class="actions">
-        <button class="primary" id="addCatBtn">+ Kategória</button>
-      </div>
-      <table class="table" id="catTable"></table>
-    </div>
-
-    <div class="panel" id="tab-products" style="display:none;">
-      <div class="actions">
-        <input id="pSearch" placeholder="Keresés név/íz..." style="flex:1; min-width:240px;" />
-        <button class="primary" id="addProdBtn">+ Termék</button>
-      </div>
-      <table class="table" id="prodTable"></table>
-    </div>
-
-    <div class="panel" id="tab-sales" style="display:none;">
-      <div class="actions">
-        <button class="primary" id="addSaleBtn">+ Eladás</button>
-      </div>
-
-      <div class="kpi" style="margin-top:10px;">
-        <div class="box">
-          <div class="t">Összes bevétel</div>
-          <div class="v" id="revAll">0 Ft</div>
-        </div>
-        <div class="box">
-          <div class="t">Mai bevétel (dátum)</div>
-          <div class="v" id="revToday">0 Ft</div>
-        </div>
-      </div>
-
-      <table class="table" id="salesTable"></table>
-      <table class="table" id="revTable"></table>
-    </div>
+  <!-- modal -->
+  <div class="modal-backdrop" id="modalBackdrop">
+    <div class="modal" id="modalBox"></div>
   </div>
 
   <script src="assets/github.js"></script>
