@@ -319,6 +319,15 @@ state.sales = state.sales.map(s => {
       if(p && p.status === "out") p.stock = 0;
       if(p && (!p.name_en || String(p.name_en).trim()==="")) p.name_en = p.name_hu || "";
     }
+    // _meta.rev: public old cache ne tudja felülírni a friss mentést
+    if(state.dirtyProducts){
+      state.doc._meta = {
+        ...(state.doc._meta || {}),
+        rev: Date.now(),
+        updatedAt: new Date().toISOString(),
+      };
+    }
+
     const productsText = JSON.stringify(state.doc, null, 2);
     const salesText = JSON.stringify(state.sales, null, 2);
 
@@ -452,7 +461,7 @@ function markDirty(flags){
 
   /* ---------- Rendering ---------- */
   function renderTabs(){
-    $("#tabs").addEventListener("click", (e) => {
+    $("#tabs").onclick = (e) => {
       const b = e.target.closest("button[data-tab]");
       if(!b) return;
       $("#tabs").querySelectorAll("button").forEach(x => x.classList.remove("active"));
@@ -468,7 +477,7 @@ function markDirty(flags){
 
       if(tab === "chart") drawChart();
       if(tab === "popups") renderPopups();
-    });
+    };
   }
 
   function renderSettings(){

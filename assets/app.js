@@ -4,12 +4,19 @@
   const state = {
     lang: localStorage.getItem("sv_lang") || "hu",
     active: "all",
-    productsDoc: { categories: [], products: [], popups: [] },
+    productsDoc: { categories: [], products: [], popups: [], _meta: null },
     sales: [],
+    salesFresh: false,
     search: "",
     etagProducts: "",
     etagSales: "",
     featuredByCat: new Map(), // categoryId -> productId
+
+    // anti-flicker / anti-stale overwrites
+    docRev: 0,
+    docHash: "",
+    salesHash: "",
+    lastLiveTs: 0,
   };
 
   const UI = {
@@ -209,11 +216,12 @@
   }
 
   function normalizeDoc(data) {
-    if (Array.isArray(data)) return { categories: [], products: data, popups: [] };
+    if (Array.isArray(data)) return { categories: [], products: data, popups: [], _meta: null };
     const categories = data && Array.isArray(data.categories) ? data.categories : [];
     const products = data && Array.isArray(data.products) ? data.products : [];
     const popups = data && Array.isArray(data.popups) ? data.popups : [];
-    return { categories, products, popups };
+    const _meta = data && typeof data === "object" ? (data._meta || null) : null;
+    return { categories, products, popups, _meta };
   }
 
   function normalizeSales(data){
@@ -248,6 +256,7 @@
   /* ----------------- Featured (Felkapott) ----------------- */
   function computeFeaturedByCategory(){
     state.featuredByCat = new Map();
+    if(!state.salesFresh) return; // ✅ ha nem friss a sales, ne találgassunk felkapottat
     const products = (state.productsDoc.products || []).filter(p => p && p.id && p.visible !== false);
     const cats = (state.productsDoc.categories || []);
     const enabledCats = new Set(cats.filter(c => c && c.id && (c.featuredEnabled === false ? false : true)).map(c => String(c.id)));
@@ -294,6 +303,74 @@
 
       if(bestPid) state.featuredByCat.set(cid, bestPid);
     }
+  }
+
+
+  /* ----------------- Change detection (avoid flicker + stale overwrites) ----------------- */
+  function hashStr(str){
+    // tiny fast hash (djb2)
+    let h = 5381;
+    for(let i=0;i<str.length;i++){
+      h = ((h << 5) + h) ^ str.charCodeAt(i);
+    }
+    return (h >>> 0).toString(16);
+  }
+  function docRev(doc){
+    const r = doc && doc._meta ? Number(doc._meta.rev || doc._meta.updatedAt || 0) : 0;
+    return Number.isFinite(r) ? r : 0;
+  }
+  function docSig(doc){
+    try{
+      return hashStr(JSON.stringify({
+        c: doc.categories || [],
+        p: doc.products || [],
+        pp: doc.popups || [],
+        m: doc._meta || null
+      }));
+    }catch{ return ""; }
+  }
+  function salesSig(sales){
+    try{ return hashStr(JSON.stringify(sales || [])); }catch{ return ""; }
+  }
+
+  function applyDocIfNewer(nextDoc, { source="net" } = {}){
+    const next = normalizeDoc(nextDoc);
+    const nextSig = docSig(next);
+    if(!nextSig) return false;
+
+    const nextRev = docRev(next);
+    const now = Date.now();
+
+    // same content -> nothing
+    if(state.docHash && nextSig === state.docHash) return false;
+
+    // protect against stale RAW/Pages caches overwriting a just-saved live payload
+    if(state.docRev && nextRev && nextRev < state.docRev) return false;
+
+    // if we have a recent live update with rev, and network doc has no rev -> ignore briefly
+    if(state.docRev && !nextRev && state.lastLiveTs && (now - state.lastLiveTs) < 90_000){
+      return false;
+    }
+
+    state.productsDoc = next;
+    state.docHash = nextSig;
+    if(nextRev) state.docRev = nextRev;
+    if(source === "live") state.lastLiveTs = now;
+    return true;
+  }
+
+  function applySalesIfChanged(nextSales, { fresh=false } = {}){
+    const arr = Array.isArray(nextSales) ? nextSales : [];
+    const sig = salesSig(arr);
+    if(sig && sig === state.salesHash){
+      // keep fresh flag updated only if it becomes true
+      if(fresh) state.salesFresh = true;
+      return false;
+    }
+    state.sales = arr;
+    state.salesHash = sig;
+    state.salesFresh = !!fresh;
+    return true;
   }
 
   /* ----------------- Rendering ----------------- */
@@ -590,6 +667,36 @@
   }
 
   function showPopupsIfNeeded(){
+
+    // inline popup style (nem nyúlunk a styles.css-hez, de legyen normális mindenhol)
+    try{
+      if(!document.getElementById("svPopupStyle")){
+        const st = document.createElement("style");
+        st.id = "svPopupStyle";
+        st.textContent = `
+          .popup-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.66);display:flex;align-items:center;justify-content:center;padding:18px;z-index:9999}
+          .popup-modal{width:min(760px,92vw);max-height:86vh;overflow:hidden;background:rgba(12,12,16,.96);border:1px solid rgba(255,255,255,.10);border-radius:22px;box-shadow:0 18px 70px rgba(0,0,0,.55);padding:16px 16px 14px;display:flex;flex-direction:column;gap:12px}
+          .popup-head{display:flex;flex-direction:column;gap:4px}
+          .popup-title{font-size:18px;font-weight:800;letter-spacing:.2px}
+          .popup-sub{font-size:13px;opacity:.75}
+          .popup-carousel{position:relative;overflow:hidden;border-radius:18px;border:1px solid rgba(255,255,255,.08)}
+          .popup-track{display:flex;transition:transform .35s ease}
+          .popup-item{flex:0 0 100%;display:flex;gap:12px;align-items:center;padding:12px;background:rgba(255,255,255,.02)}
+          .popup-img{width:104px;height:104px;border-radius:18px;object-fit:cover;background:rgba(255,255,255,.06)}
+          .popup-info{display:flex;flex-direction:column;gap:6px;min-width:0}
+          .popup-name{font-weight:900;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+          .popup-flavor{font-size:13px;opacity:.8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+          .popup-meta{display:flex;gap:10px;flex-wrap:wrap;font-size:13px;opacity:.9}
+          .popup-nav{display:flex;align-items:center;justify-content:space-between;gap:10px}
+          .popup-dots{font-size:12px;opacity:.75}
+          .popup-btns{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+          .popup-chk{display:flex;align-items:center;gap:8px;font-size:13px;opacity:.85;user-select:none}
+          .popup-actions{display:flex;gap:10px;align-items:center}
+          .popup-actions button{white-space:nowrap}
+        `;
+        document.head.appendChild(st);
+      }
+    }catch{}
     const queue = buildPopupQueue();
     if(!queue.length) return;
 
@@ -683,6 +790,7 @@
         slide = (idx + items.length) % items.length;
         track.style.transition = instant ? "none" : "";
         track.style.transform = `translateX(${slide * -100}%)`;
+        updateMid();
         if(instant){
           requestAnimationFrame(()=>{ track.style.transition = ""; });
         }
@@ -711,7 +819,8 @@
 
       const mid = document.createElement("div");
       mid.className = "popup-dots";
-      mid.textContent = `${catIndex+1}/${cur.categories.length}`;
+      const updateMid = () => { mid.textContent = `${slide+1}/${items.length}`; };
+      updateMid();
 
       nav.appendChild(prev);
       nav.appendChild(mid);
@@ -789,27 +898,52 @@
       if(!raw) return false;
       const payload = JSON.parse(raw);
       if(!payload || !payload.doc) return false;
-      state.productsDoc = normalizeDoc(payload.doc);
-      state.sales = normalizeSales(payload.sales || []);
-      computeFeaturedByCategory();
-      return true;
+
+      // csak friss live payloadot fogadjunk el (különben régi eladások / termékek ragadhatnak be)
+      const ts = Number(payload.ts || 0) || 0;
+      if(!ts || (Date.now() - ts) > 120_000) return false;
+
+      const docChanged = applyDocIfNewer(payload.doc, { source: "live" });
+
+      // sales: csak akkor frissnek tekintjük, ha a payload tényleg mostani
+      const salesChanged = applySalesIfChanged(normalizeSales(payload.sales || []), { fresh:true });
+
+      if(docChanged || salesChanged){
+        computeFeaturedByCategory();
+      }
+      return (docChanged || salesChanged);
     }catch{ return false; }
   }
 
   async function loadAll({ forceBust=false } = {}){
-    const doc = await fetchProducts({ forceBust });
-    if(doc){
-      state.productsDoc = normalizeDoc(doc);
-    }else{
-      // no change
+    let changed = false;
+
+    // products
+    const docRaw = await fetchProducts({ forceBust });
+    if(docRaw){
+      const docChanged = applyDocIfNewer(docRaw, { source: "net" });
+      if(docChanged) changed = true;
     }
-    const sales = await fetchSales({ forceBust }).catch(()=>null);
-    if(sales){
-      state.sales = normalizeSales(sales);
-    }else if(!Array.isArray(state.sales)){
-      state.sales = [];
+
+    // sales
+    let salesOk = false;
+    try{
+      const salesRaw = await fetchSales({ forceBust });
+      salesOk = true;
+      // [] is truthy, so ok
+      const sChanged = applySalesIfChanged(normalizeSales(salesRaw || []), { fresh:true });
+      if(sChanged) changed = true;
+    }catch{
+      // ha nem tudjuk biztosan betölteni, ne jelenítsünk meg felkapottat
+      state.salesFresh = false;
     }
-    computeFeaturedByCategory();
+
+    // featured depends on BOTH products+sales; csak ha változott valami (vagy ha salesFresh változott)
+    if(changed || !state.salesFresh){
+      computeFeaturedByCategory();
+    }
+
+    return changed;
   }
 
   async function init() {
@@ -839,12 +973,21 @@
       bc.onmessage = (e) => {
         try{
           if(!e.data) return;
-          if(e.data.doc) state.productsDoc = normalizeDoc(e.data.doc);
-          if(e.data.sales) state.sales = normalizeSales(e.data.sales);
-          computeFeaturedByCategory();
-          renderNav();
-          renderGrid();
-          showPopupsIfNeeded();
+
+          let changed = false;
+          if(e.data.doc){
+            changed = applyDocIfNewer(e.data.doc, { source:"live" }) || changed;
+          }
+          if("sales" in e.data){
+            // admin mentés után ez friss
+            changed = applySalesIfChanged(normalizeSales(e.data.sales || []), { fresh:true }) || changed;
+          }
+          if(changed){
+            computeFeaturedByCategory();
+            renderNav();
+            renderGrid();
+            showPopupsIfNeeded();
+          }
         }catch{}
       };
     }catch{}
@@ -852,15 +995,18 @@
     // polling (light)
     const loop = async () => {
       try{
-        await loadAll({ forceBust:false });
-        renderNav();
-        renderGrid();
+        const changed = await loadAll({ forceBust:false });
+        if(changed){
+          renderNav();
+          renderGrid();
+          showPopupsIfNeeded();
+        }
       }catch{}
       setTimeout(loop, 25_000);
     };
 
     document.addEventListener("visibilitychange", () => {
-      if (!document.hidden) loadAll({ forceBust:true }).then(()=>{ renderNav(); renderGrid(); showPopupsIfNeeded(); }).catch(()=>{});
+      if (!document.hidden) loadAll({ forceBust:true }).then((changed)=>{ if(changed){ renderNav(); renderGrid(); } showPopupsIfNeeded(); }).catch(()=>{});
     });
 
     loop();
