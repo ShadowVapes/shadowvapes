@@ -9,7 +9,7 @@
   };
 
   const state = {
-    doc: { categories: [], products: [] },
+    doc: { categories: [], products: [], popups: [] },
     sales: [],
     loaded: false,
     saving: false,
@@ -124,7 +124,6 @@
     if(!state.doc || typeof state.doc !== "object") state.doc = { categories: [], products: [] };
     if(!Array.isArray(state.doc.categories)) state.doc.categories = [];
     if(!Array.isArray(state.doc.products)) state.doc.products = [];
-    if(!Array.isArray(state.doc.popups)) state.doc.popups = [];
     if(!Array.isArray(state.sales)) state.sales = [];
 
     state.doc.categories = state.doc.categories
@@ -134,7 +133,7 @@
         label_hu: c.label_hu || c.id,
         label_en: c.label_en || c.label_hu || c.id,
         basePrice: Number(c.basePrice || 0),
-        featuredEnabled: (c.featuredEnabled === false) ? false : true
+        trending: (typeof c.trending === "boolean") ? c.trending : true
       }));
 
     state.doc.products = state.doc.products.map(p => ({
@@ -142,31 +141,29 @@
       categoryId: String(p.categoryId || ""),
       status: (p.status === "ok" || p.status === "out" || p.status === "soon") ? p.status : "ok",
       stock: Math.max(0, Number(p.stock || 0)),
-      visible: (p.visible === false) ? false : true,
       // price lehet null/üres => kategória alapár
       price: (p.price === "" || p.price === null || p.price === undefined) ? null : Number(p.price || 0),
       image: p.image || "",
       name_hu: p.name_hu || "",
       name_en: p.name_en || "",
       flavor_hu: p.flavor_hu || "",
-      flavor_en: p.flavor_en || ""
+      flavor_en: p.flavor_en || "",
+      visible: (typeof p.visible === "boolean") ? p.visible : true
     })).filter(p => p.id);
 
-    // Popups normalize
-    state.doc.popups = (state.doc.popups || []).map(pp => ({
-      id: String(pp.id || ""),
-      enabled: (pp.enabled === false) ? false : true,
-      // rev: ha változik, a "ne mutasd többször" újra feloldódik
-      rev: Number(pp.rev || pp.updatedAt || pp.createdAt || 0) || 0,
-      title_hu: pp.title_hu || "Új termékek elérhetőek",
-      title_en: pp.title_en || "New products available",
-      categoryIds: Array.isArray(pp.categoryIds) ? pp.categoryIds.map(x=>String(x)) : [],
-      productIds: Array.isArray(pp.productIds) ? pp.productIds.map(x=>String(x)) : [],
-      createdAt: Number(pp.createdAt || 0) || 0,
-      updatedAt: Number(pp.updatedAt || 0) || 0
-    })).filter(pp => pp.id);
+    
 
-    // Sales normalize (kompatibilis a régi formátummal is)
+    // Popups normalize
+    if(!Array.isArray(state.doc.popups)) state.doc.popups = [];
+    state.doc.popups = state.doc.popups.map(x => ({
+      id: String(x.id||""),
+      title_hu: x.title_hu || "",
+      title_en: x.title_en || "",
+      enabled: (typeof x.enabled === "boolean") ? x.enabled : true,
+      categoryIds: Array.isArray(x.categoryIds) ? x.categoryIds.map(String) : [],
+      productIds: Array.isArray(x.productIds) ? x.productIds.map(String) : []
+    })).filter(x => x.id);
+// Sales normalize (kompatibilis a régi formátummal is)
 state.sales = state.sales.map(s => {
   const legacyPid = s.productId || s.pid || s.product || "";
   const legacyQty = s.qty || s.quantity || 1;
@@ -463,11 +460,10 @@ function markDirty(flags){
       $("#panelCategories").style.display = tab === "categories" ? "block" : "none";
       $("#panelSales").style.display = tab === "sales" ? "block" : "none";
       $("#panelChart").style.display = tab === "chart" ? "block" : "none";
-      $("#panelPopups").style.display = tab === "popups" ? "block" : "none";
       $("#panelSettings").style.display = tab === "settings" ? "block" : "none";
+      $("#panelPopups").style.display = tab === "popups" ? "block" : "none";
 
       if(tab === "chart") drawChart();
-      if(tab === "popups") renderPopups();
     });
   }
 
@@ -494,6 +490,24 @@ function markDirty(flags){
         <input id="syncUrl" readonly value="" style="min-width:280px;width:100%;" />
         <button class="ghost" id="btnCopySync">Link másolás</button>
       </div>
+    
+
+      <div class="small-muted" style="margin-top:16px;">Felkapott (eladások alapján) – kategóriánként kapcsolható.</div>
+      <table class="table" style="margin-top:10px;">
+        <thead><tr><th>Kategória</th><th style="width:160px;">Felkapott ON/OFF</th></tr></thead>
+        <tbody>
+          ${state.doc.categories.map(c => `
+            <tr>
+              <td><b>${escapeHtml(c.label_hu||c.id)}</b></td>
+              <td><label style="display:flex;align-items:center;gap:10px;cursor:pointer;">
+                <input type="checkbox" data-trendcat="${escapeHtml(c.id)}" ${c.trending===false?"":"checked"} />
+                <span class="small-muted">${c.trending===false?"OFF":"ON"}</span>
+              </label></td>
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>
+
     `;
 
     $("#btnLoad").onclick = loadData;
@@ -530,6 +544,18 @@ function markDirty(flags){
     ["cfgOwner","cfgRepo","cfgBranch","cfgToken"].forEach(id => {
       $("#"+id).addEventListener("input", () => saveCfg(getCfg()));
     });
+
+    // Felkapott toggle per kategória
+    $("#panelSettings").querySelectorAll("input[data-trendcat]").forEach(ch => {
+      ch.addEventListener("change", () => {
+        const cid = ch.dataset.trendcat;
+        const c = catById(cid);
+        if(!c) return;
+        c.trending = !!ch.checked;
+        markDirty({ products:true });
+        renderSettings();
+      });
+    });
   }
 
   function renderCategories(){
@@ -541,7 +567,6 @@ function markDirty(flags){
         <td><input data-cid="${escapeHtml(c.id)}" data-k="label_hu" value="${escapeHtml(c.label_hu)}"></td>
         <td><input data-cid="${escapeHtml(c.id)}" data-k="label_en" value="${escapeHtml(c.label_en)}"></td>
         <td style="width:160px;"><input data-cid="${escapeHtml(c.id)}" data-k="basePrice" type="number" min="0" value="${Number(c.basePrice||0)}"></td>
-        <td style="width:120px;text-align:center;"><input type="checkbox" data-cid="${escapeHtml(c.id)}" data-k="featuredEnabled"${c.featuredEnabled===false?"":" checked"}></td>
         <td style="width:110px;"><button class="danger" data-delcat="${escapeHtml(c.id)}">Töröl</button></td>
       </tr>
     `).join("");
@@ -553,7 +578,7 @@ function markDirty(flags){
       </div>
       <table class="table">
         <thead>
-          <tr><th>ID</th><th>HU</th><th>EN</th><th>Alap ár (Ft)</th><th>Felkapott</th><th></th></tr>
+          <tr><th>ID</th><th>HU</th><th>EN</th><th>Alap ár (Ft)</th><th></th></tr>
         </thead>
         <tbody>${rows}</tbody>
       </table>
@@ -595,21 +620,8 @@ function markDirty(flags){
         const c = catById(id);
         if(!c) return;
         if(k === "basePrice") c.basePrice = Math.max(0, Number(inp.value||0));
-        else if(k === "featuredEnabled") c.featuredEnabled = !!inp.checked;
         else c[k] = inp.value;
         markDirty({ products:true });
-        inp.addEventListener("change", () => {
-        if(inp.dataset.k === "featuredEnabled"){
-          const c = catById(inp.dataset.cid);
-          if(c){ c.featuredEnabled = !!inp.checked; markDirty({ products:true }); }
-        }
-      });
-    });
-      inp.addEventListener("change", () => {
-        if(inp.dataset.k === "featuredEnabled"){
-          const c = catById(inp.dataset.cid);
-          if(c){ c.featuredEnabled = !!inp.checked; markDirty({ products:true }); }
-        }
       });
     });
 
@@ -662,7 +674,10 @@ function markDirty(flags){
             </div>
           </div>
           <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
-            <label class="chk"><input type="checkbox" data-pid="${escapeHtml(p.id)}" data-k="visible"${p.visible===false?"":" checked"}> Látható</label>
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;" title="Látható a katalógusban">
+              <input type="checkbox" data-pid="${escapeHtml(p.id)}" data-k="visible" ${p.visible===false?"":"checked"} />
+              <span class="small-muted">Látható</span>
+            </label>
             <select data-pid="${escapeHtml(p.id)}" data-k="categoryId">
               ${state.doc.categories.map(cc => `<option value="${escapeHtml(cc.id)}"${cc.id===p.categoryId?" selected":""}>${escapeHtml(cc.label_hu||cc.id)}</option>`).join("")}
             </select>
@@ -706,8 +721,8 @@ function markDirty(flags){
         if(k === "stock") p.stock = Math.max(0, Number(el.value||0));
         else if(k === "price") p.price = (el.value === "" ? null : Math.max(0, Number(el.value||0)));
         else if(k === "status") p.status = el.value;
-        else if(k === "categoryId") p.categoryId = el.value;
         else if(k === "visible") p.visible = !!el.checked;
+        else if(k === "categoryId") p.categoryId = el.value;
 
         markDirty({ products:true });
       });
@@ -720,18 +735,6 @@ function markDirty(flags){
         if(k === "categoryId") p.categoryId = el.value;
         if(k === "visible") p.visible = !!el.checked;
         markDirty({ products:true });
-        inp.addEventListener("change", () => {
-        if(inp.dataset.k === "featuredEnabled"){
-          const c = catById(inp.dataset.cid);
-          if(c){ c.featuredEnabled = !!inp.checked; markDirty({ products:true }); }
-        }
-      });
-    });
-      inp.addEventListener("change", () => {
-        if(inp.dataset.k === "featuredEnabled"){
-          const c = catById(inp.dataset.cid);
-          if(c){ c.featuredEnabled = !!inp.checked; markDirty({ products:true }); }
-        }
       });
     });
 
@@ -762,8 +765,7 @@ function markDirty(flags){
       name_hu: "",
       name_en: "",
       flavor_hu: "",
-      flavor_en: "",
-      visible: true
+      flavor_en: ""
     };
 
     const body = document.createElement("div");
@@ -783,8 +785,6 @@ function markDirty(flags){
           </select>
         </div>
 
-        <div class="field third"><label>Látható</label><label class="chk" style="justify-content:flex-start;"><input type="checkbox" id="p_visible" ${p.visible===false?"":"checked"}> Megjelenjen</label></div>
-
         <div class="field third"><label>Készlet</label><input id="p_stock" type="number" min="0" value="${p.stock}"></div>
         <div class="field third"><label>Ár (Ft) — üres: kategória ár</label><input id="p_price" type="number" min="0" value="${p.price===null?"":p.price}"></div>
         <div class="field full"><label>Kép URL</label><input id="p_img" value="${escapeHtml(p.image)}"></div>
@@ -792,6 +792,7 @@ function markDirty(flags){
         <div class="field third"><label>Termék neve</label><input id="p_name" value="${escapeHtml(p.name_hu)}"></div>
         <div class="field third"><label>Íz HU</label><input id="p_fhu" value="${escapeHtml(p.flavor_hu)}"></div>
         <div class="field third"><label>Íz EN</label><input id="p_fen" value="${escapeHtml(p.flavor_en)}"></div>
+        <div class="field full"><label style="display:flex;align-items:center;gap:10px;cursor:pointer;"><input type="checkbox" id="p_vis" ${p.visible===false?"":"checked"} /> Látható a katalógusban</label></div>
       </div>
       <div class="small-muted" style="margin-top:10px;">
         soon → csak a “Hamarosan” tabban látszik. out/stock=0 → public oldalon leghátul + szürke.
@@ -805,14 +806,14 @@ function markDirty(flags){
           id: ($("#p_id").value||"").trim(),
           categoryId: $("#p_cat").value,
           status: $("#p_status").value,
-          visible: !!$("#p_visible").checked,
           stock: Math.max(0, Number($("#p_stock").value||0)),
           price: ($("#p_price").value === "" ? null : Math.max(0, Number($("#p_price").value||0))),
           image: ($("#p_img").value||"").trim(),
           name_hu: ($("#p_name").value||"").trim(),
           name_en: ($("#p_name").value||"").trim(),
           flavor_hu: ($("#p_fhu").value||"").trim(),
-          flavor_en: ($("#p_fen").value||"").trim()
+          flavor_en: ($("#p_fen").value||"").trim(),
+          visible: !!$("#p_vis").checked
         };
         if(!np.id) return;
 
@@ -1082,168 +1083,6 @@ function markDirty(flags){
   }
 
 
-
-  /* ---------- Popups (Új termékek) ---------- */
-  function renderPopups(){
-    const panel = $("#panelPopups");
-    if(!panel) return;
-
-    const popups = [...(state.doc.popups||[])].sort((a,b)=> (b.createdAt||0)-(a.createdAt||0));
-
-    const rows = popups.map(pp => {
-      const cats = (pp.categoryIds||[]).map(id => (catById(id)?.label_hu || id)).join(", ");
-      const prods = (pp.productIds||[]).length;
-      return `
-        <div class="rowline table">
-          <div class="left">
-            <div style="font-weight:900;">${escapeHtml(pp.title_hu || "Új termékek")} <span class="small-muted">• ID: <b>${escapeHtml(pp.id)}</b></span></div>
-            <div class="small-muted">Kategóriák: <b>${escapeHtml(cats || "—")}</b> • Kézi termékek: <b>${prods}</b> • Rev: <b>${Number(pp.rev||0)}</b></div>
-          </div>
-          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
-            <label class="chk"><input type="checkbox" data-pp="${escapeHtml(pp.id)}" data-k="enabled"${pp.enabled===false?"":" checked"}> Aktív</label>
-            <button class="ghost" data-editpp="${escapeHtml(pp.id)}">Szerkeszt</button>
-            <button class="danger" data-delpp="${escapeHtml(pp.id)}">Töröl</button>
-          </div>
-        </div>
-      `;
-    }).join("");
-
-    panel.innerHTML = `
-      <div class="actions">
-        <button class="primary" id="btnAddPopup">+ Új pop-up</button>
-        <div class="small-muted">Pop-up-ok: sorrend = létrehozás szerint (legújabb elöl). "Ne mutasd többször" a public oldalon popup ID + rev alapján működik.</div>
-      </div>
-      <div style="margin-top:10px;">${rows || `<div class="small-muted">Nincs pop-up.</div>`}</div>
-    `;
-
-    $("#btnAddPopup").onclick = () => openPopupModal(null);
-
-    panel.querySelectorAll('input[data-pp][data-k="enabled"]').forEach(ch => {
-      ch.addEventListener("change", () => {
-        const id = ch.dataset.pp;
-        const pp = (state.doc.popups||[]).find(x=>x.id===id);
-        if(!pp) return;
-        pp.enabled = !!ch.checked;
-        pp.updatedAt = Date.now();
-        pp.rev = Date.now();
-        markDirty({ products:true });
-      });
-    });
-
-    panel.querySelectorAll("button[data-editpp]").forEach(b => b.onclick = () => openPopupModal(b.dataset.editpp));
-    panel.querySelectorAll("button[data-delpp]").forEach(b => b.onclick = () => {
-      const id = b.dataset.delpp;
-      const pp = (state.doc.popups||[]).find(x=>x.id===id);
-      if(!pp) return;
-      const body = document.createElement("div");
-      body.innerHTML = `<div class="small-muted">Biztos törlöd ezt a pop-upot? ID: <b>${escapeHtml(id)}</b></div>`;
-      openModal("Pop-up törlése", "", body, [
-        {label:"Mégse", kind:"ghost", onClick: closeModal},
-        {label:"Törlés", kind:"danger", onClick: () => {
-          state.doc.popups = (state.doc.popups||[]).filter(x=>x.id!==id);
-          closeModal();
-          renderPopups();
-          markDirty({ products:true });
-        }}
-      ]);
-    });
-  }
-
-  function openPopupModal(id){
-    const editing = id ? (state.doc.popups||[]).find(x=>x.id===id) : null;
-    const pp = editing ? {...editing} : {
-      id: "popup_" + Math.random().toString(16).slice(2) + "_" + Date.now().toString(16),
-      enabled: true,
-      rev: Date.now(),
-      title_hu: "Új termékek elérhetőek",
-      title_en: "New products available",
-      categoryIds: [],
-      productIds: [],
-      createdAt: Date.now(),
-      updatedAt: Date.now()
-    };
-
-    const body = document.createElement("div");
-    const cats = [...state.doc.categories].sort((a,b)=>(a.label_hu||a.id).localeCompare((b.label_hu||b.id),"hu"));
-    const prods = [...state.doc.products].sort((a,b)=>(a.name_hu||a.name_en||"").localeCompare((b.name_hu||b.name_en||""),"hu"));
-
-    body.innerHTML = `
-      <div class="form-grid">
-        <div class="field third"><label>ID</label><input id="pp_id" value="${escapeHtml(pp.id)}" ${editing?"disabled":""}></div>
-        <div class="field third"><label>Aktív</label><label class="chk" style="justify-content:flex-start;"><input type="checkbox" id="pp_enabled" ${pp.enabled===false?"":"checked"}> Bekapcsolva</label></div>
-        <div class="field third"><label>Rev (auto)</label><input id="pp_rev" value="${Number(pp.rev||0)}" disabled></div>
-
-        <div class="field third"><label>Cím HU</label><input id="pp_thu" value="${escapeHtml(pp.title_hu||"")}"></div>
-        <div class="field third"><label>Cím EN</label><input id="pp_ten" value="${escapeHtml(pp.title_en||"")}"></div>
-        <div class="field third"><label></label><div class="small-muted">Mentéskor rev frissül → újra feldobható.</div></div>
-
-        <div class="field full"><label>Kategóriák (ha bejelölöd: az összes termék abból a kategóriából)</label>
-          <div class="check-grid">
-            ${cats.map(c => `
-              <label class="chk"><input type="checkbox" class="pp_cat" value="${escapeHtml(c.id)}"${(pp.categoryIds||[]).includes(c.id)?" checked":""}> ${escapeHtml(c.label_hu||c.id)}</label>
-            `).join("")}
-          </div>
-        </div>
-
-        <div class="field full"><label>Kézi termékek (opcionális)</label>
-          <input id="pp_search" placeholder="Keresés..." style="margin-bottom:10px;">
-          <div class="check-grid" id="pp_prod_list">
-            ${prods.map(p => `
-              <label class="chk"><input type="checkbox" class="pp_prod" value="${escapeHtml(p.id)}"${(pp.productIds||[]).includes(p.id)?" checked":""}> ${escapeHtml(p.name_hu||p.name_en||"—")} <span class="small-muted">• ${escapeHtml(p.flavor_hu||p.flavor_en||"")}</span></label>
-            `).join("")}
-          </div>
-        </div>
-      </div>
-    `;
-
-    // search filter
-    setTimeout(() => {
-      const inp = $("#pp_search");
-      const list = $("#pp_prod_list");
-      if(inp && list){
-        inp.oninput = () => {
-          const q = (inp.value||"").toLowerCase();
-          list.querySelectorAll("label.chk").forEach(lab => {
-            const txt = (lab.textContent||"").toLowerCase();
-            lab.style.display = (!q || txt.includes(q)) ? "" : "none";
-          });
-        };
-      }
-    }, 0);
-
-    openModal(editing ? "Pop-up szerkesztése" : "Új pop-up", "", body, [
-      { label:"Mégse", kind:"ghost", onClick: closeModal },
-      { label:"Mentés", kind:"primary", onClick: () => {
-        const nid = ($("#pp_id").value||"").trim();
-        if(!nid) return;
-
-        if(!editing && (state.doc.popups||[]).some(x => x.id === nid)) return;
-
-        const next = {
-          id: nid,
-          enabled: !!$("#pp_enabled").checked,
-          title_hu: ($("#pp_thu").value||"").trim() || "Új termékek elérhetőek",
-          title_en: ($("#pp_ten").value||"").trim() || "New products available",
-          categoryIds: Array.from(document.querySelectorAll(".pp_cat:checked")).map(x=>String(x.value)),
-          productIds: Array.from(document.querySelectorAll(".pp_prod:checked")).map(x=>String(x.value)),
-          createdAt: editing ? Number(editing.createdAt||Date.now()) : Date.now(),
-          updatedAt: Date.now(),
-          rev: Date.now()
-        };
-
-        if(editing){
-          state.doc.popups = (state.doc.popups||[]).map(x => x.id===editing.id ? next : x);
-        }else{
-          state.doc.popups = [next, ...(state.doc.popups||[])];
-        }
-
-        closeModal();
-        renderPopups();
-        markDirty({ products:true });
-      }}
-    ]);
-  }
-
 function drawChart(){
   const canvas = $("#revCanvas");
   const kpi = $("#chartKpi");
@@ -1375,7 +1214,171 @@ function drawChart(){
     drawChart();
   }
 
-  /* ---------- init ---------- */
+  
+
+  /* ---------- Pop-upok (új termékek) ---------- */
+  function popupById(id){
+    return (state.doc.popups||[]).find(p => p.id === String(id)) || null;
+  }
+
+  function newPopupObj(){
+    return {
+      id: "pu_" + Math.random().toString(16).slice(2) + "_" + Date.now().toString(16),
+      title_hu: "Új termékek elérhetőek",
+      title_en: "New products available",
+      enabled: true,
+      categoryIds: [],
+      productIds: []
+    };
+  }
+
+  function renderPopups(){
+    if(!Array.isArray(state.doc.popups)) state.doc.popups = [];
+
+    const cats = [...(state.doc.categories||[])].sort((a,b)=> (a.label_hu||a.id).localeCompare(b.label_hu||b.id,"hu"));
+    const prods = [...(state.doc.products||[])].sort((a,b)=> {
+      const na = (a.name_hu||a.name_en||"");
+      const nb = (b.name_hu||b.name_en||"");
+      const c = na.localeCompare(nb,"hu");
+      if(c) return c;
+      return (a.flavor_hu||a.flavor_en||"").localeCompare(b.flavor_hu||b.flavor_en||"","hu");
+    });
+
+    const rows = (state.doc.popups||[]).map(pu => {
+      const cCount = (pu.categoryIds||[]).length;
+      const pCount = (pu.productIds||[]).length;
+      return `
+        <div class="rowline">
+          <div class="left">
+            <div style="font-weight:900;">${escapeHtml(pu.title_hu||"Pop-up")} <span class="small-muted">• ${escapeHtml(pu.id)}</span></div>
+            <div class="small-muted">Állapot: <b>${pu.enabled!==false?"ON":"OFF"}</b> • Kategóriák: <b>${cCount}</b> • Termékek: <b>${pCount}</b></div>
+          </div>
+          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+              <input type="checkbox" data-puid="${escapeHtml(pu.id)}" data-k="enabled" ${pu.enabled!==false?"checked":""} />
+              <span class="small-muted">Aktív</span>
+            </label>
+            <button class="ghost" data-editpu="${escapeHtml(pu.id)}">Szerkeszt</button>
+            <button class="danger" data-delpu="${escapeHtml(pu.id)}">Töröl</button>
+          </div>
+        </div>
+      `;
+    }).join("");
+
+    $("#panelPopups").innerHTML = `
+      <div class="actions">
+        <button class="primary" id="btnAddPopup">+ Új Pop-up</button>
+        <div class="small-muted">Tipp: kategóriát is választhatsz (akkor az összes termék benne lesz). A public oldalon kategóriánként, ABC szerint dobja fel.</div>
+      </div>
+      <div style="margin-top:10px;">${rows || `<div class="small-muted">Nincs még pop-up.</div>`}</div>
+    `;
+
+    $("#btnAddPopup").onclick = () => openPopupModal(null);
+
+    $("#panelPopups").querySelectorAll("input[data-puid]").forEach(el => {
+      el.addEventListener("change", () => {
+        const id = el.dataset.puid;
+        const pu = popupById(id);
+        if(!pu) return;
+        if(el.dataset.k === "enabled") pu.enabled = !!el.checked;
+        markDirty({ products:true });
+        renderPopups();
+      });
+    });
+
+    $("#panelPopups").querySelectorAll("button[data-editpu]").forEach(b => {
+      b.onclick = () => openPopupModal(b.dataset.editpu);
+    });
+    $("#panelPopups").querySelectorAll("button[data-delpu]").forEach(b => {
+      b.onclick = () => {
+        const id = b.dataset.delpu;
+        state.doc.popups = (state.doc.popups||[]).filter(x => x.id !== id);
+        markDirty({ products:true });
+        renderPopups();
+      };
+    });
+  }
+
+  function openPopupModal(id){
+    const editing = id ? popupById(id) : null;
+    const pu = editing ? JSON.parse(JSON.stringify(editing)) : newPopupObj();
+
+    const cats = [...(state.doc.categories||[])].sort((a,b)=> (a.label_hu||a.id).localeCompare(b.label_hu||b.id,"hu"));
+    const prods = [...(state.doc.products||[])].sort((a,b)=> {
+      const na = (a.name_hu||a.name_en||"");
+      const nb = (b.name_hu||b.name_en||"");
+      const c = na.localeCompare(nb,"hu");
+      if(c) return c;
+      return (a.flavor_hu||a.flavor_en||"").localeCompare(b.flavor_hu||b.flavor_en||"","hu");
+    });
+
+    const body = document.createElement("div");
+    body.innerHTML = `
+      <div class="form-grid">
+        <div class="field full"><label>ID</label><input id="pu_id" value="${escapeHtml(pu.id)}" ${editing?"disabled":""}></div>
+        <div class="field third"><label>Cím HU</label><input id="pu_thu" value="${escapeHtml(pu.title_hu)}"></div>
+        <div class="field third"><label>Cím EN</label><input id="pu_ten" value="${escapeHtml(pu.title_en)}"></div>
+        <div class="field third"><label>Aktív</label>
+          <label style="display:flex;align-items:center;gap:10px;margin-top:8px;cursor:pointer;">
+            <input type="checkbox" id="pu_on" ${pu.enabled!==false?"checked":""} /> <span class="small-muted">ON/OFF</span>
+          </label>
+        </div>
+
+        <div class="field full"><label>Kategóriák (ha kiválasztod → mind benne lesz)</label>
+          <div class="row" style="gap:10px;flex-wrap:wrap;">
+            ${cats.map(c => `
+              <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+                <input type="checkbox" class="pu_cat" value="${escapeHtml(c.id)}" ${(pu.categoryIds||[]).includes(c.id)?"checked":""}/>
+                <span>${escapeHtml(c.label_hu||c.id)}</span>
+              </label>
+            `).join("")}
+          </div>
+        </div>
+
+        <div class="field full"><label>Termékek (extra válogatás)</label>
+          <div class="row" style="gap:10px;flex-wrap:wrap;max-height:220px;overflow:auto;border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:10px;background:rgba(18,27,44,.35);">
+            ${prods.map(p => `
+              <label style="display:flex;align-items:center;gap:8px;cursor:pointer;min-width:220px;">
+                <input type="checkbox" class="pu_prod" value="${escapeHtml(p.id)}" ${(pu.productIds||[]).includes(p.id)?"checked":""}/>
+                <span><b>${escapeHtml(p.name_hu||p.name_en||"")}</b> <span class="small-muted">• ${escapeHtml(p.flavor_hu||p.flavor_en||"")}</span></span>
+              </label>
+            `).join("")}
+          </div>
+        </div>
+      </div>
+
+      <div class="small-muted" style="margin-top:10px;">
+        A public oldalon: ha több kategória van, akkor ABC sorrendben, egyszerre 1 kategóriát mutat. Bezárás után jön a következő kategória.
+        A „Ne mutasd többször” popup-id + tartalom alapján mentődik (ha változik a készlet/státusz → újra feldobja).
+      </div>
+    `;
+
+    openModal(editing ? "Pop-up szerkesztése" : "Új Pop-up", "", body, [
+      { label:"Mégse", kind:"ghost", onClick: closeModal },
+      { label:"Mentés", kind:"primary", onClick: () => {
+        const np = {
+          id: ($("#pu_id").value||"").trim(),
+          title_hu: ($("#pu_thu").value||"").trim() || "Új termékek elérhetőek",
+          title_en: ($("#pu_ten").value||"").trim() || "New products available",
+          enabled: !!$("#pu_on").checked,
+          categoryIds: [...body.querySelectorAll("input.pu_cat:checked")].map(x => x.value),
+          productIds: [...body.querySelectorAll("input.pu_prod:checked")].map(x => x.value)
+        };
+        if(!np.id) return;
+
+        if(editing){
+          Object.assign(editing, np);
+        }else{
+          state.doc.popups.push(np);
+        }
+        closeModal();
+        renderPopups();
+        markDirty({ products:true });
+      }}
+    ]);
+  }
+
+/* ---------- init ---------- */
   function init(){
     renderTabs();
     $("#btnReload").onclick = () => location.reload();

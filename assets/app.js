@@ -9,7 +9,7 @@
     search: "",
     etagProducts: "",
     etagSales: "",
-    featuredByCat: new Map(), // categoryId -> productId
+    lastLiveTs: 0,
   };
 
   const UI = {
@@ -18,16 +18,18 @@
     stock: { hu: "Készlet", en: "Stock" },
     pcs: { hu: "db", en: "pcs" },
     out: { hu: "Elfogyott", en: "Sold out" },
-    hot: { hu: "Felkapott", en: "Trending" },
     newAvail: { hu: "Új termékek elérhetőek", en: "New products available" },
     understood: { hu: "Értettem", en: "Got it" },
-    skipAll: { hu: "Összes átugrása", en: "Skip all" },
     dontShow: { hu: "Ne mutasd többször", en: "Don't show again" },
+    skipAll: { hu: "Összes átugrása", en: "Skip all" },
+    hot: { hu: "Felkapott", en: "Trending" },
   };
 
-  const t = (k) => (UI[k] ? UI[k][state.lang] : k);
-
-  const locale = () => (state.lang === "en" ? "en" : "hu");
+  const t = (k) => {
+    const v = UI[k];
+    if (!v) return k;
+    return state.lang === "en" ? (v.en || v.hu) : (v.hu || v.en);
+  };
 
   const norm = (s) =>
     (s || "")
@@ -36,8 +38,13 @@
       .normalize("NFD")
       .replace(/[\u0300-\u036f]/g, "");
 
+  function localeForLang() {
+    return state.lang === "en" ? "en" : "hu";
+  }
+
   function catLabel(c) {
-    return (c && (state.lang === "en" ? (c.label_en || c.label_hu || c.id) : (c.label_hu || c.label_en || c.id))) || "";
+    if (!c) return "";
+    return state.lang === "en" ? (c.label_en || c.label_hu || c.id) : (c.label_hu || c.label_en || c.id);
   }
 
   function getName(p) {
@@ -65,19 +72,27 @@
   }
 
   function isSoon(p) {
-    return ((p && p.status) || "ok") === "soon";
+    return (p && p.status) === "soon";
+  }
+
+  function isVisible(p) {
+    // adminból állítható
+    if (p && typeof p.visible === "boolean") return p.visible;
+    return true;
   }
 
   /* ----------------- Source resolving (RAW preferált, custom domainen is) ----------------- */
   let source = null; // {owner, repo, branch}
 
-  async function validateSource(s){
-    try{
-      if(!s || !s.owner || !s.repo || !s.branch) return false;
+  async function validateSource(s) {
+    try {
+      if (!s || !s.owner || !s.repo || !s.branch) return false;
       const testUrl = `https://raw.githubusercontent.com/${s.owner}/${s.repo}/${s.branch}/data/products.json?_=${Date.now()}`;
       const r = await fetch(testUrl, { cache: "no-store" });
       return r.ok;
-    }catch{ return false; }
+    } catch {
+      return false;
+    }
   }
 
   function getOwnerRepoFromUrl() {
@@ -98,24 +113,24 @@
     return { owner, repo, branch: branch || null };
   }
 
-  function applySyncParams(){
-    try{
+  function applySyncParams() {
+    try {
       const u = new URL(location.href);
-      const o = (u.searchParams.get("sv_owner")||"").trim();
-      const r = (u.searchParams.get("sv_repo")||"").trim();
-      const b = (u.searchParams.get("sv_branch")||"").trim();
-      if(o && r){
+      const o = (u.searchParams.get("sv_owner") || "").trim();
+      const r = (u.searchParams.get("sv_repo") || "").trim();
+      const b = (u.searchParams.get("sv_branch") || "").trim();
+      if (o && r) {
         localStorage.setItem("sv_owner", o);
         localStorage.setItem("sv_repo", r);
-        if(b) localStorage.setItem("sv_branch", b);
-        const src = { owner:o, repo:r, branch: b || "main" };
+        if (b) localStorage.setItem("sv_branch", b);
+        const src = { owner: o, repo: r, branch: b || "main" };
         localStorage.setItem("sv_source", JSON.stringify(src));
         u.searchParams.delete("sv_owner");
         u.searchParams.delete("sv_repo");
         u.searchParams.delete("sv_branch");
         history.replaceState({}, "", u.pathname + (u.search ? u.search : "") + u.hash);
       }
-    }catch{}
+    } catch {}
   }
 
   async function resolveSource() {
@@ -129,10 +144,13 @@
           source = cached;
           return source;
         }
-        try { localStorage.removeItem("sv_source"); } catch {}
+        try {
+          localStorage.removeItem("sv_source");
+        } catch {}
       }
     } catch {}
 
+    // stabil fájl (admin írja): data/sv_source.json
     try {
       const r = await fetch(`data/sv_source.json?_=${Date.now()}`, { cache: "no-store" });
       if (r.ok) {
@@ -140,7 +158,9 @@
         if (j && j.owner && j.repo) {
           const br = String(j.branch || j.ref || "main").trim();
           source = { owner: String(j.owner).trim(), repo: String(j.repo).trim(), branch: br };
-          try { localStorage.setItem("sv_source", JSON.stringify(source)); } catch {}
+          try {
+            localStorage.setItem("sv_source", JSON.stringify(source));
+          } catch {}
           return source;
         }
       }
@@ -159,7 +179,9 @@
         const r = await fetch(testUrl, { cache: "no-store" });
         if (r.ok) {
           source = { owner: or.owner, repo: or.repo, branch: br };
-          try { localStorage.setItem("sv_source", JSON.stringify(source)); } catch {}
+          try {
+            localStorage.setItem("sv_source", JSON.stringify(source));
+          } catch {}
           return source;
         }
       } catch {}
@@ -168,44 +190,41 @@
     return null;
   }
 
-  async function fetchJson(relPath, { forceBust=false } = {}){
-    const src = await resolveSource();
-    const relBase = relPath;
-    const rawBase = src ? `https://raw.githubusercontent.com/${src.owner}/${src.repo}/${src.branch}/${relPath}` : null;
-
-    const mkUrl = (base) => forceBust ? `${base}${base.includes("?") ? "&" : "?"}_=${Date.now()}` : base;
-
-    const headers = {
+  function mkFetchHeaders() {
+    return {
       "Cache-Control": "no-cache, no-store, must-revalidate",
       Pragma: "no-cache",
     };
+  }
 
+  async function fetchJsonSmart(path, { forceBust = false } = {}) {
+    const src = await resolveSource();
+    const relBase = `data/${path}`;
+    const rawBase = src ? `https://raw.githubusercontent.com/${src.owner}/${src.repo}/${src.branch}/data/${path}` : null;
+
+    const mkUrl = (base) => (forceBust ? `${base}${base.includes("?") ? "&" : "?"}_=${Date.now()}` : base);
+
+    // 1) RAW
     if (rawBase) {
       try {
-        const url = mkUrl(rawBase);
-        const r = await fetch(url, { cache: "no-store", headers });
-        if (r.status === 304) return null;
+        const r = await fetch(mkUrl(rawBase), { cache: "no-store", headers: mkFetchHeaders() });
         if (r.ok) return await r.json();
-        try { localStorage.removeItem("sv_source"); } catch {}
+        try {
+          localStorage.removeItem("sv_source");
+        } catch {}
         source = null;
       } catch {
-        try { localStorage.removeItem("sv_source"); } catch {}
+        try {
+          localStorage.removeItem("sv_source");
+        } catch {}
         source = null;
       }
     }
 
-    const url = mkUrl(relBase);
-    const r = await fetch(url, { cache: "no-store", headers });
-    if (r.status === 304) return null;
-    if (!r.ok) throw new Error(`Nem tudtam betölteni: ${relPath} (${r.status})`);
+    // 2) fallback
+    const r = await fetch(mkUrl(relBase), { cache: "no-store", headers: mkFetchHeaders() });
+    if (!r.ok) throw new Error(`Nem tudtam betölteni: ${path} (${r.status})`);
     return await r.json();
-  }
-
-  async function fetchProducts({ forceBust=false } = {}){
-    return await fetchJson("data/products.json", { forceBust });
-  }
-  async function fetchSales({ forceBust=false } = {}){
-    return await fetchJson("data/sales.json", { forceBust });
   }
 
   function normalizeDoc(data) {
@@ -216,84 +235,93 @@
     return { categories, products, popups };
   }
 
-  function normalizeSales(data){
-    if(!Array.isArray(data)) return [];
-    return data.map(s => {
-      const legacyPid = s.productId || s.pid || s.product || "";
-      const legacyQty = s.qty || s.quantity || 1;
-      const legacyPrice = s.unitPrice || s.price || s.amount || 0;
+  function applyDoc(doc) {
+    state.productsDoc = {
+      categories: (doc.categories || []).map((c) => ({
+        id: String(c.id),
+        label_hu: c.label_hu || c.id,
+        label_en: c.label_en || c.label_hu || c.id,
+        basePrice: Number(c.basePrice || 0),
+        trending: typeof c.trending === "boolean" ? c.trending : true,
+      })),
+      products: (doc.products || [])
+        .map((p) => ({
+          ...p,
+          id: String(p.id || ""),
+          categoryId: String(p.categoryId || ""),
+          status: p.status === "soon" || p.status === "out" || p.status === "ok" ? p.status : "ok",
+          stock: Math.max(0, Number(p.stock || 0)),
+          visible: typeof p.visible === "boolean" ? p.visible : true,
+        }))
+        .filter((p) => p.id),
+      popups: (doc.popups || []).map((x) => ({
+        id: String(x.id || ""),
+        title_hu: x.title_hu || "",
+        title_en: x.title_en || "",
+        enabled: typeof x.enabled === "boolean" ? x.enabled : true,
+        categoryIds: Array.isArray(x.categoryIds) ? x.categoryIds.map(String) : [],
+        productIds: Array.isArray(x.productIds) ? x.productIds.map(String) : [],
+      })).filter(x => x.id),
+    };
 
-      const items = Array.isArray(s.items)
-        ? s.items.map(it => ({
-            productId: String(it.productId || it.pid || ""),
-            qty: Math.max(1, Number.parseFloat(it.qty || it.quantity || 1) || 1),
-            unitPrice: Math.max(0, Number.parseFloat(it.unitPrice || it.price || 0) || 0)
-          })).filter(it => it.productId)
-        : (legacyPid ? [{
-            productId: String(legacyPid),
-            qty: Math.max(1, Number.parseFloat(legacyQty) || 1),
-            unitPrice: Math.max(0, Number.parseFloat(legacyPrice) || 0)
-          }] : []);
+    renderNav();
+    renderGrid();
 
-      return {
-        id: String(s.id || ""),
-        date: String(s.date || s.day || s.createdAt || ""),
-        name: s.name || "",
-        payment: s.payment || s.method || "",
-        items
-      };
-    }).filter(s => s.id);
+    // popup check (csak init után, és csak ha van mit)
+    queuePopupFlow();
   }
 
-  /* ----------------- Featured (Felkapott) ----------------- */
-  function computeFeaturedByCategory(){
-    state.featuredByCat = new Map();
-    const products = (state.productsDoc.products || []).filter(p => p && p.id && p.visible !== false);
-    const cats = (state.productsDoc.categories || []);
-    const enabledCats = new Set(cats.filter(c => c && c.id && (c.featuredEnabled === false ? false : true)).map(c => String(c.id)));
+  /* ----------------- Trending (felkapott) ----------------- */
+  function computeTrendingByCategory() {
+    // returns Map(categoryId -> productId) where qty > 0
+    const qtyByPid = new Map();
 
-    // totals: categoryId -> productId -> qty
-    const totals = new Map();
-    let any = 0;
-
-    for(const sale of (state.sales || [])){
-      for(const it of (sale.items || [])){
-        const pid = String(it.productId || "");
-        const qty = Number(it.qty || 0) || 0;
-        if(!pid || qty <= 0) continue;
-        const p = products.find(x => String(x.id) === pid);
-        if(!p) continue;
-        const cid = String(p.categoryId || "");
-        if(!cid || !enabledCats.has(cid)) continue;
-        any += qty;
-        if(!totals.has(cid)) totals.set(cid, new Map());
-        const m = totals.get(cid);
-        m.set(pid, (m.get(pid)||0) + qty);
+    for (const s of state.sales || []) {
+      const items = Array.isArray(s.items) ? s.items : [];
+      for (const it of items) {
+        const pid = String(it.productId || it.pid || "");
+        if (!pid) continue;
+        const q = Math.max(0, Number(it.qty || it.quantity || 0));
+        if (!q) continue;
+        qtyByPid.set(pid, (qtyByPid.get(pid) || 0) + q);
       }
     }
 
-    if(any <= 0) return; // ✅ nincs eladás → nincs felkapott
+    const byCat = new Map();
+    const locale = localeForLang();
 
-    for(const [cid, m] of totals.entries()){
-      let bestPid = null;
-      let bestQty = -1;
+    for (const p of state.productsDoc.products || []) {
+      if (!isVisible(p)) continue;
+      const sold = qtyByPid.get(String(p.id)) || 0;
+      if (sold <= 0) continue;
+      const cid = String(p.categoryId || "");
+      if (!cid) continue;
 
-      for(const [pid, qty] of m.entries()){
-        if(qty > bestQty){
-          bestQty = qty; bestPid = pid;
-        }else if(qty === bestQty && bestPid){
-          // tie-break: íz név abc szerint (HU/EN locale)
-          const a = products.find(x=>String(x.id)===pid);
-          const b = products.find(x=>String(x.id)===bestPid);
-          const fa = norm(getFlavor(a));
-          const fb = norm(getFlavor(b));
-          const cmp = fa.localeCompare(fb, locale());
-          if(cmp < 0) bestPid = pid;
+      const cur = byCat.get(cid);
+      if (!cur) {
+        byCat.set(cid, { pid: p.id, sold, flavor: getFlavor(p) });
+        continue;
+      }
+      if (sold > cur.sold) {
+        byCat.set(cid, { pid: p.id, sold, flavor: getFlavor(p) });
+      } else if (sold === cur.sold) {
+        // tie: flavor abc (lang szerint)
+        const a = (getFlavor(p) || "").toString();
+        const b = (cur.flavor || "").toString();
+        if (a.localeCompare(b, locale) < 0) {
+          byCat.set(cid, { pid: p.id, sold, flavor: a });
         }
       }
-
-      if(bestPid) state.featuredByCat.set(cid, bestPid);
     }
+
+    const out = new Map();
+    for (const [cid, v] of byCat.entries()) out.set(cid, v.pid);
+    return out;
+  }
+
+  function trendingEnabledForCategory(cid) {
+    const c = (state.productsDoc.categories || []).find((x) => String(x.id) === String(cid));
+    return c ? (typeof c.trending === "boolean" ? c.trending : true) : true;
   }
 
   /* ----------------- Rendering ----------------- */
@@ -305,9 +333,9 @@
         label_hu: c.label_hu || c.id,
         label_en: c.label_en || c.label_hu || c.id,
         basePrice: Number(c.basePrice || 0),
-        featuredEnabled: (c.featuredEnabled === false) ? false : true
+        trending: typeof c.trending === "boolean" ? c.trending : true,
       }))
-      .sort((a, b) => catLabel(a).localeCompare(catLabel(b), locale()));
+      .sort((a, b) => catLabel(a).localeCompare(catLabel(b), localeForLang()));
 
     return [
       { id: "all", label_hu: t("all"), label_en: t("all"), virtual: true },
@@ -319,26 +347,26 @@
   function filterList() {
     const q = norm(state.search);
 
-    let list = (state.productsDoc.products || []).map((p) => ({
-      ...p,
-      id: String(p.id || ""),
-      categoryId: String(p.categoryId || ""),
-      status: p.status === "soon" || p.status === "out" || p.status === "ok" ? p.status : "ok",
-      stock: Math.max(0, Number(p.stock || 0)),
-      visible: (p.visible === false) ? false : true
-    })).filter(p => p.id && p.visible !== false);
+    let list = (state.productsDoc.products || [])
+      .filter((p) => isVisible(p))
+      .map((p) => ({
+        ...p,
+        categoryId: String(p.categoryId || ""),
+        status: p.status === "soon" || p.status === "out" || p.status === "ok" ? p.status : "ok",
+        stock: Math.max(0, Number(p.stock || 0)),
+      }));
 
     if (state.active === "soon") {
-      list = list.filter((p) => p.status === "soon");
-    } else {
-      if (state.active !== "all") list = list.filter((p) => String(p.categoryId) === String(state.active));
+      list = list.filter((p) => isSoon(p));
+    } else if (state.active !== "all") {
+      list = list.filter((p) => String(p.categoryId) === String(state.active));
     }
 
     if (q) {
       list = list.filter((p) => norm(getName(p) + " " + getFlavor(p)).includes(q));
     }
 
-    // ✅ order: ok ... then soon ... then out
+    // rang: ok -> soon -> out (mindegyik tabon)
     const okPart = list.filter((p) => !isOut(p) && !isSoon(p));
     const soonPart = list.filter((p) => !isOut(p) && isSoon(p));
     const outPart = list.filter((p) => isOut(p));
@@ -350,11 +378,11 @@
         if (!map.has(key)) map.set(key, []);
         map.get(key).push(p);
       }
-      const keys = [...map.keys()].sort((a, b) => a.localeCompare(b, locale()));
+      const keys = [...map.keys()].sort((a, b) => a.localeCompare(b, localeForLang()));
       const out = [];
       for (const k of keys) {
-        const items = map.get(k);
-        items.sort((a, b) => norm(getFlavor(a)).localeCompare(norm(getFlavor(b)), locale()));
+        const items = map.get(k) || [];
+        items.sort((a, b) => norm(getFlavor(a)).localeCompare(norm(getFlavor(b)), localeForLang()));
         out.push(...items);
       }
       return out;
@@ -385,19 +413,83 @@
       };
       nav.appendChild(btn);
     }
+
+    $("#langLabel").textContent = state.lang.toUpperCase();
   }
 
-  function getFeaturedListForAll(){
-    const cats = (state.productsDoc.categories || []).filter(c => c && c.id && (c.featuredEnabled === false ? false : true));
-    cats.sort((a,b)=>catLabel(a).localeCompare(catLabel(b), locale()));
-    const out = [];
-    for(const c of cats){
-      const pid = state.featuredByCat.get(String(c.id));
-      if(!pid) continue;
-      const p = (state.productsDoc.products||[]).find(x=>String(x.id)===String(pid));
-      if(p && p.visible !== false) out.push(p);
+  function makeCard(p, { hot = false } = {}) {
+    const name = getName(p);
+    const flavor = getFlavor(p);
+    const out = isOut(p);
+    const soon = isSoon(p);
+    const stockShown = out ? 0 : Math.max(0, Number(p.stock || 0));
+    const price = effectivePrice(p);
+
+    const card = document.createElement("div");
+    card.className = "card fade-in" + (out ? " dim" : "") + (hot ? " hot" : "");
+
+    const hero = document.createElement("div");
+    hero.className = "hero";
+
+    const img = document.createElement("img");
+    img.loading = "lazy";
+    img.alt = (name + (flavor ? " - " + flavor : "")).trim();
+    img.src = p.image || "";
+
+    // státusz alapú szűrés (out szürke, soon ne legyen durván szürke)
+    if (out) {
+      img.style.filter = "grayscale(.65) contrast(.95) brightness(.85)";
+    } else if (soon) {
+      img.style.filter = "contrast(1.02) brightness(.95)";
     }
-    return out;
+
+    const badges = document.createElement("div");
+    badges.className = "badges";
+    if (hot) {
+      const b = document.createElement("div");
+      b.className = "badge";
+      b.textContent = t("hot");
+      badges.appendChild(b);
+    }
+    if (soon) {
+      const b = document.createElement("div");
+      b.className = "badge soon";
+      b.textContent = t("soon");
+      badges.appendChild(b);
+    } else if (out) {
+      const b = document.createElement("div");
+      b.className = "badge out";
+      b.textContent = t("out");
+      badges.appendChild(b);
+    }
+
+    const overlay = document.createElement("div");
+    overlay.className = "overlay-title";
+    overlay.innerHTML = `
+      <div class="name">${escapeHtml(name)}</div>
+      <div class="flavor">${escapeHtml(flavor)}</div>
+    `;
+
+    hero.appendChild(img);
+    hero.appendChild(badges);
+    hero.appendChild(overlay);
+
+    const body = document.createElement("div");
+    body.className = "card-body";
+
+    const meta = document.createElement("div");
+    meta.className = "meta-row";
+    meta.innerHTML = `
+      <div class="price">${fmtFt(price)}</div>
+      <div class="stock">${t("stock")}: <b>${soon ? "—" : stockShown}</b> ${t("pcs")}</div>
+    `;
+
+    body.appendChild(meta);
+
+    card.appendChild(hero);
+    card.appendChild(body);
+
+    return card;
   }
 
   function renderGrid() {
@@ -405,462 +497,510 @@
     const empty = $("#empty");
     grid.innerHTML = "";
 
-    let list = filterList();
-
-    // ✅ Featured: kategóriánként 1-1 (ha van eladás) + kategória toggle (admin)
-    const featuredIds = new Set();
-    let featuredToPrepend = [];
-
-    if(state.active !== "soon"){
-      if(state.active === "all"){
-        featuredToPrepend = getFeaturedListForAll();
-      }else{
-        const pid = state.featuredByCat.get(String(state.active));
-        if(pid){
-          const p = (state.productsDoc.products||[]).find(x=>String(x.id)===String(pid));
-          if(p && p.visible !== false) featuredToPrepend = [p];
-        }
-      }
-    }
-
-    for(const fp of featuredToPrepend){
-      featuredIds.add(String(fp.id));
-    }
-
-    if(featuredToPrepend.length){
-      // remove from main list so ne duplázzon
-      list = list.filter(p => !featuredIds.has(String(p.id)));
-      list = [...featuredToPrepend, ...list];
-    }
-
+    const list = filterList();
     $("#count").textContent = String(list.length);
     empty.style.display = list.length ? "none" : "block";
 
-    for (const p of list) {
-      const name = getName(p);
-      const flavor = getFlavor(p);
-      const out = isOut(p);
-      const soon = isSoon(p);
-      const featured = featuredIds.has(String(p.id));
-      const stockShown = out ? 0 : (soon ? Math.max(0, Number(p.stock || 0)) : Math.max(0, Number(p.stock || 0)));
-      const price = effectivePrice(p);
+    // Trending: kategóriánként 1, és mindig legelöl (a tabon belül)
+    const trendingMap = computeTrendingByCategory();
 
-      const card = document.createElement("div");
-      card.className = "card fade-in" + (out ? " dim" : "") + (soon ? " soon" : "") + (featured ? " featured" : "");
-
-      const hero = document.createElement("div");
-      hero.className = "hero";
-
-      const img = document.createElement("img");
-      img.loading = "lazy";
-      img.alt = (name + (flavor ? " - " + flavor : "")).trim();
-      img.src = p.image || "";
-
-      // sold-out legyen szürke (CSS is)
-      if (out) {
-        img.style.filter = "grayscale(.75) contrast(.95) brightness(.85)";
-      }
-
-      const badges = document.createElement("div");
-      badges.className = "badges";
-
-      if(featured){
-        const b = document.createElement("div");
-        b.className = "badge hot";
-        b.textContent = t("hot");
-        badges.appendChild(b);
-      }
-
-      if (soon) {
-        const b = document.createElement("div");
-        b.className = "badge soon";
-        b.textContent = t("soon");
-        badges.appendChild(b);
-      }
-
-      if (out) {
-        const b = document.createElement("div");
-        b.className = "badge out";
-        b.textContent = t("out");
-        badges.appendChild(b);
-      }
-
-      const overlay = document.createElement("div");
-      overlay.className = "overlay-title";
-      overlay.innerHTML = `
-        <div class="name">${name}</div>
-        <div class="flavor">${flavor}</div>
-      `;
-
-      hero.appendChild(img);
-      hero.appendChild(badges);
-      hero.appendChild(overlay);
-
-      const body = document.createElement("div");
-      body.className = "card-body";
-
-      const meta = document.createElement("div");
-      meta.className = "meta-row";
-
-      const priceEl = document.createElement("div");
-      priceEl.className = "price";
-      priceEl.textContent = fmtFt(price);
-
-      const stockEl = document.createElement("div");
-      stockEl.className = "stock";
-      stockEl.innerHTML = `${t("stock")}: <b>${soon ? "—" : stockShown} ${soon ? "" : t("pcs")}</b>`;
-
-      meta.appendChild(priceEl);
-      meta.appendChild(stockEl);
-      body.appendChild(meta);
-
-      card.appendChild(hero);
-      card.appendChild(body);
-
-      grid.appendChild(card);
-    }
-  }
-
-  /* ----------------- Popups (New products) ----------------- */
-  function popupHideKey(pp){
-    const id = String(pp.id||"");
-    const rev = Number(pp.rev || pp.updatedAt || pp.createdAt || 0) || 0;
-    return `sv_popup_hide_${id}_${rev}`;
-  }
-
-  function buildPopupQueue(){
-    const popups = (state.productsDoc.popups || []).filter(pp => pp && pp.id && (pp.enabled === false ? false : true));
-    // sort: newest first (admin list is newest first)
-    popups.sort((a,b)=>(Number(b.createdAt||0)-Number(a.createdAt||0)));
-
-    const products = (state.productsDoc.products || []).filter(p=>p && p.id && p.visible !== false);
-    const cats = (state.productsDoc.categories || []);
-
-    const queue = [];
-
-    for(const pp of popups){
-      // skip if user hid this rev
-      try{
-        if(localStorage.getItem(popupHideKey(pp)) === "1") continue;
-      }catch{}
-
-      // collect product ids
-      const ids = new Set();
-      for(const cid of (pp.categoryIds||[])){
-        for(const p of products){
-          if(String(p.categoryId) === String(cid)) ids.add(String(p.id));
+    if (state.active !== "soon") {
+      if (state.active !== "all") {
+        const cid = state.active;
+        if (trendingEnabledForCategory(cid)) {
+          const pid = trendingMap.get(String(cid));
+          if (pid) {
+            const p = (state.productsDoc.products || []).find((x) => String(x.id) === String(pid));
+            if (p) grid.appendChild(makeCard(p, { hot: true }));
+          }
+        }
+      } else {
+        // all tab: minden kategóriából 1-1 felkapott, felül
+        const cats = (state.productsDoc.categories || []).slice().sort((a, b) => catLabel(a).localeCompare(catLabel(b), localeForLang()));
+        const picks = [];
+        for (const c of cats) {
+          if (!trendingEnabledForCategory(c.id)) continue;
+          const pid = trendingMap.get(String(c.id));
+          if (!pid) continue;
+          const p = (state.productsDoc.products || []).find((x) => String(x.id) === String(pid));
+          if (p) picks.push(p);
+        }
+        if (picks.length) {
+          for (const p of picks) grid.appendChild(makeCard(p, { hot: true }));
         }
       }
-      for(const pid of (pp.productIds||[])){
-        ids.add(String(pid));
-      }
-
-      const picked = [...ids].map(id => products.find(p=>String(p.id)===String(id))).filter(Boolean);
-
-      // group by category
-      const byCat = new Map();
-      for(const p of picked){
-        const cid = String(p.categoryId||"");
-        if(!byCat.has(cid)) byCat.set(cid, []);
-        byCat.get(cid).push(p);
-      }
-
-      // sort categories by label
-      const catIds = [...byCat.keys()].sort((a,b)=>{
-        const ca = cats.find(x=>String(x.id)===String(a));
-        const cb = cats.find(x=>String(x.id)===String(b));
-        return catLabel(ca).localeCompare(catLabel(cb), locale());
-      });
-
-      if(!catIds.length) continue;
-
-      queue.push({
-        popup: pp,
-        categories: catIds.map(cid => ({
-          id: cid,
-          label: catLabel(cats.find(x=>String(x.id)===String(cid)) || {id:cid, label_hu:cid, label_en:cid}),
-          products: byCat.get(cid)
-            .slice()
-            .sort((a,b)=> norm(getFlavor(a)).localeCompare(norm(getFlavor(b)), locale()))
-        }))
-      });
     }
 
-    return queue;
+    // normal lista (ha hot termék benne van, itt is megjelenne, de ez ok — user akarta, hogy ne számítson szabály)
+    for (const p of list) {
+      // all tabon, ne duplikáljuk a hot kártyát
+      if (state.active === "all") {
+        const isHot = trendingMap.get(String(p.categoryId)) === String(p.id) && trendingEnabledForCategory(p.categoryId);
+        if (isHot) continue;
+      } else if (state.active !== "soon") {
+        const isHot = trendingMap.get(String(state.active)) === String(p.id) && trendingEnabledForCategory(state.active);
+        if (isHot) continue;
+      }
+
+      grid.appendChild(makeCard(p, { hot: false }));
+    }
   }
 
-  function showPopupsIfNeeded(){
-    const queue = buildPopupQueue();
-    if(!queue.length) return;
+  function escapeHtml(s) {
+    return String(s ?? "").replace(/[&<>"']/g, (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" }[m]));
+  }
 
-    // modal DOM
-    let bg = document.querySelector("#popupBg");
-    if(bg) bg.remove();
+  /* ----------------- Popup flow (új termékek) ----------------- */
+  let popupScheduled = false;
+  let popupOpen = false;
 
-    bg = document.createElement("div");
-    bg.id = "popupBg";
+  function popupDismissKey(popupId, signature) {
+    return `sv_popup_dismiss:${popupId}:${signature}`;
+  }
+
+  function signatureForPopup(popup, productsInPopup, categoriesInPopup) {
+    // ha változik a tartalom / készlet / státusz, akkor újra dobja fel
+    const parts = [];
+    const cids = (categoriesInPopup || []).map(String).sort();
+    parts.push("c:" + cids.join(","));
+    const prods = (productsInPopup || []).slice().sort((a, b) => String(a.id).localeCompare(String(b.id)));
+    for (const p of prods) {
+      parts.push(`${p.id}:${p.status}:${Number(p.stock || 0)}:${p.visible ? 1 : 0}`);
+    }
+    const raw = parts.join("|");
+    let h = 0;
+    for (let i = 0; i < raw.length; i++) h = (h * 31 + raw.charCodeAt(i)) >>> 0;
+    return String(h);
+  }
+
+  function buildPopupPlan() {
+    const popups = (state.productsDoc.popups || []).filter((p) => p && p.enabled);
+
+    const byId = new Map((state.productsDoc.products || []).map((p) => [String(p.id), p]));
+    const catsById = new Map((state.productsDoc.categories || []).map((c) => [String(c.id), c]));
+
+    const plans = [];
+
+    for (const pu of popups) {
+      const catIds = (pu.categoryIds || []).map(String).filter((id) => catsById.has(id));
+      const prodIds = (pu.productIds || []).map(String).filter((id) => byId.has(id));
+
+      // termékek: kategóriából + konkrét kiválasztások
+      let products = [];
+      for (const pid of prodIds) {
+        const p = byId.get(pid);
+        if (p && isVisible(p)) products.push(p);
+      }
+      for (const cid of catIds) {
+        for (const p of state.productsDoc.products || []) {
+          if (!isVisible(p)) continue;
+          if (String(p.categoryId) !== String(cid)) continue;
+          products.push(p);
+        }
+      }
+
+      // dedupe
+      const seen = new Set();
+      products = products.filter((p) => {
+        const k = String(p.id);
+        if (seen.has(k)) return false;
+        seen.add(k);
+        return true;
+      });
+
+      if (!products.length) continue;
+
+      // csoport: kategóriánként, ABC sorrendben (lang szerint)
+      const groups = new Map();
+      for (const p of products) {
+        const cid = String(p.categoryId || "");
+        if (!groups.has(cid)) groups.set(cid, []);
+        groups.get(cid).push(p);
+      }
+
+      // kategóriák sorrendje
+      const catOrder = [...groups.keys()].sort((a, b) => {
+        const ca = catsById.get(a);
+        const cb = catsById.get(b);
+        return catLabel(ca).localeCompare(catLabel(cb), localeForLang());
+      });
+
+      // csoporton belül: ok -> soon -> out, majd flavor ABC
+      for (const cid of catOrder) {
+        const arr = groups.get(cid) || [];
+        arr.sort((a, b) => {
+          const ra = isOut(a) ? 2 : (isSoon(a) ? 1 : 0);
+          const rb = isOut(b) ? 2 : (isSoon(b) ? 1 : 0);
+          if (ra !== rb) return ra - rb;
+          return (getFlavor(a) || "").localeCompare((getFlavor(b) || ""), localeForLang());
+        });
+      }
+
+      const signature = signatureForPopup(pu, products, catOrder);
+      const key = popupDismissKey(pu.id, signature);
+      const dismissed = localStorage.getItem(key) === "1";
+      if (dismissed) continue;
+
+      plans.push({ popup: pu, catOrder, groups, signature });
+    }
+
+    return plans;
+  }
+
+  function ensurePopupDom() {
+    if ($("#popupBg")) return;
+
+    const bg = document.createElement("div");
     bg.className = "popup-backdrop";
+    bg.id = "popupBg";
+    bg.innerHTML = `
+      <div class="popup" role="dialog" aria-modal="true">
+        <div class="popup-top">
+          <div>
+            <div class="popup-title" id="popupTitle">${escapeHtml(t("newAvail"))}</div>
+            <div class="popup-sub" id="popupSub"></div>
+          </div>
+          <button class="popup-x" id="popupClose">✕</button>
+        </div>
 
-    const modal = document.createElement("div");
-    modal.className = "popup-modal";
-    bg.appendChild(modal);
+        <div class="popup-body">
+          <div class="popup-stage">
+            <div class="popup-hero"><img id="popupImg" alt="" /></div>
+            <div class="popup-info">
+              <div class="popup-name" id="popupName"></div>
+              <div class="popup-flavor" id="popupFlavor"></div>
+              <div class="popup-meta">
+                <div class="popup-price" id="popupPrice"></div>
+                <div class="popup-stock" id="popupStock"></div>
+              </div>
+              <div class="small-muted" id="popupCounter"></div>
+            </div>
+          </div>
+        </div>
 
+        <div class="popup-footer">
+          <div class="popup-left">
+            <label><input type="checkbox" id="popupDont" /> <span>${escapeHtml(t("dontShow"))}</span></label>
+          </div>
+          <div class="popup-actions">
+            <button class="ghost" id="popupSkipAll">${escapeHtml(t("skipAll"))}</button>
+            <button id="popupOk">${escapeHtml(t("understood"))}</button>
+          </div>
+        </div>
+      </div>
+    `;
     document.body.appendChild(bg);
 
-    let popupIndex = 0;
+    bg.addEventListener("click", (e) => {
+      if (e.target === bg) closePopup("close");
+    });
+  }
+
+  function openPopupFlow(plans) {
+    if (!plans || !plans.length) return;
+
+    ensurePopupDom();
+    popupOpen = true;
+
+    const bg = $("#popupBg");
+    const titleEl = $("#popupTitle");
+    const subEl = $("#popupSub");
+    const imgEl = $("#popupImg");
+    const nameEl = $("#popupName");
+    const flavorEl = $("#popupFlavor");
+    const priceEl = $("#popupPrice");
+    const stockEl = $("#popupStock");
+    const counterEl = $("#popupCounter");
+    const dontEl = $("#popupDont");
+
+    let planIndex = 0;
     let catIndex = 0;
+    let itemIndex = 0;
+    let timer = null;
 
-    let autoplayTimer = null;
+    function stopTimer() {
+      if (timer) {
+        clearInterval(timer);
+        timer = null;
+      }
+    }
 
-    const cleanupAutoplay = () => {
-      if(autoplayTimer) clearInterval(autoplayTimer);
-      autoplayTimer = null;
-    };
+    function startTimer() {
+      stopTimer();
+      // desktop lag fix: lassabb és kevesebb anim
+      timer = setInterval(() => {
+        // jobbról-balra "lapozás": csak a tartalom vált, kép fade
+        itemIndex++;
+        renderCurrent(true);
+      }, 2600);
+    }
 
-    const closeAll = () => {
-      cleanupAutoplay();
-      bg.remove();
-    };
+    function curPlan() {
+      return plans[planIndex];
+    }
 
-    const render = () => {
-      cleanupAutoplay();
+    function curCategoryId() {
+      const p = curPlan();
+      return p ? p.catOrder[catIndex] : null;
+    }
 
-      const cur = queue[popupIndex];
-      if(!cur){ closeAll(); return; }
+    function curList() {
+      const p = curPlan();
+      const cid = curCategoryId();
+      if (!p || !cid) return [];
+      return p.groups.get(cid) || [];
+    }
 
-      const curCat = cur.categories[catIndex];
-      if(!curCat){
-        popupIndex += 1;
-        catIndex = 0;
-        render();
+    function fmtStock(p) {
+      if (isSoon(p)) return "—";
+      const v = isOut(p) ? 0 : Math.max(0, Number(p.stock || 0));
+      return `${t("stock")}: <b>${v}</b> ${t("pcs")}`;
+    }
+
+    function renderCurrent(animate = false) {
+      const p = curPlan();
+      if (!p) return closePopup("done");
+      const cid = curCategoryId();
+      const list = curList();
+
+      if (!cid || !list.length) {
+        // next category
+        catIndex++;
+        itemIndex = 0;
+        return renderCurrent(false);
+      }
+
+      if (itemIndex >= list.length) itemIndex = 0;
+
+      const item = list[itemIndex];
+
+      // subtitle: kategória + (popup title)
+      const cat = (state.productsDoc.categories || []).find((x) => String(x.id) === String(cid));
+      const baseTitle =
+        state.lang === "en"
+          ? (p.popup.title_en || p.popup.title_hu || t("newAvail"))
+          : (p.popup.title_hu || p.popup.title_en || t("newAvail"));
+
+      titleEl.textContent = baseTitle || t("newAvail");
+      subEl.textContent = cat ? catLabel(cat) : "";
+
+      const price = effectivePrice(item);
+      nameEl.textContent = getName(item);
+      flavorEl.textContent = getFlavor(item);
+      priceEl.textContent = fmtFt(price);
+      stockEl.innerHTML = fmtStock(item);
+
+      const total = list.length;
+      counterEl.textContent = `${itemIndex + 1}/${total}`;
+
+      if (animate) {
+        imgEl.style.opacity = "0";
+        requestAnimationFrame(() => {
+          imgEl.src = item.image || "";
+          imgEl.alt = (getName(item) + " - " + getFlavor(item)).trim();
+          imgEl.style.opacity = "1";
+        });
+      } else {
+        imgEl.src = item.image || "";
+        imgEl.alt = (getName(item) + " - " + getFlavor(item)).trim();
+        imgEl.style.opacity = "1";
+      }
+
+      // ha csak 1, akkor ne menjen a timer
+      if (total <= 1) stopTimer();
+      else startTimer();
+    }
+
+    function dismissPlanPermanent() {
+      const p = curPlan();
+      if (!p) return;
+      const key = popupDismissKey(p.popup.id, p.signature);
+      localStorage.setItem(key, "1");
+    }
+
+    function dismissAllPermanent() {
+      for (const p of plans) {
+        const key = popupDismissKey(p.popup.id, p.signature);
+        localStorage.setItem(key, "1");
+      }
+    }
+
+    function nextCategoryOrPopup() {
+      const p = curPlan();
+      if (!p) return closePopup("done");
+
+      catIndex++;
+      itemIndex = 0;
+
+      if (catIndex < p.catOrder.length) {
+        renderCurrent(false);
         return;
       }
 
-      const pp = cur.popup;
+      // next popup
+      planIndex++;
+      catIndex = 0;
+      itemIndex = 0;
 
-      modal.innerHTML = "";
+      if (planIndex >= plans.length) return closePopup("done");
+      renderCurrent(false);
+    }
 
-      const top = document.createElement("div");
-      top.className = "popup-top";
-      top.innerHTML = `
-        <div class="popup-title">${(state.lang==="en" ? (pp.title_en || t("newAvail")) : (pp.title_hu || t("newAvail")))}</div>
-        <div class="popup-sub">${curCat.label}</div>
-      `;
-
-      const carousel = document.createElement("div");
-      carousel.className = "popup-carousel";
-
-      const track = document.createElement("div");
-      track.className = "popup-track";
-      carousel.appendChild(track);
-
-      const items = curCat.products || [];
-      let slide = 0;
-
-      const renderSlides = () => {
-        track.innerHTML = "";
-        for(const p of items){
-          const card = document.createElement("div");
-          card.className = "popup-item";
-
-          card.innerHTML = `
-            <div class="popup-img"><img loading="lazy" src="${p.image || ""}" alt="${(getName(p)+" "+getFlavor(p)).trim()}"></div>
-            <div class="popup-meta">
-              <div class="popup-name">${getName(p)}</div>
-              <div class="popup-flavor">${getFlavor(p)}</div>
-              <div class="popup-row">
-                <div class="popup-price">${fmtFt(effectivePrice(p))}</div>
-                <div class="popup-stock">${t("stock")}: <b>${isSoon(p) ? "—" : (isOut(p)?0:Math.max(0, Number(p.stock||0)))} ${isSoon(p)?"":t("pcs")}</b></div>
-              </div>
-            </div>
-          `;
-          track.appendChild(card);
-        }
-        goTo(slide, true);
-      };
-
-      const goTo = (idx, instant=false) => {
-        slide = (idx + items.length) % items.length;
-        track.style.transition = instant ? "none" : "";
-        track.style.transform = `translateX(${slide * -100}%)`;
-        if(instant){
-          requestAnimationFrame(()=>{ track.style.transition = ""; });
-        }
-      };
-
-      renderSlides();
-
-      if(items.length > 1){
-        autoplayTimer = setInterval(() => {
-          goTo(slide + 1, false);
-        }, 3200);
+    function closePopup(mode) {
+      stopTimer();
+      bg.style.display = "none";
+      popupOpen = false;
+      // session skip
+      if (mode === "skip") {
+        try {
+          sessionStorage.setItem("sv_popup_skip_session", "1");
+        } catch {}
       }
+    }
 
-      const nav = document.createElement("div");
-      nav.className = "popup-nav";
-
-      const prev = document.createElement("button");
-      prev.className = "ghost";
-      prev.textContent = "‹";
-      prev.onclick = () => goTo(slide - 1, false);
-
-      const next = document.createElement("button");
-      next.className = "ghost";
-      next.textContent = "›";
-      next.onclick = () => goTo(slide + 1, false);
-
-      const mid = document.createElement("div");
-      mid.className = "popup-dots";
-      mid.textContent = `${catIndex+1}/${cur.categories.length}`;
-
-      nav.appendChild(prev);
-      nav.appendChild(mid);
-      nav.appendChild(next);
-
-      const bottom = document.createElement("div");
-      bottom.className = "popup-bottom";
-
-      const dont = document.createElement("label");
-      dont.className = "chk";
-      dont.innerHTML = `<input type="checkbox" id="ppDont"> ${t("dontShow")}`;
-
-      const btnSkip = document.createElement("button");
-      btnSkip.className = "ghost";
-      btnSkip.textContent = t("skipAll");
-      btnSkip.onclick = () => {
-        // nem mentjük hide-ot → kövi betöltésnél újra feldobja
-        closeAll();
-      };
-
-      const btnOk = document.createElement("button");
-      btnOk.className = "primary";
-      btnOk.textContent = t("understood");
-      btnOk.onclick = () => {
-        const chk = modal.querySelector("#ppDont");
-        if(chk && chk.checked){
-          try{ localStorage.setItem(popupHideKey(pp), "1"); }catch{}
-        }
-        catIndex += 1;
-        render();
-      };
-
-      bottom.appendChild(dont);
-      bottom.appendChild(btnSkip);
-      bottom.appendChild(btnOk);
-
-      modal.appendChild(top);
-      modal.appendChild(carousel);
-      if(items.length > 1) modal.appendChild(nav);
-      modal.appendChild(bottom);
+    // wire
+    $("#popupClose").onclick = () => {
+      const dont = !!dontEl.checked;
+      if (dont) dismissPlanPermanent();
+      nextCategoryOrPopup();
+    };
+    $("#popupOk").onclick = () => {
+      const dont = !!dontEl.checked;
+      if (dont) dismissPlanPermanent();
+      nextCategoryOrPopup();
+    };
+    $("#popupSkipAll").onclick = () => {
+      const dont = !!dontEl.checked;
+      if (dont) dismissAllPermanent(); // ✅ bugfix: ha bepipálta és skip all, akkor mindet tiltsa
+      closePopup("skip");
     };
 
-    // click outside closes current popup stack? better: do nothing to avoid accidental
-    bg.addEventListener("click", (e) => {
-      if(e.target === bg){
-        // same as skip all (no hide)
-        closeAll();
+    // show
+    dontEl.checked = false;
+    bg.style.display = "flex";
+    renderCurrent(false);
+  }
+
+  function queuePopupFlow() {
+    if (popupScheduled || popupOpen) return;
+
+    // ha user egyszer már sessionben skipelt, ne zavarjuk tovább
+    try {
+      if (sessionStorage.getItem("sv_popup_skip_session") === "1") return;
+    } catch {}
+
+    popupScheduled = true;
+    setTimeout(() => {
+      popupScheduled = false;
+      if (popupOpen) return;
+
+      const plans = buildPopupPlan();
+      if (!plans.length) return;
+      openPopupFlow(plans);
+    }, 220);
+  }
+
+  /* ----------------- init / live update / polling ----------------- */
+  async function init() {
+    applySyncParams();
+
+    $("#langBtn").addEventListener("click", () => {
+      state.lang = state.lang === "hu" ? "en" : "hu";
+      localStorage.setItem("sv_lang", state.lang);
+      $("#langLabel").textContent = state.lang.toUpperCase();
+      $("#search").placeholder = state.lang === "en" ? "Search..." : "Keresés...";
+      renderNav();
+      renderGrid();
+      // popup szövegek is nyelvhez igazodjanak, de ne nyissuk újra
+      if ($("#popupBg")) {
+        $("#popupSkipAll").textContent = t("skipAll");
+        $("#popupOk").textContent = t("understood");
+        $("#popupTitle").textContent = t("newAvail");
+        $("#popupDont").nextElementSibling.textContent = t("dontShow");
       }
     });
 
-    render();
-  }
-
-  /* ----------------- Init ----------------- */
-  function setLangUI(){
-    $("#langLabel").textContent = state.lang.toUpperCase();
-    $("#search").placeholder = state.lang === "en" ? "Search..." : "Keresés...";
-  }
-
-  function initLang(){
-    $("#langBtn").onclick = () => {
-      state.lang = state.lang === "hu" ? "en" : "hu";
-      localStorage.setItem("sv_lang", state.lang);
-      setLangUI();
-      renderNav();
+    $("#search").addEventListener("input", (e) => {
+      state.search = e.target.value || "";
       renderGrid();
-      // popups szöveg is nyelv függő – újrarender
-      showPopupsIfNeeded();
-    };
-  }
+    });
 
-  function hydrateFromLivePayload(){
-    try{
-      const raw = localStorage.getItem("sv_live_payload");
-      if(!raw) return false;
-      const payload = JSON.parse(raw);
-      if(!payload || !payload.doc) return false;
-      state.productsDoc = normalizeDoc(payload.doc);
-      state.sales = normalizeSales(payload.sales || []);
-      computeFeaturedByCategory();
-      return true;
-    }catch{ return false; }
-  }
+    // ugyanazon böngészőben azonnali update admin mentésnél
+    try {
+      const cached = localStorage.getItem("sv_live_payload");
+      if (cached) {
+        const j = JSON.parse(cached);
+        if (j && j.doc) {
+          state.lastLiveTs = Number(j.ts || Date.now());
+          applyDoc(normalizeDoc(j.doc));
+        }
+        if (j && Array.isArray(j.sales)) state.sales = j.sales;
+      }
+    } catch {}
 
-  async function loadAll({ forceBust=false } = {}){
-    const doc = await fetchProducts({ forceBust });
-    if(doc){
-      state.productsDoc = normalizeDoc(doc);
-    }else{
-      // no change
-    }
-    const sales = await fetchSales({ forceBust }).catch(()=>null);
-    if(sales){
-      state.sales = normalizeSales(sales);
-    }else if(!Array.isArray(state.sales)){
+    try {
+      const ch = new BroadcastChannel("sv_live");
+      ch.onmessage = (ev) => {
+        const j = ev.data;
+        if (j && j.doc) {
+          state.lastLiveTs = Number(j.ts || Date.now());
+          applyDoc(normalizeDoc(j.doc));
+        }
+        if (j && Array.isArray(j.sales)) state.sales = j.sales;
+      };
+    } catch {}
+
+    // initial fetch
+    const docRaw = await fetchJsonSmart("products.json", { forceBust: true });
+    applyDoc(normalizeDoc(docRaw));
+
+    try {
+      const salesRaw = await fetchJsonSmart("sales.json", { forceBust: true });
+      state.sales = Array.isArray(salesRaw) ? salesRaw : (salesRaw && salesRaw.sales ? salesRaw.sales : salesRaw) || [];
+      renderGrid();
+    } catch {
       state.sales = [];
     }
-    computeFeaturedByCategory();
-  }
-
-  async function init() {
-    applySyncParams();
-    setLangUI();
-    initLang();
-
-    // if admin pushed live payload (same browser) use it first
-    hydrateFromLivePayload();
-
-    // load from network (RAW) to be sure
-    await loadAll({ forceBust:true });
-
-    renderNav();
-    renderGrid();
 
     // show app
-    $("#loader").style.display = "none";
     $("#app").style.display = "grid";
+    $("#loader").style.display = "none";
 
-    // popups
-    showPopupsIfNeeded();
+    async function pollOnce(forceBust = false) {
+      // ne pörögjön 2 másodpercenként (lag + dupla friss)
+      // ha kaptunk live update-et frissen, 10s-ig ne polloljunk
+      if (Date.now() - state.lastLiveTs < 10000) return;
 
-    // live updates from admin (same browser)
-    try{
-      const bc = new BroadcastChannel("sv_live");
-      bc.onmessage = (e) => {
-        try{
-          if(!e.data) return;
-          if(e.data.doc) state.productsDoc = normalizeDoc(e.data.doc);
-          if(e.data.sales) state.sales = normalizeSales(e.data.sales);
-          computeFeaturedByCategory();
-          renderNav();
-          renderGrid();
-          showPopupsIfNeeded();
-        }catch{}
-      };
-    }catch{}
+      try {
+        const data = await fetchJsonSmart("products.json", { forceBust });
+        if (data) applyDoc(normalizeDoc(data));
+      } catch {}
 
-    // polling (light)
-    const loop = async () => {
-      try{
-        await loadAll({ forceBust:false });
-        renderNav();
+      // sales ritkábban
+      try {
+        const salesRaw = await fetchJsonSmart("sales.json", { forceBust });
+        state.sales = Array.isArray(salesRaw) ? salesRaw : (salesRaw && salesRaw.sales ? salesRaw.sales : salesRaw) || [];
         renderGrid();
-      }catch{}
-      setTimeout(loop, 25_000);
-    };
+      } catch {}
+    }
+
+    async function burst() {
+      for (let i = 0; i < 2; i++) {
+        await pollOnce(true);
+        await new Promise((r) => setTimeout(r, 400));
+      }
+    }
+
+    let n = 0;
+    async function loop() {
+      n++;
+      const force = n % 8 === 0; // kb 2 percenként 1 force-bust
+      await pollOnce(force);
+      setTimeout(loop, document.hidden ? 60000 : 15000);
+    }
 
     document.addEventListener("visibilitychange", () => {
-      if (!document.hidden) loadAll({ forceBust:true }).then(()=>{ renderNav(); renderGrid(); showPopupsIfNeeded(); }).catch(()=>{});
+      if (!document.hidden) burst();
     });
 
     loop();
@@ -869,6 +1009,6 @@
   init().catch((err) => {
     console.error(err);
     $("#loaderText").textContent =
-      "Betöltési hiba. (Nyisd meg a konzolt.) Ha telefonon vagy ...vagy: nyisd meg egyszer a Sync linket az admin Beállításokból.";
+      "Betöltési hiba. Ha telefonon vagy custom domainen vagy: nyisd meg egyszer a Sync linket az admin Beállításokból.";
   });
 })();
