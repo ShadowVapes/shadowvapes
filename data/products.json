@@ -20,7 +20,7 @@
       "flavor_hu": "Szőlő Jég",
       "flavor_en": "Grape Ice",
       "visible": true,
-      "isNew": false
+      "isNew": true
     },
     {
       "id": "p_c9b37b233bdb5_19b4dbb80eb",
@@ -34,7 +34,7 @@
       "flavor_hu": "Kék Málna",
       "flavor_en": "Blue Razz",
       "visible": true,
-      "isNew": true
+      "isNew": false
     },
     {
       "id": "p_cdf4d9a12f296_19b4e11ef4e",
