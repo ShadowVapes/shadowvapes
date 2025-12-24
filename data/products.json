@@ -34,7 +34,7 @@
       "flavor_hu": "Kék Málna",
       "flavor_en": "Blue Razz",
       "visible": true,
-      "isNew": false
+      "isNew": true
     },
     {
       "id": "p_cdf4d9a12f296_19b4e11ef4e",
@@ -48,7 +48,7 @@
       "flavor_hu": "Pink Limonádé",
       "flavor_en": "Pink Limonade",
       "visible": true,
-      "isNew": false
+      "isNew": true
     },
     {
       "id": "p_f93b7eb924ed1_19b4e156422",
