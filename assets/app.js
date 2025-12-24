@@ -71,6 +71,141 @@ function showApp(){
   state.renderedOnce = true;
 }
 
+  function ensurePatchStyles(){
+    if(document.getElementById("svPatchStyle")) return;
+    const st = document.createElement("style");
+    st.id = "svPatchStyle";
+    st.textContent = `
+      /* Stronger outlines + overlays */
+      .card.soon{ border: 2px solid rgba(255, 208, 0, .85) !important; }
+      .card.soon{ position: relative; }
+      .card.soon::after{
+        content:"";
+        position:absolute; inset:0;
+        background: rgba(255, 208, 0, .10);
+        pointer-events:none;
+        border-radius: inherit;
+      }
+      .badge.soon{
+        background: rgba(255, 208, 0, .22) !important;
+        border: 1px solid rgba(255, 208, 0, .55) !important;
+      }
+
+      .card.out, .card.dim.out{ border: 2px solid rgba(255, 62, 62, .85) !important; }
+      .badge.out{
+        background: rgba(255, 62, 62, .18) !important;
+        border: 1px solid rgba(255, 62, 62, .55) !important;
+      }
+
+      /* Featured / Felkapott: orange outline + 2 streaks (top moves left, bottom moves right) */
+      .card.hot{
+        position: relative;
+        border: 2px solid rgba(255, 140, 0, .78) !important;
+      }
+      .card.hot::before{
+        content:"";
+        position:absolute; inset:0;
+        padding:2px;
+        border-radius: inherit;
+        background: conic-gradient(
+          from 0deg,
+          rgba(255,140,0,0) 0deg,
+          rgba(255,140,0,0) 10deg,
+          rgba(255,140,0,1) 18deg,
+          rgba(255,140,0,0) 34deg,
+          rgba(255,140,0,0) 180deg,
+          rgba(255,140,0,1) 198deg,
+          rgba(255,140,0,0) 214deg,
+          rgba(255,140,0,0) 360deg
+        );
+        -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+        -webkit-mask-composite: xor;
+        mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+        mask-composite: exclude;
+        animation: svHotSpin 2.15s linear infinite;
+        pointer-events:none;
+        opacity: .95;
+        filter: drop-shadow(0 0 8px rgba(255,140,0,.22));
+      }
+      @keyframes svHotSpin{
+        to{ transform: rotate(-360deg); }
+      }
+
+      /* Popup arrows */
+      .sv-pop-arrow{
+        position:absolute;
+        top:50%;
+        transform: translateY(-50%);
+        width: 44px; height: 44px;
+        border-radius: 999px;
+        border: 1px solid rgba(255,255,255,.18);
+        background: rgba(0,0,0,.35);
+        color: rgba(255,255,255,.95);
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        cursor:pointer;
+        user-select:none;
+        z-index: 2;
+        backdrop-filter: blur(6px);
+      }
+      .sv-pop-arrow:hover{ background: rgba(0,0,0,.48); }
+      .sv-pop-arrow:active{ transform: translateY(-50%) scale(.98); }
+      .sv-pop-arrow.left{ left: 10px; }
+      .sv-pop-arrow.right{ right: 10px; }
+
+      /* Popup product card (bigger than catalog) */
+      .sv-pop-prod{
+        border-radius: 18px;
+        overflow:hidden;
+        border: 1px solid rgba(255,255,255,.10);
+        background: rgba(10,10,10,.55);
+        box-shadow: 0 14px 50px rgba(0,0,0,.55);
+      }
+      .sv-pop-prod .img{
+        aspect-ratio: 1 / 1;
+        overflow:hidden;
+        background: rgba(0,0,0,.22);
+      }
+      .sv-pop-prod img{
+        width:100%; height:100%;
+        object-fit: cover;
+        display:block;
+      }
+      .sv-pop-prod .info{
+        padding: 12px 14px 14px 14px;
+      }
+      .sv-pop-prod .name{
+        font-weight: 900;
+        font-size: 18px;
+        line-height: 1.15;
+        margin-bottom: 6px;
+      }
+      .sv-pop-prod .flavor{
+        font-size: 14px;
+        opacity: .92;
+        margin-bottom: 10px;
+      }
+      .sv-pop-prod .row{
+        display:flex;
+        justify-content: space-between;
+        gap: 10px;
+        align-items: baseline;
+      }
+      .sv-pop-prod .price{
+        font-weight: 900;
+        font-size: 18px;
+      }
+      .sv-pop-prod .stock{
+        font-size: 13px;
+        opacity: .88;
+      }
+    `;
+    document.head.appendChild(st);
+  }
+
+
+
   function norm(s){
     return String(s||"")
       .toLowerCase()
@@ -778,6 +913,7 @@ function showApp(){
 
       const cls = [
         "card",
+        (p.__featured ? "hot" : ""),
         (isOut ? "dim out" : (p.status==="soon" ? "soon" : "")),
       ].join(" ");
 
@@ -803,6 +939,30 @@ function showApp(){
         </div>
       `;
     }
+
+    function buildPopupCard(p){
+      const price = effectivePrice(p);
+      const name = productName(p);
+      const flavor = productFlavor(p);
+      const stock = (p.status === "soon") ? "—" : String(Math.max(0, p.stock||0));
+      return `
+        <div class="sv-pop-prod">
+          <div class="img">
+            <img src="${escapeHtml(p.image||"")}" alt="${escapeHtml(name)}">
+          </div>
+          <div class="info">
+            <div class="name">${escapeHtml(name)}</div>
+            <div class="flavor">${escapeHtml(flavor)}</div>
+            <div class="row">
+              <div class="price">${price.toLocaleString(state.lang==="hu"?"hu-HU":"en-US")} Ft</div>
+              <div class="stock">${escapeHtml(t("stock"))}: <b>${escapeHtml(stock)}</b></div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+
 
     function renderPopup(){
       try{ clearInterval(autoTimer); }catch{}
@@ -840,10 +1000,12 @@ function showApp(){
         </div>
 
         <div class="sv-pop-body">
-          <div class="sv-slider">
+          <div class="sv-slider" id="svSlider">
+            ${realN > 1 ? `<button class="sv-pop-arrow left" id="svPrev" aria-label="prev">‹</button>` : ``}
             <div class="sv-track" id="svTrack">
-              ${slides.map(p => `<div class="sv-slide">${buildCard(p)}</div>`).join("")}
+            ${slides.map(p => `<div class="sv-slide">${buildPopupCard(p)}</div>`).join("")}
             </div>
+            ${realN > 1 ? `<button class="sv-pop-arrow right" id="svNext" aria-label="next">›</button>` : ``}
           </div>
         </div>
 
@@ -868,7 +1030,9 @@ function showApp(){
           counter.textContent = `1/1`;
           return;
         }
-        const realIdx = idx - 1; // 0..realN-1
+        let realIdx = idx - 1; // 0..realN-1
+        if(idx === 0) realIdx = realN - 1;            // clone last
+        if(idx === slides.length - 1) realIdx = 0;   // clone first
         counter.textContent = `${realIdx+1}/${realN}`;
       }
 
@@ -887,11 +1051,36 @@ function showApp(){
       // init
       if(realN > 1) setPos(true);
 
+      
       function next(){
         if(realN <= 1) return;
         idx += 1;
         setPos(false);
         setCounter();
+      }
+
+      function prev(){
+        if(realN <= 1) return;
+        idx -= 1;
+        setPos(false);
+        setCounter();
+      }
+
+      let resumeTO = null;
+      function stopAuto(){
+        if(autoTimer){
+          clearInterval(autoTimer);
+          autoTimer = null;
+        }
+      }
+      function startAuto(){
+        stopAuto();
+        if(realN > 1) autoTimer = setInterval(next, 2600);
+      }
+      function userBump(){
+        stopAuto();
+        if(resumeTO) clearTimeout(resumeTO);
+        resumeTO = setTimeout(startAuto, 4200);
       }
 
       const onEnd = () => {
@@ -901,15 +1090,46 @@ function showApp(){
           idx = 1;
           setPos(true);
           setCounter();
+        }else if(idx === 0){
+          // at clone of last -> jump to last real
+          idx = slides.length - 2;
+          setPos(true);
+          setCounter();
         }
       };
 
       track.addEventListener("transitionend", onEnd, { once:false });
 
-      // autoplay (jobbrol-balra mindig)
-      if(realN > 1){
-        autoTimer = setInterval(next, 2600);
+      const prevBtn = modal.querySelector("#svPrev");
+      const nextBtn = modal.querySelector("#svNext");
+      if(prevBtn) prevBtn.onclick = () => { userBump(); prev(); };
+      if(nextBtn) nextBtn.onclick = () => { userBump(); next(); };
+
+      // swipe (mobile)
+      const sliderEl = modal.querySelector("#svSlider");
+      if(sliderEl && realN > 1){
+        let sx = 0, sy = 0;
+        sliderEl.addEventListener("touchstart", (e) => {
+          if(!e.touches || e.touches.length !== 1) return;
+          sx = e.touches[0].clientX;
+          sy = e.touches[0].clientY;
+        }, { passive: true });
+
+        sliderEl.addEventListener("touchend", (e) => {
+          if(!sx) return;
+          const t = (e.changedTouches && e.changedTouches[0]) ? e.changedTouches[0] : null;
+          if(!t) return;
+          const dx = t.clientX - sx;
+          const dy = t.clientY - sy;
+          sx = 0; sy = 0;
+          if(Math.abs(dx) < 42 || Math.abs(dx) < Math.abs(dy)) return;
+          userBump();
+          if(dx < 0) next(); else prev();
+        }, { passive: true });
       }
+
+      // autoplay (jobbrol-balra mindig)
+      startAuto();
       setCounter();
 
       const closeBtn = modal.querySelector("#svPopClose");
@@ -959,6 +1179,7 @@ function showApp(){
 
   async function init(){
     applySyncParams();
+    ensurePatchStyles();
     showLoader("Betöltés…");
     readLang();
     setupTopbar();
@@ -968,14 +1189,16 @@ function showApp(){
     try{
       const { doc, sales } = await loadAll({forceBust:true});
       applyAll(doc, sales);
+      // failsafe: never get stuck on loader
+      setTimeout(() => { if(!state.renderedOnce) showApp(); }, 1500);
     }catch(e){
       console.error(e);
       showLoader("Betöltési hiba. Nyisd meg újra az oldalt, vagy futtasd a Sync linket az admin Beállításokban.");
     }
 
     // fast poll while visible; slower when hidden
-    let activeMs = 1000;
-    let idleMs = 8000;
+    let activeMs = 850;
+    let idleMs = 5000;
     let timer = null;
 
     const tick = async () => {

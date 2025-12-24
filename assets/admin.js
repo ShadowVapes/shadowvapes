@@ -1510,7 +1510,75 @@ function drawChart(){
   }
 
   /* ---------- init ---------- */
-  function init(){
+  
+  function ensureAdminPatchStyles(){
+    if(document.getElementById("svAdminPatchStyle")) return;
+    const st = document.createElement("style");
+    st.id = "svAdminPatchStyle";
+    st.textContent = `
+      /* Modal body scroll + sticky actions */
+      #modalBody{
+        max-height: calc(80vh - 160px);
+        overflow: auto;
+        padding-right: 8px;
+      }
+      #modalActions{
+        position: sticky;
+        bottom: 0;
+        padding-top: 12px;
+        background: rgba(12,12,14,.92);
+        backdrop-filter: blur(8px);
+        border-top: 1px solid rgba(255,255,255,.10);
+      }
+
+      /* nicer scrollbars */
+      #modalBody::-webkit-scrollbar,
+      #pu_selected::-webkit-scrollbar{
+        width: 10px;
+      }
+      #modalBody::-webkit-scrollbar-thumb,
+      #pu_selected::-webkit-scrollbar-thumb{
+        background: rgba(255,255,255,.16);
+        border-radius: 999px;
+        border: 2px solid rgba(0,0,0,.18);
+      }
+      #modalBody::-webkit-scrollbar-track,
+      #pu_selected::-webkit-scrollbar-track{
+        background: rgba(255,255,255,.06);
+        border-radius: 999px;
+      }
+      #modalBody{ scrollbar-width: thin; scrollbar-color: rgba(255,255,255,.20) rgba(255,255,255,.06); }
+      #pu_selected{ scrollbar-width: thin; scrollbar-color: rgba(255,255,255,.20) rgba(255,255,255,.06); }
+
+      /* Popup picker: 2 columns + selected preview max 4 cards visible */
+      #pu_grid{
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+      }
+      #pu_selected{
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+        max-height: 360px;
+        overflow: auto;
+        padding-right: 8px;
+      }
+      #pu_selected .card, #pu_grid .card{ width: 100% !important; max-width: none !important; }
+      #pu_selected .card{ opacity: .96; }
+      #pu_selected .card:hover{ opacity: 1; }
+
+      @media (max-width: 760px){
+        #pu_grid{ grid-template-columns: 1fr; }
+        #pu_selected{ grid-template-columns: 1fr; max-height: 320px; }
+        .sv-pop-arrow{ display:none; } /* not used here, just safety */
+      }
+    `;
+    document.head.appendChild(st);
+  }
+
+function init(){
+    ensureAdminPatchStyles();
     renderTabs();
     $("#btnReload").onclick = () => location.reload();
     $("#modalBg").addEventListener("click", (e) => {
