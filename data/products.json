@@ -91,8 +91,8 @@
   "popups": [
     {
       "id": "pu_7bed00a989548_19b52617e74",
-      "enabled": true,
-      "rev": 1766613807935,
+      "enabled": false,
+      "rev": 1766613817426,
       "title_hu": "",
       "title_en": "",
       "categoryIds": [
@@ -100,8 +100,8 @@
       ],
       "productIds": [],
       "createdAt": 1766613679732,
-      "updatedAt": 1766613807935
+      "updatedAt": 1766613817426
     }
   ],
-  "updatedAt": 1766613808259
+  "updatedAt": 1766613817747
 }
