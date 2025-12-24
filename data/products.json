@@ -20,7 +20,7 @@
       "flavor_hu": "Szőlő Jég",
       "flavor_en": "Grape Ice",
       "visible": true,
-      "isNew": true
+      "isNew": false
     },
     {
       "id": "p_c9b37b233bdb5_19b4dbb80eb",
@@ -76,7 +76,7 @@
       "flavor_hu": "Red Bull",
       "flavor_en": "Elf Bull",
       "visible": true,
-      "isNew": true
+      "isNew": false
     },
     {
       "id": "p_2ff9b502a78a2_19b4e18a6e7",
