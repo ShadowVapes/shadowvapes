@@ -90,6 +90,19 @@
   ],
   "popups": [
     {
+      "id": "popup_ab6de942f659b8_19b51fda639",
+      "enabled": true,
+      "rev": 1766607140857,
+      "title_hu": "Új termékek elérhetőek",
+      "title_en": "New products available",
+      "categoryIds": [
+        "elf30"
+      ],
+      "productIds": [],
+      "createdAt": 1766607140857,
+      "updatedAt": 1766607140857
+    },
+    {
       "id": "popup_761e8005eecf_19b51fcde0c",
       "enabled": true,
       "rev": 1766607135097,
@@ -105,7 +118,7 @@
     }
   ],
   "_meta": {
-    "rev": 1766607135748,
-    "updatedAt": "2025-12-24T20:12:15.748Z"
+    "rev": 1766607141508,
+    "updatedAt": "2025-12-24T20:12:21.508Z"
   }
 }
