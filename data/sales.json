@@ -29,18 +29,5 @@
         "unitPrice": 6000
       }
     ]
-  },
-  {
-    "id": "s_6a5cb68714572_19b4de100b2",
-    "date": "2025-12-24",
-    "name": "B. Zsolt",
-    "payment": "Vásárláskor",
-    "items": [
-      {
-        "productId": "p_568389f50aa19_19b4d718932",
-        "qty": 6,
-        "unitPrice": 6000
-      }
-    ]
   }
 ]
