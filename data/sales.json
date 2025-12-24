@@ -1,15 +1,1 @@
-[
-  {
-    "id": "s_9f49220c12aac_19b4d982d1a",
-    "date": "2025-12-24",
-    "name": "aed",
-    "payment": "Sa",
-    "items": [
-      {
-        "productId": "p_568389f50aa19_19b4d718932",
-        "qty": 10,
-        "unitPrice": 6000
-      }
-    ]
-  }
-]
+[]
