@@ -47,8 +47,8 @@
     {
       "id": "p_f93b7eb924ed1_19b4e156422",
       "categoryId": "elf30",
-      "status": "ok",
-      "stock": 8,
+      "status": "out",
+      "stock": 0,
       "price": null,
       "image": "https://media.discordapp.net/attachments/1281700323081326743/1453190144348786779/Polar_mint_no_bg.png?ex=694c8c49&is=694b3ac9&hm=5a28ae29b489e34a34c96a23913f2a7bbf8380a5c4d924b59d565ed1b2969cdf&=&format=webp&quality=lossless&width=856&height=856",
       "name_hu": "Elfbar Ice King 30k",
