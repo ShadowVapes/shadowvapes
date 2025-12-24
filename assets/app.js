@@ -57,6 +57,15 @@
   /* ----------------- Source resolving (RAW preferált, custom domainen is) ----------------- */
   let source = null; // {owner, repo, branch}
 
+  async function validateSource(s){
+    try{
+      if(!s || !s.owner || !s.repo || !s.branch) return false;
+      const testUrl = `https://raw.githubusercontent.com/${s.owner}/${s.repo}/${s.branch}/data/products.json?_=${Date.now()}`;
+      const r = await fetch(testUrl, { cache: "no-store" });
+      return r.ok;
+    }catch{ return false; }
+  }
+
   function getOwnerRepoFromUrl() {
     // https://username.github.io/repo/...
     const host = location.hostname;
@@ -76,19 +85,43 @@
     return { owner, repo, branch: branch || null };
   }
 
+  function applySyncParams(){
+    try{
+      const u = new URL(location.href);
+      const o = (u.searchParams.get("sv_owner")||"").trim();
+      const r = (u.searchParams.get("sv_repo")||"").trim();
+      const b = (u.searchParams.get("sv_branch")||"").trim();
+      if(o && r){
+        localStorage.setItem("sv_owner", o);
+        localStorage.setItem("sv_repo", r);
+        if(b) localStorage.setItem("sv_branch", b);
+        // cache source too
+        const src = { owner:o, repo:r, branch: b || "main" };
+        localStorage.setItem("sv_source", JSON.stringify(src));
+        // clean URL
+        u.searchParams.delete("sv_owner");
+        u.searchParams.delete("sv_repo");
+        u.searchParams.delete("sv_branch");
+        history.replaceState({}, "", u.pathname + (u.search ? u.search : "") + u.hash);
+      }
+    }catch{}
+  }
+
   async function resolveSource() {
     if (source) return source;
 
-    // 1) cache
+    // 1) cache (validáljuk is, mert telón simán lehet régi/rossz)
     try {
       const cached = JSON.parse(localStorage.getItem("sv_source") || "null");
       if (cached && cached.owner && cached.repo && cached.branch) {
-        source = cached;
-        return source;
+        const ok = await validateSource(cached);
+        if (ok) {
+          source = cached;
+          return source;
+        }
+        try { localStorage.removeItem("sv_source"); } catch {}
       }
-    } catch {}
-
-    // 2) stabil fájl (admin írja): data/sv_source.json
+    } catch {}// 2) stabil fájl (admin írja): data/sv_source.json
     try {
       const r = await fetch(`data/sv_source.json?_=${Date.now()}`, { cache: "no-store" });
       if (r.ok) {
@@ -131,30 +164,47 @@
 
   async function fetchProducts({ forceBust = false } = {}) {
     const src = await resolveSource();
-    const base = src
+    const relBase = `data/products.json`;
+    const rawBase = src
       ? `https://raw.githubusercontent.com/${src.owner}/${src.repo}/${src.branch}/data/products.json`
-      : `data/products.json`;
+      : null;
 
-    // Cache-bust akkor, ha kell (különben ETag/304 gyorsít)
-    const url = forceBust ? `${base}${base.includes("?") ? "&" : "?"}_=${Date.now()}` : base;
+    const mkUrl = (base) =>
+      forceBust ? `${base}${base.includes("?") ? "&" : "?"}_=${Date.now()}` : base;
 
     const headers = {
       "Cache-Control": "no-cache, no-store, must-revalidate",
       Pragma: "no-cache",
     };
-    if (!forceBust && src && state.etagProducts) headers["If-None-Match"] = state.etagProducts;
 
+    // 1) ha van RAW, próbáljuk azt (gyors frissítés, nincs Pages build delay)
+    if (rawBase) {
+      try {
+        const url = mkUrl(rawBase);
+        const r = await fetch(url, { cache: "no-store", headers });
+        if (r.status === 304) return null;
+        if (r.ok) {
+          const et = r.headers.get("ETag");
+          if (et) state.etagProducts = et;
+          return await r.json();
+        }
+        // RAW bukta -> dobjuk a cached source-t és esünk vissza relatívra
+        try { localStorage.removeItem("sv_source"); } catch {}
+        source = null;
+      } catch {
+        try { localStorage.removeItem("sv_source"); } catch {}
+        source = null;
+      }
+    }
+
+    // 2) fallback: site-on lévő data/products.json (cache-bustolva)
+    const url = mkUrl(relBase);
     const r = await fetch(url, { cache: "no-store", headers });
     if (r.status === 304) return null;
     if (!r.ok) throw new Error(`Nem tudtam betölteni a termékeket (${r.status})`);
-
-    if (!forceBust && src) {
-      const et = r.headers.get("ETag");
-      if (et) state.etagProducts = et;
-    }
-
     return await r.json();
   }
+
 
   function normalizeDoc(data) {
     if (Array.isArray(data)) return { categories: [], products: data };
@@ -373,6 +423,7 @@
   }
 
   async function init() {
+    applySyncParams();
     $("#langLabel").textContent = state.lang.toUpperCase();
     $("#langBtn").onclick = () => {
       state.lang = state.lang === "hu" ? "en" : "hu";
@@ -454,6 +505,6 @@
   init().catch((err) => {
     console.error(err);
     $("#loaderText").textContent =
-      "Betöltési hiba. Nyisd meg a konzolt (F12) vagy nézd meg, hogy létezik-e: data/sv_source.json";
+      "Betöltési hiba. (Nyisd meg a konzolt.) Ha telefonon vagy custom domainen vagy: nyisd meg egyszer a Sync linket az admin Beállításokból.";
   });
 })();

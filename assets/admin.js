@@ -469,11 +469,45 @@ function markDirty(flags){
       <div class="small-muted" style="margin-top:10px;">
         Tipp: public oldalon RAW-ból töltünk, ezért a frissítés gyorsabb lesz (nem vársz 6 percet).
       </div>
+
+      <div class="small-muted" style="margin-top:14px;">Telefon / másik eszköz gyorsítás: nyisd meg ezt a linket egyszer, és onnantól a katalógus RAW-ról tölt (gyors frissülés).</div>
+      <div class="actions table" style="margin-top:10px;align-items:center;">
+        <input id="syncUrl" readonly value="" style="min-width:280px;width:100%;" />
+        <button class="ghost" id="btnCopySync">Link másolás</button>
+      </div>
     `;
 
     $("#btnLoad").onclick = loadData;
     $("#btnSave").onclick = saveDataNow;
 
+    // Sync link generálás (katalógus URL + query paramok)
+    try{
+      const basePath = location.pathname.replace(/\/admin\.html.*$/,"/"); // /repo/ vagy /
+      const base = location.origin + basePath;
+      const u = new URL(base);
+      if(cfg.owner) u.searchParams.set("sv_owner", cfg.owner);
+      if(cfg.repo) u.searchParams.set("sv_repo", cfg.repo);
+      if(cfg.branch) u.searchParams.set("sv_branch", cfg.branch);
+      const link = u.toString();
+
+      const inp = $("#syncUrl");
+      if(inp) inp.value = link;
+
+      const btn = $("#btnCopySync");
+      if(btn) btn.onclick = async () => {
+        try{
+          await navigator.clipboard.writeText(link);
+          setSaveStatus("ok","Sync link másolva ✅");
+        }catch{
+          // fallback
+          try{
+            inp.select();
+            document.execCommand("copy");
+            setSaveStatus("ok","Sync link másolva ✅");
+          }catch{}
+        }
+      };
+    }catch{}
     ["cfgOwner","cfgRepo","cfgBranch","cfgToken"].forEach(id => {
       $("#"+id).addEventListener("input", () => saveCfg(getCfg()));
     });
