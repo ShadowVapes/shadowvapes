@@ -14,7 +14,7 @@
       "categoryId": "elf30",
       "status": "ok",
       "stock": 3,
-      "visible": true,
+      "visible": false,
       "price": null,
       "image": "https://media.discordapp.net/attachments/1281700323081326743/1453178739029704795/Grape_ice_bg_removed_correct.png?ex=694c81aa&is=694b302a&hm=a586e9147b1210fcf4d16a251a30564840fa6de0b72a5262be3fcfbedb02496c&=&format=webp&quality=lossless&width=960&height=960",
       "name_hu": "Elfbar Ice King 30k",
@@ -90,7 +90,7 @@
   ],
   "popups": [],
   "_meta": {
-    "rev": 1766603356255,
-    "updatedAt": "2025-12-24T19:09:16.255Z"
+    "rev": 1766603546173,
+    "updatedAt": "2025-12-24T19:12:26.173Z"
   }
 }
