@@ -351,6 +351,26 @@ try{
     );
   }
 
+
+
+  // ✅ sv_source.json (custom domain + telefon): a public oldal ebből találja meg a RAW forrást
+  try{
+    const srcObj = { owner: cfg.owner, repo: cfg.repo, branch: cfg.branch };
+    const srcText = JSON.stringify(srcObj, null, 2);
+    const prev = localStorage.getItem("sv_source_json") || "";
+    if(prev !== srcText){
+      localStorage.setItem("sv_source_json", srcText);
+      tasks.push(
+        ShadowGH.putFileSafe({
+          token: cfg.token, owner: cfg.owner, repo: cfg.repo, branch: cfg.branch,
+          path: "data/sv_source.json",
+          message: "Update sv_source.json",
+          content: srcText
+        })
+      );
+    }
+  }catch{}
+
   // ha nincs mit menteni, ne üssük a GH-t
   if(!tasks.length){
     ok = true;
