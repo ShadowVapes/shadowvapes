@@ -54,11 +54,28 @@
   function t(k){ return (I18N[state.lang] && I18N[state.lang][k]) || k; }
   function loc(){ return state.lang === "hu" ? "hu" : "en"; }
 
+function showLoader(msg){
+  const loader = $("#loader");
+  const app = $("#app");
+  if(app) app.style.display = "none";
+  if(loader) loader.style.display = "flex";
+  const lt = $("#loaderText");
+  if(lt && msg) lt.textContent = msg;
+}
+
+function showApp(){
+  const loader = $("#loader");
+  const app = $("#app");
+  if(loader) loader.style.display = "none";
+  if(app) app.style.display = "grid";
+  state.renderedOnce = true;
+}
+
   function norm(s){
     return String(s||"")
       .toLowerCase()
       .normalize("NFD")
-      .replace(/\p{Diacritic}/gu, "");
+      .replace(/[\u0300-\u036f]/g, "");
   }
 
   function escapeHtml(s){
@@ -520,6 +537,11 @@
     renderNav();
     renderGrid();
 
+    if(!state.renderedOnce){
+      showApp();
+    }
+
+
     // popups only when doc changed (or if not open)
     if(docChanged) maybeShowPopups();
   }
@@ -937,6 +959,7 @@
 
   async function init(){
     applySyncParams();
+    showLoader("Betöltés…");
     readLang();
     setupTopbar();
     liveChannel();
@@ -947,6 +970,7 @@
       applyAll(doc, sales);
     }catch(e){
       console.error(e);
+      showLoader("Betöltési hiba. Nyisd meg újra az oldalt, vagy futtasd a Sync linket az admin Beállításokban.");
     }
 
     // fast poll while visible; slower when hidden

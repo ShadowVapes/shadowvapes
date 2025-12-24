@@ -470,18 +470,26 @@ function markDirty(flags){
       $("#tabs").querySelectorAll("button").forEach(x => x.classList.remove("active"));
       b.classList.add("active");
 
-      const tab = b.dataset.tab;
-      $("#panelProducts").style.display = tab === "products" ? "block" : "none";
-      $("#panelCategories").style.display = tab === "categories" ? "block" : "none";
-      $("#panelSales").style.display = tab === "sales" ? "block" : "none";
-      $("#panelChart").style.display = tab === "chart" ? "block" : "none";
-      $("#panelPopups").style.display = tab === "popups" ? "block" : "none";
-      $("#panelSettings").style.display = tab === "settings" ? "block" : "none";
+          const tab = b.dataset.tab;
 
-      if(tab === "chart") drawChart();
-      if(tab === "popups") renderPopups();
-    });
-  }
+    const panels = {
+      products: $("#panelProducts"),
+      categories: $("#panelCategories"),
+      sales: $("#panelSales"),
+      chart: $("#panelChart"),
+      popups: $("#panelPopups"),
+      settings: $("#panelSettings"),
+    };
+
+    for(const [k, el] of Object.entries(panels)){
+      if(!el) continue;
+      el.style.display = (tab === k) ? "block" : "none";
+    }
+
+    if(tab === "chart") drawChart();
+    if(tab === "popups") renderPopups();
+  });
+}
 
   function renderSettings(){
     const cfg = loadCfg();
