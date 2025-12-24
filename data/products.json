@@ -19,7 +19,7 @@
       "name_en": "Elfbar Ice King 30k",
       "flavor_hu": "Szőlő Jég",
       "flavor_en": "Grape Ice",
-      "visible": false,
+      "visible": true,
       "isNew": false
     },
     {
