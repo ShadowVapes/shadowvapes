@@ -90,6 +90,21 @@
   ],
   "popups": [
     {
+      "id": "popup_b222df7996ee_19b50e93935",
+      "enabled": true,
+      "rev": 1766589026570,
+      "title_hu": "Új termékek elérhetőek",
+      "title_en": "New products available",
+      "categoryIds": [],
+      "productIds": [
+        "p_c9b37b233bdb5_19b4dbb80eb",
+        "p_f93b7eb924ed1_19b4e156422",
+        "p_2ff9b502a78a2_19b4e18a6e7"
+      ],
+      "createdAt": 1766589026570,
+      "updatedAt": 1766589026570
+    },
+    {
       "id": "popup_8563490fe999d_19b50e92789",
       "enabled": true,
       "rev": 1766589019283,
