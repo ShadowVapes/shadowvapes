@@ -685,3 +685,37 @@ button, input, select{
 @keyframes svSlideInRight{ from{ transform:translateX(24px); opacity:0; } to{ transform:translateX(0); opacity:1; } }
 @keyframes svSlideOutRight{ from{ transform:translateX(0); opacity:1; } to{ transform:translateX(24px); opacity:0; } }
 @keyframes svSlideInLeft{ from{ transform:translateX(-24px); opacity:0; } to{ transform:translateX(0); opacity:1; } }
+
+
+/* ----------------- SV FIX16: stronger outlines + hot border direction + popup sizing ----------------- */
+
+.card.out{ border-color: rgba(255,77,109,1) !important; border-width:3px !important; }
+.card.soon{ border-color: rgba(255,204,0,1) !important; border-width:3px !important; }
+.card.soon .hero::after{ background: rgba(255,204,0,.18) !important; }
+
+/* Hot: narancs outline + két futó csík (fent balra / lent jobbra) */
+.card.hot{ border-color: rgba(255,145,60,1) !important; border-width:3px !important; }
+.card.hot::before{
+  /* TOP: indul felül középen, balra menjen -> CCW */
+  background: conic-gradient(from 0deg,
+    rgba(255,145,60,0) 0deg,
+    rgba(255,145,60,0) 336deg,
+    rgba(255,145,60,.98) 352deg,
+    rgba(255,145,60,0) 360deg
+  ) !important;
+  animation: svHotCCW 2.05s linear infinite !important;
+}
+.card.hot::after{
+  /* BOTTOM: indul alul középen, jobbra menjen -> CW */
+  background: conic-gradient(from 180deg,
+    rgba(255,145,60,0) 0deg,
+    rgba(255,145,60,0) 336deg,
+    rgba(255,145,60,.98) 352deg,
+    rgba(255,145,60,0) 360deg
+  ) !important;
+  animation: svHotCW 2.05s linear infinite !important;
+}
+
+/* Popup: ne legyen túl “óriás” desktopon */
+.sv-popup{ width:min(720px, 94vw) !important; max-height: 82vh !important; }
+.sv-popup-hero{ height: 320px !important; }
