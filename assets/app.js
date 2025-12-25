@@ -58,6 +58,7 @@
       : (p.flavor_hu || p.flavor_en || p.flavor || "");
   }
 
+  // ✅ Csak hónap formátum kezelése: YYYY-MM -> "2025. December"
   function formatMonth(monthStr) {
     if (!monthStr) return "";
     try {
@@ -588,10 +589,10 @@
         badges.appendChild(b);
         
         // Add expected month badge if available
-        if (p.expectedDate) {
+        if (p.soonEta) {
           const expectedBadge = document.createElement("div");
           expectedBadge.className = "badge calendar";
-          expectedBadge.textContent = `📅 ${t("expected")}: ${formatMonth(p.expectedDate)}`;
+          expectedBadge.textContent = `📅 ${t("expected")}: ${formatMonth(p.soonEta)}`;
           badges.appendChild(expectedBadge);
         }
       }
@@ -742,250 +743,262 @@
     document.body.appendChild(bg);
 
     let currentPopup = 0;
-    let currentSlide = 0;
-    let slides = [];
+    let currentSlide = 0; // kategória slide index
+    let currentProductSlide = 0; // termék slide index
+    let slides = []; // termék slide-ok
     let slideInterval = null;
 
     function renderPopup() {
-      if(currentPopup >= queue.length) {
-        bg.remove();
-        return;
-      }
-
-      const popupData = queue[currentPopup];
-      const popup = popupData.popup;
-      const categories = popupData.categories;
-
-      if(currentSlide >= categories.length) {
-        currentPopup++;
-        currentSlide = 0;
-        renderPopup();
-        return;
-      }
-
-      const category = categories[currentSlide];
-      const products = category.products;
-
-      if(products.length === 0) {
-        currentSlide++;
-        renderPopup();
-        return;
-      }
-
-      // Clear existing slides
-      slider.innerHTML = "";
-      slides = [];
-
-      // Create slides for each product
-      products.forEach((product, index) => {
-        const slide = document.createElement("div");
-        slide.className = "popup-slide";
-        
-        const name = getName(product);
-        const flavor = getFlavor(product);
-        const price = effectivePrice(product);
-        const stock = product.stock;
-        const isProductSoon = isSoon(product);
-        const isProductOut = isOut(product);
-        
-        slide.innerHTML = `
-          <div class="popup-product-image">
-            <img src="${product.image || ''}" alt="${name} ${flavor}" loading="lazy" style="object-fit: contain;">
-          </div>
-          <div class="popup-product-info">
-            <div class="popup-product-name">${name}</div>
-            <div class="popup-product-flavor">${flavor}</div>
-            <div class="popup-product-price">${fmtFt(price)}</div>
-            <div class="popup-product-stock">${t("stock")}: <b>${isProductSoon ? "—" : (isProductOut ? 0 : stock)} ${isProductSoon ? "" : t("pcs")}</b></div>
-            ${product.expectedDate ? `<div class="popup-product-expected">${t("expected")}: ${formatMonth(product.expectedDate)}</div>` : ''}
-          </div>
-        `;
-        
-        slider.appendChild(slide);
-        slides.push(slide);
-      });
-
-      // Setup infinite slider - only right to left
-      let currentProductSlide = 0;
-      const totalSlides = slides.length;
-      
-      // Clone first slide and append to end for seamless transition
-      if(totalSlides > 1) {
-        const firstClone = slides[0].cloneNode(true);
-        slider.appendChild(firstClone);
-      }
-      
-      // Set slider width
-      const sliderWidth = totalSlides > 1 ? (totalSlides + 1) * 100 : 100;
-      slider.style.width = `${sliderWidth}%`;
-      
-      function goToSlide(index, animate = true) {
-        if(totalSlides <= 1) return;
-        
-        currentProductSlide = index;
-        
-        if(animate) {
-          slider.style.transition = 'transform 0.5s ease';
-        } else {
-          slider.style.transition = 'none';
+        if (currentPopup >= queue.length) {
+            bg.remove();
+            return;
         }
-        
-        const offset = -currentProductSlide * 100;
-        slider.style.transform = `translateX(${offset}%)`;
-        
-        // If we reached the clone (last slide), instantly jump back to first without animation
-        if(currentProductSlide === totalSlides) {
-          setTimeout(() => {
-            slider.style.transition = 'none';
-            currentProductSlide = 0;
-            slider.style.transform = `translateX(0%)`;
-          }, 500);
+
+        const popupData = queue[currentPopup];
+        const popup = popupData.popup;
+        const categories = popupData.categories;
+
+        if (currentSlide >= categories.length) {
+            currentPopup++;
+            currentSlide = 0;
+            renderPopup();
+            return;
         }
+
+        const category = categories[currentSlide];
+        const products = category.products;
+
+        if (products.length === 0) {
+            currentSlide++;
+            renderPopup();
+            return;
+        }
+
+        // Clear existing slides
+        slider.innerHTML = "";
+        slides = [];
+
+        // Create slides for each product
+        products.forEach((product, index) => {
+            const slide = document.createElement("div");
+            slide.className = "popup-slide";
+            
+            const name = getName(product);
+            const flavor = getFlavor(product);
+            const price = effectivePrice(product);
+            const stock = product.stock;
+            const isProductSoon = isSoon(product);
+            const isProductOut = isOut(product);
+            
+            slide.innerHTML = `
+                <div class="popup-product-image">
+                    <img src="${product.image || ''}" alt="${name} ${flavor}" loading="lazy" style="object-fit: contain;max-height:350px;width:100%;">
+                </div>
+                <div class="popup-product-info">
+                    <div class="popup-product-name">${name}</div>
+                    <div class="popup-product-flavor">${flavor}</div>
+                    <div class="popup-product-price">${fmtFt(price)}</div>
+                    <div class="popup-product-stock">${t("stock")}: <b>${isProductSoon ? "—" : (isProductOut ? 0 : stock)} ${isProductSoon ? "" : t("pcs")}</b></div>
+                    ${product.soonEta ? `<div class="popup-product-expected">${t("expected")}: ${formatMonth(product.soonEta)}</div>` : ''}
+                </div>
+            `;
+            
+            slider.appendChild(slide);
+            slides.push(slide);
+        });
+
+        // ✅ Infinite slider setup: only clone the first slide and append to the end (csak jobbról balra)
+        if (slides.length > 1) {
+            const firstClone = slides[0].cloneNode(true);
+            slider.appendChild(firstClone);
+        }
+
+        const totalSlides = slides.length;
+        const sliderWidth = totalSlides > 1 ? (totalSlides + 1) * 100 : 100;
+        slider.style.width = `${sliderWidth}%`;
+
+        function goToSlide(index, animate = true) {
+            if (totalSlides <= 1) return;
+
+            currentProductSlide = index;
+
+            if (animate) {
+                slider.style.transition = 'transform 0.5s ease';
+            } else {
+                slider.style.transition = 'none';
+            }
+
+            const offset = -currentProductSlide * 100;
+            slider.style.transform = `translateX(${offset}%)`;
+
+            // ✅ Ha elérjük a klónt (utolsó slide), azonnal ugorjunk vissza az elsőre (láthatatlan ugrás)
+            if (currentProductSlide === totalSlides) {
+                setTimeout(() => {
+                    slider.style.transition = 'none';
+                    currentProductSlide = 0;
+                    slider.style.transform = `translateX(0%)`;
+                }, 500);
+            }
+
+            updateDots();
+        }
+
+        function nextSlide() {
+            if (slides.length <= 1) return;
+            goToSlide(currentProductSlide + 1, true);
+        }
+
+        function prevSlide() {
+            if (slides.length <= 1) return;
+            let newIndex = currentProductSlide - 1;
+            if (newIndex < 0) {
+                // Ha az elsőnél vagyunk és visszamegyünk, ugorjunk az utolsó igazi slide-ra
+                newIndex = totalSlides - 1;
+                // Először ugorjunk a klónra (láthatatlan), majd animálva az utolsóra
+                slider.style.transition = 'none';
+                currentProductSlide = totalSlides;
+                slider.style.transform = `translateX(-${currentProductSlide * 100}%)`;
+                
+                setTimeout(() => {
+                    goToSlide(newIndex, true);
+                }, 50);
+                return;
+            }
+            goToSlide(newIndex, true);
+        }
+
+        // Create dots
+        const dots = document.createElement("div");
+        dots.className = "popup-dots";
         
-        updateDots();
-      }
-
-      function nextSlide() {
-        if(totalSlides <= 1) return;
-        goToSlide(currentProductSlide + 1, true);
-      }
-
-      // Create dots
-      const dots = document.createElement("div");
-      dots.className = "popup-dots";
-      
-      function updateDots() {
-        dots.innerHTML = '';
-        for(let i = 0; i < totalSlides; i++) {
-          const dot = document.createElement("div");
-          const displayIndex = currentProductSlide >= totalSlides ? 0 : currentProductSlide;
-          dot.className = `popup-dot ${i === displayIndex ? 'active' : ''}`;
-          dot.addEventListener('click', () => goToSlide(i));
-          dots.appendChild(dot);
+        function updateDots() {
+            dots.innerHTML = '';
+            for(let i = 0; i < totalSlides; i++) {
+                const dot = document.createElement("div");
+                const displayIndex = currentProductSlide >= totalSlides ? 0 : currentProductSlide;
+                dot.className = `popup-dot ${i === displayIndex ? 'active' : ''}`;
+                dot.addEventListener('click', () => goToSlide(i));
+                dots.appendChild(dot);
+            }
         }
-      }
 
-      // Auto slide
-      if(slideInterval) clearInterval(slideInterval);
-      if(totalSlides > 1) {
-        slideInterval = setInterval(nextSlide, 4000);
-      }
-
-      // Update header and footer
-      header.innerHTML = `
-        <div class="popup-title">${state.lang === "en" ? (popup.title_en || t("newAvail")) : (popup.title_hu || t("newAvail"))}</div>
-        <div class="popup-subtitle">${category.label}</div>
-      `;
-
-      footer.innerHTML = '';
-      
-      const dontShow = document.createElement("label");
-      dontShow.className = "chk";
-      dontShow.innerHTML = `<input type="checkbox" id="dontShowAgain"> ${t("dontShow")}`;
-      
-      // Only show "Skip all" if there are multiple popups
-      const buttons = document.createElement("div");
-      buttons.className = "popup-buttons";
-      
-      if(queue.length > 1) {
-        const skipAllBtn = document.createElement("button");
-        skipAllBtn.className = "ghost";
-        skipAllBtn.textContent = t("skipAll");
-        skipAllBtn.onclick = () => {
-          // Hide all popups
-          queue.forEach(q => {
-            try {
-              localStorage.setItem(popupHideKey(q.popup), "1");
-            } catch {}
-          });
-          if(slideInterval) clearInterval(slideInterval);
-          bg.remove();
-        };
-        buttons.appendChild(skipAllBtn);
-      }
-      
-      const understoodBtn = document.createElement("button");
-      understoodBtn.className = "primary";
-      understoodBtn.textContent = t("understood");
-      understoodBtn.onclick = () => {
-        const checkbox = document.getElementById("dontShowAgain");
-        if(checkbox && checkbox.checked) {
-          try {
-            localStorage.setItem(popupHideKey(popup), "1");
-          } catch {}
-        }
-        currentSlide++;
+        // ✅ Auto slide (csak jobbra)
         if(slideInterval) clearInterval(slideInterval);
-        renderPopup();
-      };
-      buttons.appendChild(understoodBtn);
-      
-      footer.appendChild(dontShow);
-      if(totalSlides > 1) footer.appendChild(dots);
-      footer.appendChild(buttons);
-
-      // Add navigation arrows
-      if(totalSlides > 1) {
-        const prevArrow = document.createElement("button");
-        prevArrow.className = "popup-arrow prev";
-        prevArrow.textContent = "‹";
-        prevArrow.onclick = () => {
-          const newIndex = currentProductSlide - 1;
-          goToSlide(newIndex < 0 ? totalSlides - 1 : newIndex);
-        };
-        
-        const nextArrow = document.createElement("button");
-        nextArrow.className = "popup-arrow next";
-        nextArrow.textContent = "›";
-        nextArrow.onclick = nextSlide;
-        
-        content.appendChild(prevArrow);
-        content.appendChild(nextArrow);
-      }
-
-      // Add swipe support for mobile
-      let touchStartX = 0;
-      let touchEndX = 0;
-      
-      content.addEventListener('touchstart', (e) => {
-        touchStartX = e.changedTouches[0].screenX;
-      });
-      
-      content.addEventListener('touchend', (e) => {
-        touchEndX = e.changedTouches[0].screenX;
-        handleSwipe();
-      });
-      
-      function handleSwipe() {
-        const swipeThreshold = 50;
-        const diff = touchStartX - touchEndX;
-        
-        if(Math.abs(diff) > swipeThreshold) {
-          if(diff > 0) {
-            // Swipe left - next
-            nextSlide();
-          } else {
-            // Swipe right - previous
-            const newIndex = currentProductSlide - 1;
-            goToSlide(newIndex < 0 ? totalSlides - 1 : newIndex);
-          }
+        if(totalSlides > 1) {
+            slideInterval = setInterval(nextSlide, 4000);
         }
-      }
 
-      content.innerHTML = '';
-      content.appendChild(slider);
-      if(totalSlides > 1) updateDots();
-      goToSlide(0, false);
+        // Update header and footer
+        header.innerHTML = `
+            <div class="popup-title">${state.lang === "en" ? (popup.title_en || t("newAvail")) : (popup.title_hu || t("newAvail"))}</div>
+            <div class="popup-subtitle">${category.label}</div>
+        `;
+
+        footer.innerHTML = '';
+        
+        const dontShow = document.createElement("label");
+        dontShow.className = "chk";
+        dontShow.innerHTML = `<input type="checkbox" id="dontShowAgain"> ${t("dontShow")}`;
+        
+        // ✅ "Skip all" csak akkor, ha több popup van
+        const buttons = document.createElement("div");
+        buttons.className = "popup-buttons";
+        
+        if(queue.length > 1) {
+            const skipAllBtn = document.createElement("button");
+            skipAllBtn.className = "ghost";
+            skipAllBtn.textContent = t("skipAll");
+            skipAllBtn.onclick = () => {
+                // Hide all popups
+                queue.forEach(q => {
+                    try {
+                        localStorage.setItem(popupHideKey(q.popup), "1");
+                    } catch {}
+                });
+                if(slideInterval) clearInterval(slideInterval);
+                bg.remove();
+            };
+            buttons.appendChild(skipAllBtn);
+        }
+        
+        const understoodBtn = document.createElement("button");
+        understoodBtn.className = "primary";
+        understoodBtn.textContent = t("understood");
+        understoodBtn.onclick = () => {
+            const checkbox = document.getElementById("dontShowAgain");
+            if(checkbox && checkbox.checked) {
+                try {
+                    localStorage.setItem(popupHideKey(popup), "1");
+                } catch {}
+            }
+            currentSlide++;
+            if(slideInterval) clearInterval(slideInterval);
+            renderPopup();
+        };
+        buttons.appendChild(understoodBtn);
+        
+        footer.appendChild(dontShow);
+        if(totalSlides > 1) footer.appendChild(dots);
+        footer.appendChild(buttons);
+
+        // ✅ Navigation arrows (mindkét irányba)
+        if(totalSlides > 1) {
+            const prevArrow = document.createElement("button");
+            prevArrow.className = "popup-arrow prev";
+            prevArrow.textContent = "‹";
+            prevArrow.onclick = prevSlide;
+            
+            const nextArrow = document.createElement("button");
+            nextArrow.className = "popup-arrow next";
+            nextArrow.textContent = "›";
+            nextArrow.onclick = nextSlide;
+            
+            content.appendChild(prevArrow);
+            content.appendChild(nextArrow);
+        }
+
+        content.innerHTML = '';
+        content.appendChild(slider);
+        if(totalSlides > 1) updateDots();
+        goToSlide(0, false);
     }
 
     renderPopup();
 
+    // ✅ Swipe support for mobile (mindkét irány)
+    let touchStartX = 0;
+    let touchEndX = 0;
+
+    content.addEventListener('touchstart', (e) => {
+        touchStartX = e.changedTouches[0].screenX;
+    });
+
+    content.addEventListener('touchend', (e) => {
+        touchEndX = e.changedTouches[0].screenX;
+        handleSwipe();
+    });
+
+    function handleSwipe() {
+        const swipeThreshold = 50;
+        const diff = touchStartX - touchEndX;
+
+        if(Math.abs(diff) > swipeThreshold) {
+            if(diff > 0) {
+                // Swipe left - next
+                nextSlide();
+            } else {
+                // Swipe right - previous
+                prevSlide();
+            }
+        }
+    }
+
     // Close on background click
     bg.addEventListener("click", (e) => {
-      if(e.target === bg) {
-        if(slideInterval) clearInterval(slideInterval);
-        bg.remove();
-      }
+        if(e.target === bg) {
+            if(slideInterval) clearInterval(slideInterval);
+            bg.remove();
+        }
     });
   }
 
@@ -1020,8 +1033,8 @@
 
       const docChanged = applyDocIfNewer(payload.doc, { source: "live" });
 
-      // sales: csak akkor frissnek tekintjük, ha a payload tényleg mostani
-      const salesChanged = applySalesIfChanged(normalizeSales(payload.sales || []), { fresh:true });
+      // sales: csak akkor frissnek tekintjük, ha a payload ténylegesen tartalmaz sales adatot
+      const salesChanged = applySalesIfChanged(normalizeSales(payload.sales || []), { fresh: true });
 
       if(docChanged || salesChanged){
         computeFeaturedByCategory();
