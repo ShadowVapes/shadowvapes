@@ -10,6 +10,9 @@
   --ok:#34d399;
   --shadow: 0 20px 60px rgba(0,0,0,.45);
   --radius: 18px;
+  --status-outline-width: 2px;
+  --hot-outline-width: 2px;
+  --soon-overlay-opacity: 0.08;
 }
 
 *{ box-sizing:border-box; }
@@ -472,58 +475,20 @@ button, input, select{
 /* Hamarosan badge legyen sárgás */
 .badge.soon{ background: rgba(255,204,0,.18); border-color: rgba(255,204,0,.45); color: rgba(255,236,176,.98); }
 
-/* Erősebb státusz körvonalak */
-.card.out{ border-color: rgba(255,77,109,.95); border-width:2px; }
-.card.soon{ border-color: rgba(255,204,0,.92); border-width:2px; }
+/* Státusz körvonalak */
+.card.out{ border-color: rgba(255,77,109,.95); border-width: var(--status-outline-width); }
+.card.soon{ border-color: rgba(255,204,0,.92); border-width: var(--status-outline-width); }
 
 /* Hamarosan sárgás, enyhe overlay az image-re */
 .card.soon .hero::after{
   content:"";
   position:absolute; inset:0;
-  background: rgba(255,204,0,.12);
+  background: rgba(255,204,0,var(--soon-overlay-opacity));
   pointer-events:none;
 }
 
-/* FELKAPOTT: narancs outline + 2 futó csík (fent balra, lent jobbra) */
-.card.hot{ position:relative; border-color: rgba(255,145,60,.92); border-width:2px; }
-.card.hot::before,
-.card.hot::after{
-  content:"";
-  position:absolute;
-  inset:0;
-  border-radius: calc(var(--radius) + 2px);
-  padding:2px;
-  pointer-events:none;
-  opacity:.95;
-  filter: drop-shadow(0 0 14px rgba(255,145,60,.22));
-  /* csak a keret */
-  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-  -webkit-mask-composite: xor;
-  mask-composite: exclude;
-}
-.card.hot::before{
-  /* TOP highlight (0deg), CW -> fent jobbra menne, ezért a vizuális “balra” érzethez a másik réteg CCW */
-  background: conic-gradient(from 0deg,
-    rgba(255,145,60,0) 0deg,
-    rgba(255,145,60,0) 340deg,
-    rgba(255,145,60,.95) 352deg,
-    rgba(255,145,60,0) 360deg
-  );
-  animation: svHotCW 2.2s linear infinite;
-  opacity:.85;
-}
-.card.hot::after{
-  /* BOTTOM highlight (180deg) CCW -> fent “balra” */
-  background: conic-gradient(from 180deg,
-    rgba(255,145,60,0) 0deg,
-    rgba(255,145,60,0) 340deg,
-    rgba(255,145,60,.95) 352deg,
-    rgba(255,145,60,0) 360deg
-  );
-  animation: svHotCCW 2.2s linear infinite;
-}
-@keyframes svHotCW{ from{ transform:rotate(0deg); } to{ transform:rotate(360deg); } }
-@keyframes svHotCCW{ from{ transform:rotate(0deg); } to{ transform:rotate(-360deg); } }
+/* FELKAPOTT: narancs outline */
+.card.hot{ position:relative; border-color: rgba(255,145,60,.92); border-width: var(--hot-outline-width); }
 
 /* Modal: body legyen scrollos, gombok mindig látszódjanak */
 .modal{
@@ -687,35 +652,6 @@ button, input, select{
 @keyframes svSlideInLeft{ from{ transform:translateX(-24px); opacity:0; } to{ transform:translateX(0); opacity:1; } }
 
 
-/* ----------------- SV FIX16: stronger outlines + hot border direction + popup sizing ----------------- */
-
-.card.out{ border-color: rgba(255,77,109,1) !important; border-width:3px !important; }
-.card.soon{ border-color: rgba(255,204,0,1) !important; border-width:3px !important; }
-.card.soon .hero::after{ background: rgba(255,204,0,.18) !important; }
-
-/* Hot: narancs outline + két futó csík (fent balra / lent jobbra) */
-.card.hot{ border-color: rgba(255,145,60,1) !important; border-width:3px !important; }
-.card.hot::before{
-  /* TOP: indul felül középen, balra menjen -> CCW */
-  background: conic-gradient(from 0deg,
-    rgba(255,145,60,0) 0deg,
-    rgba(255,145,60,0) 336deg,
-    rgba(255,145,60,.98) 352deg,
-    rgba(255,145,60,0) 360deg
-  ) !important;
-  animation: svHotCCW 2.05s linear infinite !important;
-}
-.card.hot::after{
-  /* BOTTOM: indul alul középen, jobbra menjen -> CW */
-  background: conic-gradient(from 180deg,
-    rgba(255,145,60,0) 0deg,
-    rgba(255,145,60,0) 336deg,
-    rgba(255,145,60,.98) 352deg,
-    rgba(255,145,60,0) 360deg
-  ) !important;
-  animation: svHotCW 2.05s linear infinite !important;
-}
-
 /* Popup: ne legyen túl “óriás” desktopon */
-.sv-popup{ width:min(720px, 94vw) !important; max-height: 82vh !important; }
-.sv-popup-hero{ height: 320px !important; }
+.sv-popup{ width:min(720px, 94vw); max-height: 82vh; }
+.sv-popup-hero{ height: 320px; }
