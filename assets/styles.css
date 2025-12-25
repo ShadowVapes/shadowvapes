@@ -725,18 +725,71 @@ button, input, select{
   .sidebar{ height:auto; position:relative; }
   
   .popup-slide{
-    padding: 20px;
+    padding: 15px; /* Kisebb padding */
+    min-height: 0; /* Fontos: engedje a zsugorodást */
   }
+  
+  .popup-product-image {
+    max-width: 300px !important; /* Kisebb kép mobilon */
+    margin-bottom: 15px; /* Kisebb térköz */
+  }
+  
   .popup-product-name{
-    font-size: 20px;
+    font-size: 18px !important; /* Kisebb betűméret */
   }
+  
   .popup-product-flavor{
-    font-size: 16px;
+    font-size: 14px !important; /* Kisebb betűméret */
   }
+  
   .popup-product-price{
-    font-size: 24px;
+    font-size: 20px !important; /* Kisebb betűméret */
   }
+  
+  .popup-product-stock,
+  .popup-product-expected {
+    font-size: 14px !important; /* Kisebb betűméret */
+  }
+  
   .popup-arrow {
-    display: none; /* Mobile swipe */
+    display: none; /* Mobile swipe - maradjon elrejtve */
+  }
+  
+  .popup-footer {
+    flex-direction: column; /* Oszlopos elrendezés */
+    gap: 12px; /* Kisebb térköz */
+    padding: 15px; /* Kisebb padding */
+  }
+  
+  .popup-buttons {
+    width: 100%; /* Teljes szélesség */
+    display: flex;
+    gap: 10px;
+  }
+  
+  .popup-buttons button {
+    flex: 1; /* Egyenlő szélességű gombok */
+    min-height: 44px; /* Könnyebb érintés mobilon */
+  }
+  
+  .chk {
+    order: 3; /* Alulra kerül */
+    width: 100%;
+    text-align: center;
+    margin-top: 8px;
+    justify-content: center !important;
+  }
+  
+  .popup-dots {
+    order: 2; /* Középre */
+    margin: 5px 0;
+  }
+  
+  .popup-modal {
+    max-height: 85vh; /* Kisebb magasság mobilon */
+  }
+  
+  .popup-content {
+    min-height: 0; /* Engedje a zsugorodást */
   }
 }
