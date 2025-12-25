@@ -25,8 +25,8 @@
     {
       "id": "p_c9b37b233bdb5_19b4dbb80eb",
       "categoryId": "elf30",
-      "status": "soon",
-      "stock": 5,
+      "status": "ok",
+      "stock": 0,
       "visible": true,
       "price": null,
       "image": "https://media.discordapp.net/attachments/1281700323081326743/1453180818523426856/BlueRazz_no_bg.png?ex=694dd519&is=694c8399&hm=bc189f4a7348a36e4a4fee7451c617b38a68696f200abda6d1c60386d09cab81&=&format=webp&quality=lossless&width=960&height=960",
@@ -91,7 +91,7 @@
   "popups": [],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1766673992484,
-    "updatedAt": "2025-12-25T14:46:32.484Z"
+    "rev": 1766674008120,
+    "updatedAt": "2025-12-25T14:46:48.120Z"
   }
 }
