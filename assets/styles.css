@@ -276,8 +276,8 @@ button, input, select{
   border-color: rgba(255,152,0,.35);
 }
 .badge.calendar{
-  background: rgba(40,215,255,.14);
-  border-color: rgba(40,215,255,.35);
+  background: rgba(255,193,7,.18);
+  border-color: rgba(255,193,7,.35);
 }
 
 .overlay-title{
@@ -526,7 +526,7 @@ button, input, select{
 }
 .popup-modal{
   width: min(900px, 95vw);
-  height: min(700px, 90vh);
+  max-height: min(700px, 90vh); /* height helyett max-height */
   background: rgba(15,22,36,.95);
   border: 1px solid rgba(255,255,255,.1);
   border-radius: 22px;
@@ -554,21 +554,27 @@ button, input, select{
   overflow: hidden;
   position: relative;
   touch-action: pan-y;
+  display: flex;
+  flex-direction: column;
 }
+
 .popup-slider{
   display: flex;
-  height: 100%;
+  flex: 1;
   transition: transform 0.5s ease;
   will-change: transform;
+  min-height: 0; /* fontos: flex shrink engedélyezése */
 }
+
 .popup-slide{
   flex: 0 0 100%;
-  padding: 30px;
+  padding: 20px 30px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   overflow-y: auto;
+  box-sizing: border-box;
 }
 .popup-product-image{
   width: 100%;
