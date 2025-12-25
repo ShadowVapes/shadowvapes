@@ -1,1233 +1,1002 @@
 (() => {
   const $ = (s) => document.querySelector(s);
 
-  const I18N = {
+  const state = {
+    lang: localStorage.getItem("sv_lang") || "hu",
+    active: "all",
+    productsDoc: { categories: [], products: [] },
+    search: "",
+    etagProducts: "",
+    etagSales: "",
+    etagPopups: "",
+    sales: [],
+    popups: [],
+    hotByCat: {},
+    lastSig: "",
+    popupRuntime: { open:false, queue:[], groupIndex:0, itemIndex:0, timer:null, lastQueueSig:"", sessionClosed:false },
+  };
+
+  const UI = {
+    all: "Összes termék",
+    soon: "Hamarosan",
+    stock: "Készlet",
+    pcs: "db",
+    out: "Elfogyott",
+  };
+  
+  
+  const TXT = {
     hu: {
-      all: "Összes termék",
-      soon: "Hamarosan",
-      search: "Keresés…",
-      stock: "Készlet",
-      price: "Ár",
-      soldout: "elfogyott",
-      coming: "hamarosan",
-      hot: "felkapott",
-      newTitle: "Új termékek elérhetőek",
-      dontShow: "Ne mutasd többször",
-      ok: "Értettem",
+      popupTitle: "Új termékek elérhetőek",
+      popupSub: "Lapozhatsz nyilakkal vagy húzással – amúgy magától is csúszik.",
+      dontShow: "Ne mutasd többet",
       skipAll: "Összes átugrása",
+      ok: "Értettem",
+      prev: "◀",
+      next: "▶"
     },
     en: {
-      all: "All products",
-      soon: "Coming soon",
-      search: "Search…",
-      stock: "Stock",
-      price: "Price",
-      soldout: "sold out",
-      coming: "coming soon",
-      hot: "trending",
-      newTitle: "New products available",
-      dontShow: "Don't show again",
-      ok: "Got it",
+      popupTitle: "New products available",
+      popupSub: "Use arrows or swipe – it also auto-slides.",
+      dontShow: "Don’t show again",
       skipAll: "Skip all",
+      ok: "Got it",
+      prev: "◀",
+      next: "▶"
     }
   };
-
-  const state = {
-    lang: "hu",
-    active: "all", // categoryId | 'all' | 'soon'
-    q: "",
-    doc: { categories: [], products: [], popups: [] },
-    sales: [],
-    featuredByCat: new Map(),
-    source: null,
-    lastSigDoc: "",
-    lastSigSales: "",
-    renderedOnce: false,
-    popupOpen: false,
+  const txt = (k) => {
+    const pack = TXT[state.lang] || TXT.hu;
+    return (pack && pack[k]) || (TXT.hu[k]) || k;
   };
 
-  const LS = {
-    sourceJson: "sv_source_json", // {owner,repo,branch}
-    popupDismissPrefix: "sv_popup_dismissed_", // + id + "_" + rev
-  };
+async function resolveSource() {
+    if (source) return source;
 
-  function t(k){ return (I18N[state.lang] && I18N[state.lang][k]) || k; }
-  function loc(){ return state.lang === "hu" ? "hu" : "en"; }
-
-function showLoader(msg){
-  const loader = $("#loader");
-  const app = $("#app");
-  if(app) app.style.display = "none";
-  if(loader) loader.style.display = "flex";
-  const lt = $("#loaderText");
-  if(lt && msg) lt.textContent = msg;
-}
-
-function showApp(){
-  const loader = $("#loader");
-  const app = $("#app");
-  if(loader) loader.style.display = "none";
-  if(app) app.style.display = "grid";
-  state.renderedOnce = true;
-}
-
-  function ensurePatchStyles(){
-    if(document.getElementById("svPatchStyle")) return;
-    const st = document.createElement("style");
-    st.id = "svPatchStyle";
-    st.textContent = `
-      /* Stronger outlines + overlays */
-      .card.soon{ border: 2px solid rgba(255, 208, 0, .85) !important; }
-      .card.soon{ position: relative; }
-      .card.soon::after{
-        content:"";
-        position:absolute; inset:0;
-        background: rgba(255, 208, 0, .10);
-        pointer-events:none;
-        border-radius: inherit;
+    // 1) cache (validáljuk is, mert telón simán lehet régi/rossz)
+    try {
+      const cached = JSON.parse(localStorage.getItem("sv_source") || "null");
+      if (cached && cached.owner && cached.repo && cached.branch) {
+        const ok = await validateSource(cached);
+        if (ok) {
+          source = cached;
+          return source;
+        }
+        try { localStorage.removeItem("sv_source"); } catch {}
       }
-      .badge.soon{
-        background: rgba(255, 208, 0, .22) !important;
-        border: 1px solid rgba(255, 208, 0, .55) !important;
-      }
-
-      .card.out, .card.dim.out{ border: 2px solid rgba(255, 62, 62, .85) !important; }
-      .badge.out{
-        background: rgba(255, 62, 62, .18) !important;
-        border: 1px solid rgba(255, 62, 62, .55) !important;
-      }
-
-      /* Featured / Felkapott: orange outline + 2 streaks (top moves left, bottom moves right) */
-      .card.hot{
-        position: relative;
-        border: 2px solid rgba(255, 140, 0, .78) !important;
-      }
-      .card.hot::before{
-        content:"";
-        position:absolute; inset:0;
-        padding:2px;
-        border-radius: inherit;
-        background: conic-gradient(
-          from 0deg,
-          rgba(255,140,0,0) 0deg,
-          rgba(255,140,0,0) 10deg,
-          rgba(255,140,0,1) 18deg,
-          rgba(255,140,0,0) 34deg,
-          rgba(255,140,0,0) 180deg,
-          rgba(255,140,0,1) 198deg,
-          rgba(255,140,0,0) 214deg,
-          rgba(255,140,0,0) 360deg
-        );
-        -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-        -webkit-mask-composite: xor;
-        mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-        mask-composite: exclude;
-        animation: svHotSpin 2.15s linear infinite;
-        pointer-events:none;
-        opacity: .95;
-        filter: drop-shadow(0 0 8px rgba(255,140,0,.22));
-      }
-      @keyframes svHotSpin{
-        to{ transform: rotate(-360deg); }
-      }
-
-      /* Popup arrows */
-      .sv-pop-arrow{
-        position:absolute;
-        top:50%;
-        transform: translateY(-50%);
-        width: 44px; height: 44px;
-        border-radius: 999px;
-        border: 1px solid rgba(255,255,255,.18);
-        background: rgba(0,0,0,.35);
-        color: rgba(255,255,255,.95);
-        display:flex;
-        align-items:center;
-        justify-content:center;
-        cursor:pointer;
-        user-select:none;
-        z-index: 2;
-        backdrop-filter: blur(6px);
-      }
-      .sv-pop-arrow:hover{ background: rgba(0,0,0,.48); }
-      .sv-pop-arrow:active{ transform: translateY(-50%) scale(.98); }
-      .sv-pop-arrow.left{ left: 10px; }
-      .sv-pop-arrow.right{ right: 10px; }
-
-      /* Popup product card (bigger than catalog) */
-      .sv-pop-prod{
-        border-radius: 18px;
-        overflow:hidden;
-        border: 1px solid rgba(255,255,255,.10);
-        background: rgba(10,10,10,.55);
-        box-shadow: 0 14px 50px rgba(0,0,0,.55);
-      }
-      .sv-pop-prod .img{
-        aspect-ratio: 1 / 1;
-        overflow:hidden;
-        background: rgba(0,0,0,.22);
-      }
-      .sv-pop-prod img{
-        width:100%; height:100%;
-        object-fit: cover;
-        display:block;
-      }
-      .sv-pop-prod .info{
-        padding: 12px 14px 14px 14px;
-      }
-      .sv-pop-prod .name{
-        font-weight: 900;
-        font-size: 18px;
-        line-height: 1.15;
-        margin-bottom: 6px;
-      }
-      .sv-pop-prod .flavor{
-        font-size: 14px;
-        opacity: .92;
-        margin-bottom: 10px;
-      }
-      .sv-pop-prod .row{
-        display:flex;
-        justify-content: space-between;
-        gap: 10px;
-        align-items: baseline;
-      }
-      .sv-pop-prod .price{
-        font-weight: 900;
-        font-size: 18px;
-      }
-      .sv-pop-prod .stock{
-        font-size: 13px;
-        opacity: .88;
-      }
-    `;
-    document.head.appendChild(st);
-  }
-
-
-
-  function norm(s){
-    return String(s||"")
-      .toLowerCase()
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "");
-  }
-
-  function escapeHtml(s){
-    return String(s||"").replace(/[&<>"']/g, (c) => ({
-      "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
-    }[c]));
-  }
-
-  function applySyncParams(){
-    try{
-      const u = new URL(location.href);
-      const owner = u.searchParams.get("sv_owner");
-      const repo = u.searchParams.get("sv_repo");
-      const branch = u.searchParams.get("sv_branch") || "main";
-      if(owner && repo){
-        const src = { owner, repo, branch };
-        localStorage.setItem(LS.sourceJson, JSON.stringify(src));
-        // tisztítsuk az URL-t
-        u.searchParams.delete("sv_owner");
-        u.searchParams.delete("sv_repo");
-        u.searchParams.delete("sv_branch");
-        history.replaceState({}, "", u.toString());
-      }
-    }catch{}
-  }
-
-  function readSourceFromLS(){
-    try{
-      const raw = localStorage.getItem(LS.sourceJson);
-      if(!raw) return null;
-      const obj = JSON.parse(raw);
-      if(obj && obj.owner && obj.repo){
-        return { owner: String(obj.owner), repo: String(obj.repo), branch: String(obj.branch||"main") };
-      }
-    }catch{}
-    return null;
-  }
-
-  function deriveGithubPagesSource(){
-    try{
-      const host = location.hostname || "";
-      if(!host.endsWith(".github.io")) return null;
-      const owner = host.split(".")[0];
-      const seg = (location.pathname || "/").split("/").filter(Boolean)[0] || "";
-      const repo = seg ? seg : `${owner}.github.io`;
-      return { owner, repo, branch: "main" };
-    }catch{
-      return null;
-    }
-  }
-
-  async function resolveSource({forceBust=false}={}){
-    if(state.source) return state.source;
-
-    const ls = readSourceFromLS();
-    if(ls){ state.source = ls; return ls; }
-
-    // 1) data/sv_source.json a site-on (cache bust)
-    try{
-      const v = forceBust ? `?v=${Date.now()}` : "";
-      const r = await fetch(`data/sv_source.json${v}`, { cache: "no-store" });
-      if(r.ok){
+    } catch {}// 2) stabil fájl (admin írja): data/sv_source.json
+    try {
+      const r = await fetch(`data/sv_source.json?_=${Date.now()}`, { cache: "no-store" });
+      if (r.ok) {
         const j = await r.json();
-        if(j && j.owner && j.repo){
-          const src = { owner: String(j.owner), repo: String(j.repo), branch: String(j.branch||"main") };
-          localStorage.setItem(LS.sourceJson, JSON.stringify(src));
-          state.source = src;
-          return src;
+        if (j && j.owner && j.repo) {
+          const br = String(j.branch || j.ref || "main").trim();
+          source = { owner: String(j.owner).trim(), repo: String(j.repo).trim(), branch: br };
+          try {
+            localStorage.setItem("sv_source", JSON.stringify(source));
+          } catch {}
+          return source;
         }
       }
-    }catch{}
+    } catch {}
 
-    // 2) heuristic GitHub Pages
-    const gh = deriveGithubPagesSource();
-    if(gh){
-      localStorage.setItem(LS.sourceJson, JSON.stringify(gh));
-      state.source = gh;
-      return gh;
+    // 3) github.io url / localStorage config
+    const or = getOwnerRepoFromUrl() || getOwnerRepoCfg();
+    if (!or) return null;
+
+    const branches = [or.branch, "main", "master", "gh-pages"]
+      .filter(Boolean)
+      .filter((v, i, a) => a.indexOf(v) === i);
+
+    for (const br of branches) {
+      const testUrl = `https://raw.githubusercontent.com/${or.owner}/${or.repo}/${br}/data/products.json?_=${Date.now()}`;
+      try {
+        const r = await fetch(testUrl, { cache: "no-store" });
+        if (r.ok) {
+          source = { owner: or.owner, repo: or.repo, branch: br };
+          try {
+            localStorage.setItem("sv_source", JSON.stringify(source));
+          } catch {}
+          return source;
+        }
+      } catch {}
     }
 
     return null;
   }
 
-  async function fetchJson(relPath, {forceBust=false}={}){
-    const v = forceBust ? `?v=${Date.now()}` : "";
-    const src = await resolveSource({forceBust});
-    // RAW first (gyorsabb frissülés)
-    if(src && src.owner && src.repo){
-      const url = `https://raw.githubusercontent.com/${encodeURIComponent(src.owner)}/${encodeURIComponent(src.repo)}/${encodeURIComponent(src.branch||"main")}/${relPath}${v}`;
-      try{
-        const r = await fetch(url, { cache: "no-store" });
-        if(r.ok) return await r.json();
-      }catch{}
-    }
-    // fallback: site
-    const r2 = await fetch(`${relPath}${v}`, { cache: "no-store" });
-    if(!r2.ok) throw new Error(`Fetch failed: ${relPath} (${r2.status})`);
-    return await r2.json();
+  
+  function _timeout(ms){
+    const c = new AbortController();
+    const t = setTimeout(() => c.abort("timeout"), ms);
+    return { signal: c.signal, cancel: () => clearTimeout(t) };
   }
 
-  function normalizeDoc(doc){
-    const d = doc && typeof doc === "object" ? doc : {};
-    const out = {
-      categories: Array.isArray(d.categories) ? d.categories : [],
-      products: Array.isArray(d.products) ? d.products : [],
-      popups: Array.isArray(d.popups) ? d.popups : [],
-      updatedAt: Number(d.updatedAt||d.rev||0) || 0,
-    };
+  async function fetchJsonFile({ path, etagKey, forceBust = false, timeoutMs = 6500 }){
+    const rawBase = state.source && state.source.rawBase ? state.source.rawBase : null;
+    const relUrl = path;
+    const rawUrl = rawBase ? (rawBase.replace(/\/$/, "") + "/" + path.replace(/^\//,"")) : null;
 
-    out.categories = out.categories
-      .filter(c => c && c.id)
-      .map(c => ({
-        id: String(c.id),
-        label_hu: String(c.label_hu || c.id),
-        label_en: String(c.label_en || c.label_hu || c.id),
-        basePrice: Number(c.basePrice||0) || 0,
-        featuredEnabled: (c.featuredEnabled === false) ? false : true,
-      }));
+    async function doFetch(url, allowEtag){
+      const headers = { "Cache-Control": "no-store" };
+      const prevEtag = state[etagKey] || "";
+      if(allowEtag && prevEtag && !forceBust) headers["If-None-Match"] = prevEtag;
 
-    out.products = out.products
-      .filter(p => p && p.id)
+      const bustUrl = forceBust ? (url + (url.includes("?") ? "&" : "?") + "_=" + Date.now()) : url;
+      const { signal, cancel } = _timeout(timeoutMs);
+      try{
+        const res = await fetch(bustUrl, { cache: "no-store", headers, signal });
+        if(res.status === 304) return { ok:true, notModified:true };
+        if(!res.ok) throw new Error(`${path} HTTP ${res.status}`);
+        const etag = res.headers.get("etag") || "";
+        if(etag) state[etagKey] = etag;
+        const json = await res.json();
+        return { ok:true, json };
+      }finally{ cancel(); }
+    }
+
+    try{
+      if(rawUrl){
+        try{
+          return await doFetch(rawUrl, true);
+        }catch(e){
+          // fallback to relative
+          return await doFetch(relUrl, false);
+        }
+      }
+      return await doFetch(relUrl, true);
+    }catch(err){
+      return { ok:false, err };
+    }
+  }
+
+  async function fetchProducts({ forceBust = false } = {}){
+    const r = await fetchJsonFile({ path:"data/products.json", etagKey:"etagProducts", forceBust });
+    if(!r.ok || r.notModified) return r;
+    return { ok:true, doc: normalizeDoc(r.json) };
+  }
+
+  async function fetchSales({ forceBust = false } = {}){
+    const r = await fetchJsonFile({ path:"data/sales.json", etagKey:"etagSales", forceBust });
+    if(!r.ok || r.notModified) return r;
+    return { ok:true, sales: Array.isArray(r.json) ? r.json : [] };
+  }
+
+  async function fetchPopups({ forceBust = false } = {}){
+    const r = await fetchJsonFile({ path:"data/popups.json", etagKey:"etagPopups", forceBust });
+    if(!r.ok || r.notModified) return r;
+    return { ok:true, popups: Array.isArray(r.json) ? r.json : [] };
+  }
+
+
+  function normalizeDoc(data) {
+    if (Array.isArray(data)) return { categories: [], products: data };
+    const categories = data && Array.isArray(data.categories) ? data.categories : [];
+    const products = data && Array.isArray(data.products) ? data.products : [];
+    return { categories, products };
+  }
+
+  /* ----------------- Rendering ----------------- */
+  
+  function normalizeSales(sales){
+    return Array.isArray(sales) ? sales : [];
+  }
+
+  function normalizePopups(popups){
+    if(!Array.isArray(popups)) return [];
+    const seen = new Set();
+    return popups
+      .filter(p => p && (p.id || p.title_hu || p.title_en))
       .map(p => ({
-        id: String(p.id),
-        categoryId: String(p.categoryId||""),
-        status: (p.status === "ok" || p.status === "out" || p.status === "soon") ? p.status : "ok",
-        stock: Math.max(0, Number(p.stock||0)),
-        price: (p.price === "" || p.price === null || p.price === undefined) ? null : Number(p.price||0),
-        image: String(p.image||""),
-        visible: (p.visible === false) ? false : true,
-        name_hu: String(p.name_hu||""),
-        name_en: String(p.name_en||""),
-        flavor_hu: String(p.flavor_hu||""),
-        flavor_en: String(p.flavor_en||""),
-      }));
-
-    out.popups = out.popups
-      .filter(x => x && (x.id || x.title_hu || x.title_en || x.title))
-      .map(x => {
-        const id = String(x.id || ("pu_" + Math.random().toString(16).slice(2) + "_" + Date.now().toString(16)));
-        const updatedAt = Number(x.updatedAt || x.rev || Date.now());
-        const createdAt = Number(x.createdAt || x.rev || updatedAt || Date.now());
-        const rev = Number(x.rev || updatedAt || Date.now());
-        const catIds = Array.isArray(x.categoryIds) ? x.categoryIds.map(v => String(v)).filter(Boolean) : [];
-        const prodIds = Array.isArray(x.productIds) ? x.productIds.map(v => String(v)).filter(Boolean) : [];
-        return {
-          id,
-          enabled: (x.enabled === false) ? false : true,
-          rev,
-          title_hu: String(x.title_hu || x.title || ""),
-          title_en: String(x.title_en || x.title_hu || x.title || ""),
-          categoryIds: catIds,
-          productIds: prodIds,
-          createdAt,
-          updatedAt,
-        };
+        id: String(p.id || ("pp_" + Math.random().toString(16).slice(2))),
+        rev: Number.isFinite(Number(p.rev)) ? Number(p.rev) : 1,
+        active: !!p.active,
+        title_hu: String(p.title_hu || p.title || txt("popupTitle")),
+        title_en: String(p.title_en || p.title || TXT.en.popupTitle),
+        categories: Array.isArray(p.categories) ? [...new Set(p.categories.map(String).filter(Boolean))] : [],
+        products: Array.isArray(p.products) ? [...new Set(p.products.map(String).filter(Boolean))] : [],
+      }))
+      .filter(p => {
+        if(seen.has(p.id)) return false;
+        seen.add(p.id);
+        return true;
       });
+  }
+
+  function computeHotByCat(doc, sales){
+    const counts = new Map();
+    for(const s of (sales||[])){
+      const items = Array.isArray(s.items) ? s.items : [];
+      for(const it of items){
+        const pid = String(it.productId || "");
+        const qty = Number(it.qty || it.quantity || 0);
+        if(!pid || !Number.isFinite(qty)) continue;
+        counts.set(pid, (counts.get(pid)||0) + qty);
+      }
+    }
+
+    const locale = state.lang === "hu" ? "hu" : "en";
+    const flavorKey = (p) => state.lang === "hu" ? (p.flavor_hu || p.flavor_en || "") : (p.flavor_en || p.flavor_hu || "");
+    const out = {};
+
+    const cats = (doc.categories || []).filter(c => c && c.id && c.id !== "soon");
+    for(const c of cats){
+      if(c.showHot === false) continue;
+
+      const inCat = (doc.products || [])
+        .filter(p => p && p.visible !== false)
+        .filter(p => String(p.categoryId) === String(c.id))
+        .filter(p => p.status !== "soon"); // hamarosan ne legyen felkapott
+
+      let best = null;
+      let bestCount = 0;
+
+      for(const p of inCat){
+        const cnt = counts.get(String(p.id)) || 0;
+        if(cnt > bestCount){
+          bestCount = cnt;
+          best = p;
+        }else if(cnt === bestCount && cnt > 0 && best){
+          const a = flavorKey(p);
+          const b = flavorKey(best);
+          const cmp = a.localeCompare(b, locale, { sensitivity:"base" });
+          if(cmp < 0) best = p;
+          else if(cmp === 0){
+            if(String(p.id).localeCompare(String(best.id)) < 0) best = p;
+          }
+        }else if(cnt === bestCount && cnt > 0 && !best){
+          best = p;
+        }
+      }
+
+      if(best && bestCount > 0){
+        out[String(c.id)] = String(best.id);
+      }
+    }
 
     return out;
   }
 
-  function effectivePrice(p){
-    const cat = state.doc.categories.find(c => c.id === p.categoryId);
-    const base = cat ? Number(cat.basePrice||0) : 0;
-    const pr = (p.price === null || p.price === undefined || p.price === "") ? null : Number(p.price||0);
-    return (pr === null || Number.isNaN(pr)) ? base : pr;
+function orderedCategories() {
+    const cats = (state.productsDoc.categories || [])
+      .filter((c) => c && c.id)
+      .map((c) => ({
+        id: String(c.id),
+        label_hu: c.label_hu || c.id,
+        label_en: c.label_en || c.label_hu || c.id,
+        basePrice: Number(c.basePrice || 0),
+      }))
+      .sort((a, b) => catLabel(a).localeCompare(catLabel(b), "hu"));
+
+    return [
+      { id: "all", label_hu: t("all"), label_en: t("all"), virtual: true },
+      ...cats,
+      { id: "soon", label_hu: t("soon"), label_en: t("soon"), virtual: true },
+    ];
   }
 
-  function catLabel(c){
-    return state.lang === "hu" ? (c.label_hu||c.id) : (c.label_en||c.label_hu||c.id);
-  }
+  
+  function filterList(){
+    const q = (state.search || "").trim().toLowerCase();
+    const doc = state.productsDoc || { products: [], categories: [] };
+    let list = (doc.products || []).filter(p => p && p.visible !== false);
 
-  function productName(p){
-    return state.lang === "hu" ? (p.name_hu||p.name_en||"") : (p.name_en||p.name_hu||"");
-  }
-  function productFlavor(p){
-    return state.lang === "hu" ? (p.flavor_hu||p.flavor_en||"") : (p.flavor_en||p.flavor_hu||"");
-  }
-
-  function rankStatus(s){
-    // ok -> 0, soon -> 1 (leghátul), out -> 2 (legutolsó)
-    return s === "ok" ? 0 : (s === "soon" ? 1 : 2);
-  }
-
-  function computeFeaturedByCat(){
-    const map = new Map();
-    const prodById = new Map(state.doc.products.map(p => [p.id, p]));
-    const counts = new Map(); // catId -> Map(prodId->qty)
-
-    for(const sale of (state.sales||[])){
-      if(!sale || !Array.isArray(sale.items)) continue;
-      for(const it of sale.items){
-        const pid = String(it.productId||"");
-        const qty = Math.max(0, Number(it.qty||0));
-        if(!pid || !qty) continue;
-        const p = prodById.get(pid);
-        if(!p) continue;
-        if(p.visible === false) continue;
-
-        const cid = p.categoryId || "";
-        if(!cid) continue;
-        if(!counts.has(cid)) counts.set(cid, new Map());
-        const cm = counts.get(cid);
-        cm.set(pid, (cm.get(pid)||0) + qty);
-      }
-    }
-
-    for(const c of state.doc.categories){
-      if(c.featuredEnabled === false) continue;
-      const cm = counts.get(c.id);
-      if(!cm) continue;
-      // max qty
-      let bestId = "";
-      let bestQty = 0;
-      for(const [pid, qty] of cm.entries()){
-        if(qty > bestQty){
-          bestQty = qty;
-          bestId = pid;
-        }else if(qty === bestQty && qty > 0){
-          // tie break by flavor (locale)
-          const pa = prodById.get(pid);
-          const pb = prodById.get(bestId);
-          const fa = productFlavor(pa||{});
-          const fb = productFlavor(pb||{});
-          if(fa.localeCompare(fb, loc()) < 0){
-            bestId = pid;
-          }
-        }
-      }
-      if(bestQty > 0 && bestId) map.set(c.id, bestId);
-    }
-
-    state.featuredByCat = map;
-  }
-
-  function filterProducts(){
-    const q = norm(state.q);
-    let list = state.doc.products.filter(p => p.visible !== false);
-
-    // category filter
+    // tab filter
     if(state.active === "soon"){
       list = list.filter(p => p.status === "soon");
     }else if(state.active !== "all"){
-      list = list.filter(p => p.categoryId === state.active);
+      list = list.filter(p => String(p.categoryId) === String(state.active));
     }
 
+    // search
     if(q){
       list = list.filter(p => {
-        const hay = norm(`${p.name_hu} ${p.name_en} ${p.flavor_hu} ${p.flavor_en}`);
-        return hay.includes(q);
+        const fields = [
+          p.name_hu, p.name_en,
+          p.flavor_hu, p.flavor_en,
+        ];
+        return fields.some(v => String(v||"").toLowerCase().includes(q));
       });
     }
 
-    // sort within status rank, then name, then flavor (locale)
+    const locale = state.lang === "hu" ? "hu" : "en";
+    const nameKey = (p) => state.lang === "hu" ? (p.name_hu || p.name_en || "") : (p.name_en || p.name_hu || "");
+    const flavorKey = (p) => state.lang === "hu" ? (p.flavor_hu || p.flavor_en || "") : (p.flavor_en || p.flavor_hu || "");
+    const statusPrio = (s) => (s === "out" ? 2 : (s === "soon" ? 1 : 0));
+
+    // base sort: same név egymás mellett, státusz: ok -> hamarosan -> elfogyott, aztán íz ABC
     list.sort((a,b) => {
-      const ra = rankStatus(a.status), rb = rankStatus(b.status);
-      if(ra !== rb) return ra - rb;
-      const na = productName(a), nb = productName(b);
-      const cn = na.localeCompare(nb, loc());
-      if(cn !== 0) return cn;
-      const fa = productFlavor(a), fb = productFlavor(b);
-      return fa.localeCompare(fb, loc());
+      const cmpN = nameKey(a).localeCompare(nameKey(b), locale, { sensitivity:"base" });
+      if(cmpN) return cmpN;
+
+      const cmpS = statusPrio(a.status) - statusPrio(b.status);
+      if(cmpS) return cmpS;
+
+      return flavorKey(a).localeCompare(flavorKey(b), locale, { sensitivity:"base" });
     });
 
-    // group same name next to each other
-    // (simple stable regroup: sort already ensures it, but ensure exact)
-    // Keep as-is.
-
-    // pin featured
-    if(state.active !== "soon"){
-      const pinned = [];
-      const pinnedIds = new Set();
-
-      if(state.active === "all"){
-        const cats = [...state.doc.categories].sort((a,b)=>catLabel(a).localeCompare(catLabel(b), loc()));
-        for(const c of cats){
-          const pid = state.featuredByCat.get(c.id);
-          if(!pid) continue;
-          const idx = list.findIndex(p => p.id === pid);
-          if(idx >= 0){
-            const p = list.splice(idx,1)[0];
-            p.__featured = true;
-            pinned.push(p);
-            pinnedIds.add(pid);
-          }
-        }
-      }else{
-        const pid = state.featuredByCat.get(state.active);
-        if(pid){
-          const idx = list.findIndex(p => p.id === pid);
-          if(idx >= 0){
-            const p = list.splice(idx,1)[0];
-            p.__featured = true;
-            pinned.push(p);
-            pinnedIds.add(pid);
-          }
+    // FELKAPOTT priorizálás
+    const hot = state.hotByCat || {};
+    if(state.active === "all"){
+      const cats = orderedCategories().filter(c => c.id !== "all" && c.id !== "soon");
+      const hotIds = [];
+      for(const c of cats){
+        const pid = hot[String(c.id)];
+        if(pid) hotIds.push(String(pid));
+      }
+      if(hotIds.length){
+        const hotSet = new Set(hotIds);
+        const hotItems = hotIds.map(id => list.find(p => String(p.id) === id)).filter(Boolean);
+        const rest = list.filter(p => !hotSet.has(String(p.id)));
+        list = hotItems.concat(rest);
+      }
+    }else if(state.active !== "soon" && state.active !== "all"){
+      const pid = hot[String(state.active)];
+      if(pid){
+        const idx = list.findIndex(p => String(p.id) === String(pid));
+        if(idx > 0){
+          const it = list.splice(idx,1)[0];
+          list.unshift(it);
         }
       }
-
-      // clear old flags
-      for(const p of list){ delete p.__featured; }
-
-      return [...pinned, ...list];
     }
 
-    // clear old flags
-    for(const p of list){ delete p.__featured; }
     return list;
   }
 
-  function renderNav(){
-    const nav = $("#categories");
-    if(!nav) return;
-    const cats = [...state.doc.categories].sort((a,b)=>catLabel(a).localeCompare(catLabel(b), loc()));
+function renderNav() {
+    const nav = $("#nav");
+    nav.innerHTML = "";
 
-    // "All" first, "Soon" last
-    nav.innerHTML = `
-      <button class="chip ${state.active==="all"?"active":""}" data-cat="all">${escapeHtml(t("all"))}</button>
-      ${cats.map(c => `
-        <button class="chip ${state.active===c.id?"active":""}" data-cat="${escapeHtml(c.id)}">${escapeHtml(catLabel(c))}</button>
-      `).join("")}
-      <button class="chip ${state.active==="soon"?"active":""}" data-cat="soon">${escapeHtml(t("soon"))}</button>
-    `;
-
-    nav.querySelectorAll("button[data-cat]").forEach(b => {
-      b.onclick = () => {
-        state.active = b.dataset.cat;
-        renderNav();
-        renderGrid();
-      };
-    });
-  }
-
-  function cardBadges(p){
-    const arr = [];
-    if(p.__featured) arr.push(`<span class="badge hot">${escapeHtml(t("hot"))}</span>`);
-    if(p.status === "soon") arr.push(`<span class="badge soon">${escapeHtml(t("coming"))}</span>`);
-    if(p.status === "out" || p.stock <= 0) arr.push(`<span class="badge out">${escapeHtml(t("soldout"))}</span>`);
-    return arr.join("");
-  }
-
-  function renderGrid(){
-    const grid = $("#grid");
-    if(!grid) return;
-
-    const list = filterProducts();
-
-    if(!list.length){
-      grid.innerHTML = `<div class="small-muted">—</div>`;
-      return;
-    }
-
-    const html = list.map(p => {
-      const price = effectivePrice(p);
-      const name = productName(p);
-      const flavor = productFlavor(p);
-      const stock = (p.status === "soon") ? "—" : String(Math.max(0, p.stock||0));
-
-      const isOut = (p.status === "out") || (p.stock <= 0 && p.status !== "soon");
-      const cls = [
-        "card",
-        (!state.renderedOnce ? "fade-in" : ""),
-        (isOut ? "dim out" : (p.status==="soon" ? "soon" : "")),
-        (p.__featured ? "featured" : "")
-      ].filter(Boolean).join(" ");
-
-      return `
-        <div class="${cls}">
-          <div class="hero">
-            <img src="${escapeHtml(p.image||"")}" alt="${escapeHtml(name)}" loading="lazy">
-            <div class="badges">${cardBadges(p)}</div>
-            <div class="overlay-title">
-              <div class="name">${escapeHtml(name)}</div>
-              <div class="flavor">${escapeHtml(flavor)}</div>
-            </div>
-          </div>
-          <div class="card-body">
-            <div class="meta-row">
-              <div class="price">${price.toLocaleString(state.lang==="hu"?"hu-HU":"en-US")} Ft</div>
-              <div class="stock">${escapeHtml(t("stock"))}: <b>${escapeHtml(stock)}</b></div>
-            </div>
-          </div>
-        </div>
-      `;
-    }).join("");
-
-    grid.innerHTML = html;
-    state.renderedOnce = true;
-  }
-
-  function setupTopbar(){
-    const inp = $("#search");
-    if(inp){
-      inp.placeholder = t("search");
-      inp.value = state.q;
-      inp.oninput = () => {
-        state.q = inp.value || "";
-        renderGrid();
-      };
-    }
-
-    const btn = $("#langToggle");
-    if(btn){
+    const cats = orderedCategories();
+    for (const c of cats) {
+      const btn = document.createElement("button");
+      btn.textContent = c.id === "all" ? t("all") : c.id === "soon" ? t("soon") : catLabel(c);
+      if (state.active === c.id) btn.classList.add("active");
       btn.onclick = () => {
-        state.lang = (state.lang === "hu") ? "en" : "hu";
-        localStorage.setItem("sv_lang", state.lang);
-        // update UI texts
-        $("#search").placeholder = t("search");
+        state.active = c.id;
+        $("#title").textContent = btn.textContent;
         renderNav();
         renderGrid();
       };
+      nav.appendChild(btn);
     }
   }
 
-  function readLang(){
-    const ls = localStorage.getItem("sv_lang");
-    if(ls === "en" || ls === "hu") state.lang = ls;
-    // try html lang
-    const h = document.documentElement.getAttribute("lang");
-    if(h === "en" || h === "hu") state.lang = h;
+  function renderGrid() {
+    const grid = $("#grid");
+    const empty = $("#empty");
+    grid.innerHTML = "";
+
+    const list = filterList();
+    const hotSet = new Set(Object.values(state.hotByCat || {}).map(String));
+    $("#count").textContent = String(list.length);
+    empty.style.display = list.length ? "none" : "block";
+
+    for (const p of list) {
+      const name = getName(p);
+      const flavor = getFlavor(p);
+      const out = isOut(p);
+      const stockShown = out ? 0 : Math.max(0, Number(p.stock || 0));
+      const price = effectivePrice(p);
+
+      const card = document.createElement("div");
+      card.className = "card fade-in" + (out ? " dim" : "");
+      if(out) card.classList.add("out");
+      if(soon) card.classList.add("soon");
+      if(hotSet.has(String(p.id))) card.classList.add("hot");
+
+      const hero = document.createElement("div");
+      hero.className = "hero";
+
+      const img = document.createElement("img");
+      img.loading = "lazy";
+      img.alt = (name + (flavor ? " - " + flavor : "")).trim();
+      img.src = p.image || "";
+
+      // státusz alapú szürkeség (CSS nélkül)
+      if (out) {
+        img.style.filter = "grayscale(1) brightness(0.26) contrast(0.95)";
+      } else if (p.status === "soon") {
+        img.style.filter = "grayscale(1) brightness(0.66) contrast(0.98)";
+      }
+      hero.appendChild(img);
+
+      const badges = document.createElement("div");
+      badges.className = "badges";
+      if (p.status === "soon") {
+        const b = document.createElement("div");
+        b.className = "badge soon";
+        b.textContent = t("soon");
+        badges.appendChild(b);
+      } else if (out) {
+        const b = document.createElement("div");
+        b.className = "badge out";
+        b.textContent = t("out");
+        badges.appendChild(b);
+      }
+      hero.appendChild(badges);
+
+      const ov = document.createElement("div");
+      ov.className = "overlay-title";
+
+      const n = document.createElement("div");
+      n.className = "name";
+      n.textContent = name || "—";
+
+      const f = document.createElement("div");
+      f.className = "flavor";
+      f.textContent = flavor || "";
+      // olvashatóság (CSS nélkül)
+      f.style.fontSize = "16.5px";
+      f.style.opacity = "0.96";
+      f.style.letterSpacing = "0.2px";
+
+      ov.appendChild(n);
+      ov.appendChild(f);
+      hero.appendChild(ov);
+
+      const body = document.createElement("div");
+      body.className = "card-body";
+
+      // ár + készlet csak a kép alatt
+      const meta = document.createElement("div");
+      meta.className = "meta-row";
+
+      const priceEl = document.createElement("div");
+      priceEl.className = "price";
+      priceEl.textContent = fmtFt(price);
+
+      const stockEl = document.createElement("div");
+      stockEl.className = "stock";
+      stockEl.innerHTML =
+        p.status === "soon"
+          ? `${t("stock")}: <b>—</b>`
+          : `${t("stock")}: <b>${stockShown}</b> ${t("pcs")}`;
+      // olvashatóbb készlet (CSS nélkül)
+      stockEl.style.fontSize = "14.5px";
+      stockEl.style.opacity = "0.96";
+      const sb = stockEl.querySelector("b");
+      if (sb) {
+        sb.style.fontSize = "15.5px";
+        sb.style.opacity = "1";
+      }
+
+      meta.appendChild(priceEl);
+      meta.appendChild(stockEl);
+      body.appendChild(meta);
+
+      card.appendChild(hero);
+      card.appendChild(body);
+      grid.appendChild(card);
+    }
   }
 
-  async function loadAll({forceBust=false}={}){
-    const [docRaw, salesRaw] = await Promise.allSettled([
-      fetchJson("data/products.json", {forceBust}),
-      fetchJson("data/sales.json", {forceBust}),
-    ]);
+  /* ----------------- Live updates ----------------- */
+  
 
-    let doc = state.doc;
-    if(docRaw.status === "fulfilled"){
-      doc = normalizeDoc(docRaw.value);
+  function applyData({ doc, sales, popups } = {}) {
+    let touched = false;
+
+    if(doc){
+      state.productsDoc = doc;
+      touched = true;
+    }
+    if(sales){
+      state.sales = normalizeSales(sales);
+      touched = true;
+    }
+    if(popups){
+      state.popups = normalizePopups(popups);
+      touched = true;
     }
 
-    let sales = state.sales;
-    if(salesRaw.status === "fulfilled"){
-      const s = salesRaw.value;
-      sales = Array.isArray(s) ? s : (s && Array.isArray(s.sales) ? s.sales : []);
-    }
+    if(!touched) return;
 
-    return { doc, sales };
-  }
+    // felkapott újraszámolás (sales -> hot)
+    state.hotByCat = computeHotByCat(state.productsDoc, state.sales);
 
-  function applyAll(doc, sales){
-    // signatures
-    const sigDoc = JSON.stringify(doc);
-    const sigSales = JSON.stringify(sales);
+    const sig = JSON.stringify({
+      doc: state.productsDoc,
+      hot: state.hotByCat,
+      popups: state.popups
+    });
 
-    const docChanged = sigDoc !== state.lastSigDoc;
-    const salesChanged = sigSales !== state.lastSigSales;
+    if(sig && sig === state.lastSig) return;
+    state.lastSig = sig;
 
-    if(!docChanged && !salesChanged) return;
-
-    state.doc = doc;
-    state.sales = sales;
-
-    if(docChanged) state.lastSigDoc = sigDoc;
-    if(salesChanged) state.lastSigSales = sigSales;
-
-    computeFeaturedByCat();
     renderNav();
     renderGrid();
 
-    if(!state.renderedOnce){
-      showApp();
-    }
+    $("#loader").style.display = "none";
+    $("#app").style.display = "grid";
 
-
-    // popups only when doc changed (or if not open)
-    if(docChanged) maybeShowPopups();
+    maybeShowPopups();
   }
 
-  function liveChannel(){
-    try{
-      const bc = new BroadcastChannel("sv_live");
-      bc.onmessage = (e) => {
-        const payload = e.data;
-        if(payload && payload.doc){
-          try{
-            applyAll(normalizeDoc(payload.doc), Array.isArray(payload.sales)?payload.sales:state.sales);
-          }catch{}
+  function applyDoc(doc){
+    applyData({ doc });
+  }
+
+  
+  /* ---------------- Popup (public) ---------------- */
+  function _getSeenMap(){
+    try{ return JSON.parse(localStorage.getItem("sv_seen_popups") || "{}") || {}; }
+    catch{ return {}; }
+  }
+  function _setSeenMap(m){
+    try{ localStorage.setItem("sv_seen_popups", JSON.stringify(m || {})); }catch{}
+  }
+
+  function buildPopupQueue(){
+    const doc = state.productsDoc || { products: [], categories: [] };
+    const products = doc.products || [];
+    const cats = doc.categories || [];
+    const catById = new Map(cats.map(c => [String(c.id), c]));
+    const prodById = new Map(products.map(p => [String(p.id), p]));
+
+    const seen = _getSeenMap();
+    const activePopups = (state.popups || [])
+      .filter(p => p && p.active)
+      .filter(p => {
+        const seenRev = Number(seen[p.id] || 0);
+        return seenRev < Number(p.rev || 1);
+      });
+
+    if(activePopups.length === 0) return [];
+
+    // stabil sorrend: id szerint
+    activePopups.sort((a,b) => String(a.id).localeCompare(String(b.id)));
+
+    const locale = state.lang === "hu" ? "hu" : "en";
+    const nameKey = (p) => state.lang === "hu" ? (p.name_hu || p.name_en || "") : (p.name_en || p.name_hu || "");
+    const flavorKey = (p) => state.lang === "hu" ? (p.flavor_hu || p.flavor_en || "") : (p.flavor_en || p.flavor_hu || "");
+
+    const queue = [];
+
+    for(const popup of activePopups){
+      // product set from categories + explicit products
+      const set = new Map(); // id -> product
+      const fromCats = Array.isArray(popup.categories) ? popup.categories : [];
+      const fromProds = Array.isArray(popup.products) ? popup.products : [];
+
+      for(const cid of fromCats){
+        for(const p of products){
+          if(!p || p.visible === false) continue;
+          if(String(p.categoryId) !== String(cid)) continue;
+          set.set(String(p.id), p);
         }
-      };
-    }catch{}
-    // localStorage fallback (same device)
-    window.addEventListener("storage", (e) => {
-      if(e.key === "sv_live_payload" && e.newValue){
-        try{
-          const payload = JSON.parse(e.newValue);
-          if(payload && payload.doc){
-            applyAll(normalizeDoc(payload.doc), Array.isArray(payload.sales)?payload.sales:state.sales);
-          }
-        }catch{}
       }
-    });
-  }
+      for(const pid of fromProds){
+        const p = prodById.get(String(pid));
+        if(p && p.visible !== false) set.set(String(p.id), p);
+      }
 
-  function isPopupDismissed(pu){
-    try{
-      const key = LS.popupDismissPrefix + pu.id + "_" + Number(pu.rev||0);
-      return localStorage.getItem(key) === "1";
-    }catch{
-      return false;
-    }
-  }
-  function dismissPopup(pu){
-    try{
-      const key = LS.popupDismissPrefix + pu.id + "_" + Number(pu.rev||0);
-      localStorage.setItem(key, "1");
-    }catch{}
-  }
+      const byCat = new Map();
+      for(const p of set.values()){
+        const cid = String(p.categoryId || "misc");
+        if(!byCat.has(cid)) byCat.set(cid, []);
+        byCat.get(cid).push(p);
+      }
 
-  function popupProducts(pu){
-    const byId = new Map(state.doc.products.map(p => [p.id, p]));
-    const out = [];
-    const seen = new Set();
+      const catIds = Array.from(byCat.keys()).sort((a,b) => {
+        const la = (catById.get(a)?.label_hu || catById.get(a)?.label_en || a);
+        const lb = (catById.get(b)?.label_hu || catById.get(b)?.label_en || b);
+        return String(la).localeCompare(String(lb), locale, { sensitivity:"base" });
+      });
 
-    // categories first (sorted by label)
-    const cats = [...state.doc.categories].sort((a,b)=>catLabel(a).localeCompare(catLabel(b), loc()));
-    for(const c of cats){
-      if(!(pu.categoryIds||[]).includes(c.id)) continue;
-      const prods = state.doc.products
-        .filter(p => p.visible !== false && p.categoryId === c.id)
-        .sort((a,b)=>{
-          const fa = productFlavor(a), fb = productFlavor(b);
-          const cf = fa.localeCompare(fb, loc());
-          if(cf !== 0) return cf;
-          return productName(a).localeCompare(productName(b), loc());
+      for(const cid of catIds){
+        const arr = byCat.get(cid) || [];
+        arr.sort((a,b) => {
+          const cmpN = nameKey(a).localeCompare(nameKey(b), locale, { sensitivity:"base" });
+          if(cmpN) return cmpN;
+          return flavorKey(a).localeCompare(flavorKey(b), locale, { sensitivity:"base" });
         });
-      for(const p of prods){
-        if(seen.has(p.id)) continue;
-        seen.add(p.id);
-        out.push(p);
+
+        const cObj = catById.get(cid);
+        const catLabel = state.lang === "hu"
+          ? (cObj?.label_hu || cObj?.label_en || cid)
+          : (cObj?.label_en || cObj?.label_hu || cid);
+
+        queue.push({
+          popupId: popup.id,
+          popupRev: Number(popup.rev || 1),
+          popupTitle: state.lang === "hu" ? (popup.title_hu || popup.title_en || txt("popupTitle")) : (popup.title_en || popup.title_hu || TXT.en.popupTitle),
+          categoryId: cid,
+          categoryLabel: String(catLabel),
+          products: arr
+        });
       }
     }
 
-    // explicit products
-    for(const pid of (pu.productIds||[])){
-      const p = byId.get(pid);
-      if(!p) continue;
-      if(p.visible === false) continue;
-      if(seen.has(p.id)) continue;
-      seen.add(p.id);
-      out.push(p);
-    }
-
-    return out;
+    // kiszűrjük az üreseket
+    return queue.filter(g => Array.isArray(g.products) && g.products.length);
   }
 
-  function ensurePopupStyles(){
-    if(document.getElementById("svPopupStyle")) return;
-    const st = document.createElement("style");
-    st.id = "svPopupStyle";
-    st.textContent = `
-      .sv-pop-bg{
-        position:fixed; inset:0;
-        background: rgba(0,0,0,.62);
-        display:flex; align-items:center; justify-content:center;
-        z-index:9999;
-        padding:18px;
-      }
-      .sv-pop{
-        width:min(980px, 96vw);
-        border-radius: 22px;
-        background: rgba(18,18,20,.94);
-        border: 1px solid rgba(255,255,255,.12);
-        box-shadow: 0 30px 80px rgba(0,0,0,.55);
-        overflow:hidden;
-        will-change: transform;
-      }
-      .sv-pop-head{
-        display:flex; align-items:center; justify-content:space-between;
-        padding:16px 16px 12px 16px;
-        border-bottom: 1px solid rgba(255,255,255,.08);
-      }
-      .sv-pop-title{
-        font-size: 16px;
-        font-weight: 900;
-        letter-spacing: .2px;
-      }
-      .sv-pop-sub{
-        font-size: 12px;
-        opacity: .75;
-        margin-top: 2px;
-      }
-      .sv-pop-close{
-        width: 36px; height: 36px;
-        border-radius: 12px;
-        border: 1px solid rgba(255,255,255,.14);
-        background: rgba(255,255,255,.06);
-        color: rgba(255,255,255,.92);
-        cursor:pointer;
-      }
-      .sv-pop-body{ padding: 14px 14px 0 14px; }
+  function ensurePopupDOM(){
+    if($("#svPopupBackdrop")) return;
 
-      .sv-slider{
-        position: relative;
-        overflow: hidden;
-      }
-      .sv-track{
-        display:flex;
-        transition: transform 420ms ease;
-        will-change: transform;
-        transform: translate3d(0,0,0);
-      }
-      .sv-slide{
-        flex: 0 0 100%;
-        padding: 8px;
-      }
-      .sv-pop-foot{
-        display:flex;
-        justify-content: space-between;
-        align-items: center;
-        gap: 12px;
-        padding: 12px 14px 14px 14px;
-      }
-      .sv-pop-ctrl{
-        display:flex;
-        gap: 10px;
-        align-items:center;
-        flex-wrap:wrap;
-      }
-      .sv-pop-ctrl label{
-        display:flex;
-        align-items:center;
-        gap: 8px;
-        font-size: 12px;
-        opacity: .9;
-        user-select:none;
-      }
-      .sv-pop-btn{
-        border-radius: 14px;
-        padding: 10px 14px;
-        border: 1px solid rgba(255,255,255,.14);
-        background: rgba(255,255,255,.07);
-        color: rgba(255,255,255,.92);
-        cursor:pointer;
-        font-weight: 800;
-      }
-      .sv-pop-btn.primary{
-        background: rgba(124,92,255,.22);
-        border-color: rgba(124,92,255,.35);
-      }
-      .sv-counter{
-        font-size: 12px;
-        opacity: .72;
-      }
-      @media (max-width: 700px){
-        .sv-pop{ width: 98vw; }
-      }
+    const el = document.createElement("div");
+    el.id = "svPopupBackdrop";
+    el.className = "sv-popup-backdrop";
+    el.innerHTML = `
+      <div class="sv-popup" role="dialog" aria-modal="true">
+        <div class="sv-popup-top">
+          <div>
+            <h3 id="svPopupTitle"></h3>
+            <div class="sub" id="svPopupSub"></div>
+          </div>
+          <button class="sv-btn ghost" id="svPopupClose" aria-label="Close">✕</button>
+        </div>
+
+        <div class="sv-popup-body">
+          <div class="sv-popup-card" id="svPopupCard">
+            <div class="sv-popup-hero"><img id="svPopupImg" alt=""></div>
+            <div class="sv-popup-info">
+              <div class="sv-popup-name" id="svPopupName"></div>
+              <div class="sv-popup-flavor" id="svPopupFlavor"></div>
+              <div class="sv-popup-row">
+                <div class="sv-popup-price" id="svPopupPrice"></div>
+                <div class="sv-popup-stock" id="svPopupStock"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="sv-popup-nav">
+            <div class="sv-popup-arrows">
+              <button class="sv-btn ghost" id="svPrev">${txt("prev")}</button>
+              <button class="sv-btn ghost" id="svNext">${txt("next")}</button>
+            </div>
+            <div class="sv-counter" id="svCounter"></div>
+          </div>
+        </div>
+
+        <div class="sv-popup-footer">
+          <label><input type="checkbox" id="svDontShow"><span id="svDontShowLbl"></span></label>
+          <div style="display:flex;gap:10px;align-items:center;">
+            <button class="sv-btn ghost" id="svSkipAll" style="display:none;"></button>
+            <button class="sv-btn" id="svOk"></button>
+          </div>
+        </div>
+      </div>
     `;
-    document.head.appendChild(st);
+    document.body.appendChild(el);
+
+    $("#svDontShowLbl").textContent = txt("dontShow");
+    $("#svSkipAll").textContent = txt("skipAll");
+    $("#svOk").textContent = txt("ok");
+
+    $("#svPopupClose").addEventListener("click", () => popupClose());
+    $("#svOk").addEventListener("click", () => popupOk());
+    $("#svSkipAll").addEventListener("click", () => popupSkipAll());
+    $("#svPrev").addEventListener("click", () => popupPrev());
+    $("#svNext").addEventListener("click", () => popupNext());
+    // touch swipe (mobile)
+    (function(){
+      const card = $("#svPopupCard");
+      let sx = 0, sy = 0, active = false;
+      card.addEventListener("touchstart", (e) => {
+        if(!e.touches || !e.touches.length) return;
+        active = true;
+        sx = e.touches[0].clientX;
+        sy = e.touches[0].clientY;
+      }, { passive:true });
+      card.addEventListener("touchmove", (e) => {
+        // prevent vertical scroll lock only if mostly horizontal
+      }, { passive:true });
+      card.addEventListener("touchend", (e) => {
+        if(!active) return;
+        active = false;
+        const t = (e.changedTouches && e.changedTouches[0]) ? e.changedTouches[0] : null;
+        if(!t) return;
+        const dx = t.clientX - sx;
+        const dy = t.clientY - sy;
+        if(Math.abs(dx) < 40) return;
+        if(Math.abs(dx) < Math.abs(dy) * 1.2) return;
+        if(dx < 0) popupNext(false);
+        else popupPrev();
+      }, { passive:true });
+    })();
+
+
+    // backdrop click -> close
+    $("#svPopupBackdrop").addEventListener("click", (e) => {
+      if(e.target && e.target.id === "svPopupBackdrop") popupClose();
+    });
+
+    // swipe
+    let startX = 0;
+    let tracking = false;
+    const card = $("#svPopupCard");
+    card.addEventListener("pointerdown", (e) => {
+      tracking = true;
+      startX = e.clientX;
+      try{ card.setPointerCapture(e.pointerId); }catch{}
+    });
+    card.addEventListener("pointerup", (e) => {
+      if(!tracking) return;
+      tracking = false;
+      const dx = e.clientX - startX;
+      if(dx > 60) popupPrev();
+      else if(dx < -60) popupNext();
+    });
+    card.addEventListener("pointercancel", () => { tracking = false; });
+  }
+
+  function popupOpen(queue){
+    ensurePopupDOM();
+    state.popupRuntime.open = true;
+    state.popupRuntime.queue = queue;
+    state.popupRuntime.groupIndex = 0;
+    state.popupRuntime.itemIndex = 0;
+
+    // skipAll csak ha több külön popup van
+    const unique = new Set(queue.map(g => g.popupId));
+    $("#svSkipAll").style.display = unique.size > 1 ? "inline-flex" : "none";
+
+    $("#svPopupBackdrop").style.display = "flex";
+    popupRender("init");
+    popupStartAuto();
+  }
+
+  function popupClose(){
+    if(!state.popupRuntime.open) return;
+    popupStopAuto();
+    $("#svPopupBackdrop").style.display = "none";
+    state.popupRuntime.open = false;
+    state.popupRuntime.sessionClosed = true;
+  }
+
+  function popupStopAuto(){
+    if(state.popupRuntime.timer){
+      clearInterval(state.popupRuntime.timer);
+      state.popupRuntime.timer = null;
+    }
+  }
+  function popupStartAuto(){
+    popupStopAuto();
+    state.popupRuntime.timer = setInterval(() => {
+      if(!state.popupRuntime.open) return;
+      popupNext(true);
+    }, 3500);
+  }
+
+  function _curGroup(){
+    const q = state.popupRuntime.queue || [];
+    const g = q[state.popupRuntime.groupIndex];
+    return g || null;
+  }
+
+  function popupRender(mode, dir){
+    const g = _curGroup();
+    if(!g){ popupClose(); return; }
+    const total = g.products.length;
+    if(!total){ popupClose(); return; }
+    const i = ((state.popupRuntime.itemIndex % total) + total) % total;
+    state.popupRuntime.itemIndex = i;
+
+    $("#svPopupTitle").textContent = g.popupTitle || txt("popupTitle");
+    $("#svPopupSub").textContent = g.categoryLabel || txt("popupSub");
+
+    const p = g.products[i];
+    const name = state.lang === "hu" ? (p.name_hu || p.name_en || "") : (p.name_en || p.name_hu || "");
+    const flavor = state.lang === "hu" ? (p.flavor_hu || p.flavor_en || "") : (p.flavor_en || p.flavor_hu || "");
+    const price = Number(p.price_ft || p.price || 0);
+    const stock = Number(p.stock || 0);
+
+    const img = $("#svPopupImg");
+    img.src = String(p.image || "");
+    img.alt = name;
+
+    $("#svPopupName").textContent = name;
+    $("#svPopupFlavor").textContent = flavor;
+    $("#svPopupPrice").textContent = (Number.isFinite(price) && price>0) ? (price.toLocaleString("hu-HU") + " Ft") : "";
+    $("#svPopupStock").textContent = (stock > 0) ? (`Készlet: ${stock}`) : (`Készlet: 0`);
+
+    $("#svCounter").textContent = `${i+1}/${total}`;
+
+    // slide anim
+    const card = $("#svPopupCard");
+    card.classList.remove("sv-slide-out-left","sv-slide-in-right","sv-slide-out-right","sv-slide-in-left");
+    if(mode === "next"){
+      card.classList.add("sv-slide-out-left");
+      setTimeout(() => {
+        card.classList.remove("sv-slide-out-left");
+        card.classList.add("sv-slide-in-right");
+        setTimeout(() => card.classList.remove("sv-slide-in-right"), 260);
+      }, 180);
+    }else if(mode === "prev"){
+      card.classList.add("sv-slide-out-right");
+      setTimeout(() => {
+        card.classList.remove("sv-slide-out-right");
+        card.classList.add("sv-slide-in-left");
+        setTimeout(() => card.classList.remove("sv-slide-in-left"), 260);
+      }, 180);
+    }
+  }
+
+  function popupNext(fromAuto){
+    const g = _curGroup();
+    if(!g) return;
+    const total = g.products.length;
+    state.popupRuntime.itemIndex = (state.popupRuntime.itemIndex + 1) % total;
+    popupRender("next");
+    if(!fromAuto) popupStartAuto();
+  }
+
+  function popupPrev(){
+    const g = _curGroup();
+    if(!g) return;
+    const total = g.products.length;
+    state.popupRuntime.itemIndex = (state.popupRuntime.itemIndex - 1 + total) % total;
+    popupRender("prev");
+    popupStartAuto();
+  }
+
+  function _markSeen(popupIds){
+    const m = _getSeenMap();
+    for(const id of popupIds){
+      // rev-et a queue-ból olvassuk
+      const g = (state.popupRuntime.queue || []).find(x => x.popupId === id);
+      const rev = g ? Number(g.popupRev||1) : 1;
+      m[id] = Math.max(Number(m[id]||0), rev);
+    }
+    _setSeenMap(m);
+  }
+
+  function popupOk(){
+    const g = _curGroup();
+    if(!g) return;
+
+    const dont = !!$("#svDontShow").checked;
+    if(dont){
+      _markSeen([g.popupId]);
+    }
+
+    // következő: ha dont -> ugorjuk át az adott popup összes maradék kategóriáját
+    const q = state.popupRuntime.queue || [];
+    if(dont){
+      let gi = state.popupRuntime.groupIndex;
+      const pid = g.popupId;
+      while(gi < q.length && q[gi].popupId === pid) gi++;
+      state.popupRuntime.groupIndex = gi;
+    }else{
+      state.popupRuntime.groupIndex += 1;
+    }
+    state.popupRuntime.itemIndex = 0;
+
+    if(state.popupRuntime.groupIndex >= q.length){
+      popupClose();
+      return;
+    }
+    popupRender("init");
+    popupStartAuto();
+  }
+
+  function popupSkipAll(){
+    const dont = !!$("#svDontShow").checked;
+    const q = state.popupRuntime.queue || [];
+    if(dont){
+      const ids = Array.from(new Set(q.map(g => g.popupId)));
+      _markSeen(ids);
+    }
+    popupClose();
   }
 
   function maybeShowPopups(){
-    if(state.popupOpen) return;
-    const all = (state.doc.popups||[]).filter(p => p && p.enabled !== false);
-    if(!all.length) return;
+    if(state.popupRuntime.open) return;
+    if(state.popupRuntime.sessionClosed) return;
 
-    const active = all.filter(p => !isPopupDismissed(p));
-    if(!active.length) return;
+    const queue = buildPopupQueue();
+    const sig = JSON.stringify(queue.map(g => [g.popupId, g.popupRev, g.categoryId, (g.products||[]).map(p=>String(p.id))]));
 
-    showPopups(active);
+    if(!queue.length){
+      state.popupRuntime.lastQueueSig = sig;
+      return;
+    }
+
+    if(sig && sig === state.popupRuntime.lastQueueSig) return;
+    state.popupRuntime.lastQueueSig = sig;
+
+    popupOpen(queue);
   }
 
-  function showPopups(popups){
-    ensurePopupStyles();
-    state.popupOpen = true;
-
-    // sort stable: updatedAt desc, then title
-    const list = [...popups].sort((a,b)=>{
-      const ua = Number(a.updatedAt||0), ub = Number(b.updatedAt||0);
-      if(ua !== ub) return ub - ua;
-      return (a.title_hu||a.title_en||a.id).localeCompare((b.title_hu||b.title_en||b.id), loc());
-    });
-
-    let popupIndex = 0;
-    let autoTimer = null;
-
-    const bg = document.createElement("div");
-    bg.className = "sv-pop-bg";
-
-    const modal = document.createElement("div");
-    modal.className = "sv-pop";
-    bg.appendChild(modal);
-
-    document.body.appendChild(bg);
-
-    function cleanup(){
-      try{ clearInterval(autoTimer); }catch{}
-      autoTimer = null;
-      bg.remove();
-      state.popupOpen = false;
-    }
-
-    function buildCard(p){
-      const price = effectivePrice(p);
-      const name = productName(p);
-      const flavor = productFlavor(p);
-      const stock = (p.status === "soon") ? "—" : String(Math.max(0, p.stock||0));
-      const isOut = (p.status === "out") || (p.stock <= 0 && p.status !== "soon");
-
-      const cls = [
-        "card",
-        (p.__featured ? "hot" : ""),
-        (isOut ? "dim out" : (p.status==="soon" ? "soon" : "")),
-      ].join(" ");
-
-      return `
-        <div class="${cls}" style="max-width:740px;margin:0 auto;">
-          <div class="hero">
-            <img src="${escapeHtml(p.image||"")}" alt="${escapeHtml(name)}">
-            <div class="badges">
-              ${p.status==="soon" ? `<span class="badge soon">${escapeHtml(t("coming"))}</span>` : ``}
-              ${isOut ? `<span class="badge out">${escapeHtml(t("soldout"))}</span>` : ``}
-            </div>
-            <div class="overlay-title">
-              <div class="name">${escapeHtml(name)}</div>
-              <div class="flavor">${escapeHtml(flavor)}</div>
-            </div>
-          </div>
-          <div class="card-body">
-            <div class="meta-row">
-              <div class="price">${price.toLocaleString(state.lang==="hu"?"hu-HU":"en-US")} Ft</div>
-              <div class="stock">${escapeHtml(t("stock"))}: <b>${escapeHtml(stock)}</b></div>
-            </div>
-          </div>
-        </div>
-      `;
-    }
-
-    function buildPopupCard(p){
-      const price = effectivePrice(p);
-      const name = productName(p);
-      const flavor = productFlavor(p);
-      const stock = (p.status === "soon") ? "—" : String(Math.max(0, p.stock||0));
-      return `
-        <div class="sv-pop-prod">
-          <div class="img">
-            <img src="${escapeHtml(p.image||"")}" alt="${escapeHtml(name)}">
-          </div>
-          <div class="info">
-            <div class="name">${escapeHtml(name)}</div>
-            <div class="flavor">${escapeHtml(flavor)}</div>
-            <div class="row">
-              <div class="price">${price.toLocaleString(state.lang==="hu"?"hu-HU":"en-US")} Ft</div>
-              <div class="stock">${escapeHtml(t("stock"))}: <b>${escapeHtml(stock)}</b></div>
-            </div>
-          </div>
-        </div>
-      `;
-    }
-
-
-
-    function renderPopup(){
-      try{ clearInterval(autoTimer); }catch{}
-      autoTimer = null;
-
-      const pu = list[popupIndex];
-      const items = popupProducts(pu);
-      const totalPopups = list.length;
-
-      // if nothing to show, skip
-      if(!items.length){
-        popupIndex++;
-        if(popupIndex >= list.length) cleanup();
-        else renderPopup();
-        return;
-      }
-
-      const title = (state.lang === "hu" ? (pu.title_hu||pu.title_en) : (pu.title_en||pu.title_hu)) || t("newTitle");
-
-      // slider clones
-      const realN = items.length;
-      const slides = (realN > 1)
-        ? [items[realN-1], ...items, items[0]]
-        : [...items];
-
-      let idx = (realN > 1) ? 1 : 0;
-
-      modal.innerHTML = `
-        <div class="sv-pop-head">
-          <div>
-            <div class="sv-pop-title">${escapeHtml(title)}</div>
-            <div class="sv-pop-sub">${escapeHtml(t("newTitle"))} • Popup ${popupIndex+1}/${totalPopups}</div>
-          </div>
-          <button class="sv-pop-close" id="svPopClose" aria-label="close">✕</button>
-        </div>
-
-        <div class="sv-pop-body">
-          <div class="sv-slider" id="svSlider">
-            ${realN > 1 ? `<button class="sv-pop-arrow left" id="svPrev" aria-label="prev">‹</button>` : ``}
-            <div class="sv-track" id="svTrack">
-            ${slides.map(p => `<div class="sv-slide">${buildPopupCard(p)}</div>`).join("")}
-            </div>
-            ${realN > 1 ? `<button class="sv-pop-arrow right" id="svNext" aria-label="next">›</button>` : ``}
-          </div>
-        </div>
-
-        <div class="sv-pop-foot">
-          <div class="sv-pop-ctrl">
-            <label><input type="checkbox" id="svDont"> ${escapeHtml(t("dontShow"))}</label>
-            <div class="sv-counter" id="svCounter">${realN>0 ? `1/${realN}` : ``}</div>
-          </div>
-
-          <div class="sv-pop-ctrl">
-            ${totalPopups > 1 ? `<button class="sv-pop-btn" id="svSkipAll">${escapeHtml(t("skipAll"))}</button>` : ``}
-            <button class="sv-pop-btn primary" id="svOk">${escapeHtml(t("ok"))}</button>
-          </div>
-        </div>
-      `;
-
-      const track = modal.querySelector("#svTrack");
-      const counter = modal.querySelector("#svCounter");
-
-      function setCounter(){
-        if(realN <= 1){
-          counter.textContent = `1/1`;
-          return;
-        }
-        let realIdx = idx - 1; // 0..realN-1
-        if(idx === 0) realIdx = realN - 1;            // clone last
-        if(idx === slides.length - 1) realIdx = 0;   // clone first
-        counter.textContent = `${realIdx+1}/${realN}`;
-      }
-
-      function setPos(noAnim=false){
-        if(!track) return;
-        if(noAnim) track.style.transition = "none";
-        else track.style.transition = "transform 420ms ease";
-        track.style.transform = `translate3d(${-idx*100}%,0,0)`;
-        if(noAnim){
-          // force reflow
-          track.offsetHeight; // eslint-disable-line
-          track.style.transition = "transform 420ms ease";
-        }
-      }
-
-      // init
-      if(realN > 1) setPos(true);
-
-      
-      function next(){
-        if(realN <= 1) return;
-        idx += 1;
-        setPos(false);
-        setCounter();
-      }
-
-      function prev(){
-        if(realN <= 1) return;
-        idx -= 1;
-        setPos(false);
-        setCounter();
-      }
-
-      let resumeTO = null;
-      function stopAuto(){
-        if(autoTimer){
-          clearInterval(autoTimer);
-          autoTimer = null;
-        }
-      }
-      function startAuto(){
-        stopAuto();
-        if(realN > 1) autoTimer = setInterval(next, 2600);
-      }
-      function userBump(){
-        stopAuto();
-        if(resumeTO) clearTimeout(resumeTO);
-        resumeTO = setTimeout(startAuto, 4200);
-      }
-
-      const onEnd = () => {
-        if(realN <= 1) return;
-        if(idx === slides.length - 1){
-          // at clone of first -> jump to first real (idx=1)
-          idx = 1;
-          setPos(true);
-          setCounter();
-        }else if(idx === 0){
-          // at clone of last -> jump to last real
-          idx = slides.length - 2;
-          setPos(true);
-          setCounter();
-        }
-      };
-
-      track.addEventListener("transitionend", onEnd, { once:false });
-
-      const prevBtn = modal.querySelector("#svPrev");
-      const nextBtn = modal.querySelector("#svNext");
-      if(prevBtn) prevBtn.onclick = () => { userBump(); prev(); };
-      if(nextBtn) nextBtn.onclick = () => { userBump(); next(); };
-
-      // swipe (mobile)
-      const sliderEl = modal.querySelector("#svSlider");
-      if(sliderEl && realN > 1){
-        let sx = 0, sy = 0;
-        sliderEl.addEventListener("touchstart", (e) => {
-          if(!e.touches || e.touches.length !== 1) return;
-          sx = e.touches[0].clientX;
-          sy = e.touches[0].clientY;
-        }, { passive: true });
-
-        sliderEl.addEventListener("touchend", (e) => {
-          if(!sx) return;
-          const t = (e.changedTouches && e.changedTouches[0]) ? e.changedTouches[0] : null;
-          if(!t) return;
-          const dx = t.clientX - sx;
-          const dy = t.clientY - sy;
-          sx = 0; sy = 0;
-          if(Math.abs(dx) < 42 || Math.abs(dx) < Math.abs(dy)) return;
-          userBump();
-          if(dx < 0) next(); else prev();
-        }, { passive: true });
-      }
-
-      // autoplay (jobbrol-balra mindig)
-      startAuto();
-      setCounter();
-
-      const closeBtn = modal.querySelector("#svPopClose");
-      const okBtn = modal.querySelector("#svOk");
-      const skipBtn = modal.querySelector("#svSkipAll");
-      const dont = modal.querySelector("#svDont");
-
-      function proceed({dismissAll=false}={}){
-        const dontShow = !!dont.checked;
-
-        if(dismissAll && dontShow){
-          for(const p of list){
-            dismissPopup(p);
-          }
-        }else if(dontShow){
-          dismissPopup(pu);
-        }
-
-        popupIndex++;
-        if(popupIndex >= list.length){
-          cleanup();
-        }else{
-          renderPopup();
-        }
-      }
-
-      closeBtn.onclick = () => proceed({dismissAll:false});
-      okBtn.onclick = () => proceed({dismissAll:false});
-      if(skipBtn){
-        skipBtn.onclick = () => {
-          // ha be van pipálva, mindet dismisseljük
-          if(dont.checked){
-            for(const p of list) dismissPopup(p);
-          }
-          cleanup();
-        };
-      }
-
-      // backdrop click: close current (no dismiss)
-      bg.onclick = (e) => {
-        if(e.target === bg) proceed({dismissAll:false});
-      };
-    }
-
-    renderPopup();
-  }
-
-  async function init(){
+async function init() {
     applySyncParams();
-    ensurePatchStyles();
-    showLoader("Betöltés…");
-    readLang();
-    setupTopbar();
-    liveChannel();
+    $("#langLabel").textContent = state.lang.toUpperCase();
+    $("#langBtn").onclick = () => {
+      state.lang = state.lang === "hu" ? "en" : "hu";
+      localStorage.setItem("sv_lang", state.lang);
+      $("#langLabel").textContent = state.lang.toUpperCase();
+      renderNav();
+      renderGrid();
+    };
 
-    // init load (force bust)
-    try{
-      const { doc, sales } = await loadAll({forceBust:true});
-      applyAll(doc, sales);
-      // failsafe: never get stuck on loader
-      setTimeout(() => { if(!state.renderedOnce) showApp(); }, 1500);
-    }catch(e){
-      console.error(e);
-      showLoader("Betöltési hiba. Nyisd meg újra az oldalt, vagy futtasd a Sync linket az admin Beállításokban.");
+    $("#search").addEventListener("input", (e) => {
+      state.search = e.target.value || "";
+      renderGrid();
+    });
+
+    // ugyanazon böngészőben azonnali update admin mentésnél
+    try {
+      const cached = localStorage.getItem("sv_live_payload");
+      if (cached) {
+        const j = JSON.parse(cached);
+        if (j && (j.doc || j.sales || j.popups)) applyData({ doc: j.doc, sales: j.sales, popups: j.popups });
+      }
+    } catch {}
+
+    try {
+      const ch = new BroadcastChannel("sv_live");
+      ch.onmessage = (ev) => {
+        if (ev && ev.data && (ev.data.doc || ev.data.sales || ev.data.popups)) applyData({ doc: ev.data.doc, sales: ev.data.sales, popups: ev.data.popups });
+      };
+    } catch {}
+
+    window.addEventListener("storage", (e) => {
+      if (e.key === "sv_live_payload" && e.newValue) {
+        try {
+          const j = JSON.parse(e.newValue);
+          if (j && (j.doc || j.sales || j.popups)) applyData({ doc: j.doc, sales: j.sales, popups: j.popups });
+        } catch {}
+      }
+    });
+
+    $("#loaderText").textContent = "Termékek betöltése…";
+
+    const raw = await fetchProducts({ forceBust: true });
+    const doc = normalizeDoc(raw);
+    applyDoc(doc);
+
+    // poll: 1s aktív, 6s háttér; + 3s-enként forced cache-bust
+    let n = 0;
+
+    
+    async function pollOnce(forceBust = false){
+      const [pRes, sRes, ppRes] = await Promise.all([
+        fetchProducts({ forceBust }),
+        fetchSales({ forceBust }),
+        fetchPopups({ forceBust }),
+      ]);
+
+      const upd = {};
+      if(pRes && pRes.ok && pRes.doc) upd.doc = pRes.doc;
+      if(sRes && sRes.ok && sRes.sales) upd.sales = sRes.sales;
+      if(ppRes && ppRes.ok && ppRes.popups) upd.popups = ppRes.popups;
+
+      if(Object.keys(upd).length) applyData(upd);
     }
 
-    // fast poll while visible; slower when hidden
-    let activeMs = 850;
-    let idleMs = 5000;
-    let timer = null;
+    async function burst(){
+      // gyors frissítés fókuszra (telón is hasznos)
+      for(let i=0;i<3;i++){
+        await pollOnce(true);
+        await new Promise(r => setTimeout(r, 220));
+      }
+    }
 
-    const tick = async () => {
-      const visible = document.visibilityState === "visible";
-      try{
-        const { doc, sales } = await loadAll({forceBust: visible});
-        applyAll(doc, sales);
-      }catch{}
-      timer = setTimeout(tick, visible ? activeMs : idleMs);
-    };
-    timer = setTimeout(tick, 1000);
+    async function loop(){
+      let n = 0;
+      while(true){
+        const forceBust = (n % 3 === 0); // kb 3 mp-enként hard bust
+        try{ await pollOnce(forceBust); }catch(e){}
 
-    // burst on focus/visibility change (1-2mp refresh)
-    const burst = async () => {
-      try{
-        const { doc, sales } = await loadAll({forceBust:true});
-        applyAll(doc, sales);
-      }catch{}
-    };
-    window.addEventListener("focus", burst);
-    document.addEventListener("visibilitychange", () => {
-      if(document.visibilityState === "visible") burst();
+        const wait = document.hidden ? 12000 : 1100; // 1-2 mp-en belül frissüljön
+        await new Promise(r => setTimeout(r, wait));
+        n++;
+      }
+    }
+
+document.addEventListener("visibilitychange", () => {
+      if (!document.hidden) burst();
     });
+
+    loop();
   }
 
-  // DOM ready
-  if(document.readyState === "loading"){
-    document.addEventListener("DOMContentLoaded", init);
-  }else{
-    init();
-  }
+  init().catch((err) => {
+    console.error(err);
+    $("#loaderText").textContent =
+      "Betöltési hiba. (Nyisd meg a konzolt.) Ha telefonon vagy custom domainen vagy: nyisd meg egyszer a Sync linket az admin Beállításokból.";
+  });
 })();

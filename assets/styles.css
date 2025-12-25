@@ -232,7 +232,7 @@ button, input, select{
   border: 1px solid rgba(255,255,255,.12);
 }
 .badge.out{ background: rgba(255,77,109,.18); border-color: rgba(255,77,109,.35); }
-.badge.soon{ background: rgba(40,215,255,.14); border-color: rgba(40,215,255,.35); }
+.badge.soon{ background: rgba(255,204,0,.18); border-color: rgba(255,204,0,.45); color: rgba(255,236,176,.98); }
 
 .overlay-title{
   position:absolute;
@@ -287,6 +287,8 @@ button, input, select{
   padding: 18px;
 }
 .modal{
+  display:flex;
+  flex-direction:column;
   width:min(620px, 94vw);
   background: rgba(15,22,36,.92);
   border: 1px solid rgba(255,255,255,.08);
@@ -462,105 +464,224 @@ button, input, select{
   .sidebar{ height:auto; position:relative; }
 }
 
+/* ----------------- SV FIX14: Popup + Hot + Status outlines ----------------- */
 
-/* SV_FIX12_OVERRIDES */
+/* Íz legyen olvashatóbb */
+.flavor{ color: rgba(230,235,245,.72); }
 
-/* Kicsit láthatóbb ízek */
-.overlay-title .flavor{
-  color: rgba(255,255,255,.78);
+/* Hamarosan badge legyen sárgás */
+.badge.soon{ background: rgba(255,204,0,.18); border-color: rgba(255,204,0,.45); color: rgba(255,236,176,.98); }
+
+/* Erősebb státusz körvonalak */
+.card.out{ border-color: rgba(255,77,109,.95); border-width:2px; }
+.card.soon{ border-color: rgba(255,204,0,.92); border-width:2px; }
+
+/* Hamarosan sárgás, enyhe overlay az image-re */
+.card.soon .hero::after{
+  content:"";
+  position:absolute; inset:0;
+  background: rgba(255,204,0,.12);
+  pointer-events:none;
 }
 
-/* Modal legyen görgethető (admin popup picker miatt) */
-.modal{
-  max-height: 86vh;
-  overflow: auto;
-}
-
-/* Státusz körvonalak + layerek */
-.card{ position: relative; }
-
-.card.out{
-  border-color: rgba(255,77,109,.88) !important;
-}
-.card.soon{
-  border-color: rgba(255,210,80,.92) !important;
-}
-.card.soon:not(.featured)::after{
+/* FELKAPOTT: narancs outline + 2 futó csík (fent balra, lent jobbra) */
+.card.hot{ position:relative; border-color: rgba(255,145,60,.92); border-width:2px; }
+.card.hot::before,
+.card.hot::after{
   content:"";
   position:absolute;
   inset:0;
-  border-radius: inherit;
-  background: rgba(255,210,80,.12);
-  pointer-events:none;
-}
-
-/* Felkapott badge */
-.badge.hot{
-  background: rgba(255,150,60,.18);
-  border-color: rgba(255,150,60,.45);
-  color: rgba(255,210,170,.98);
-}
-
-/* Hamarosan badge sárgás */
-.badge.soon{
-  background: rgba(255,210,80,.20);
-  border-color: rgba(255,210,80,.55);
-  color: rgba(255,235,190,.98);
-}
-
-/* Felkapott: narancs körvonal + körbefutó “csík” */
-.card.featured{
-  border-color: rgba(255,150,60,.95) !important;
-}
-.card.featured::before,
-.card.featured::after{
-  content:"";
-  position:absolute;
-  inset:-2px;
-  border-radius: inherit;
-  pointer-events:none;
+  border-radius: calc(var(--radius) + 2px);
   padding:2px;
-  -webkit-mask:
-    linear-gradient(#000 0 0) content-box,
-    linear-gradient(#000 0 0);
+  pointer-events:none;
+  opacity:.95;
+  filter: drop-shadow(0 0 14px rgba(255,145,60,.22));
+  /* csak a keret */
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   -webkit-mask-composite: xor;
   mask-composite: exclude;
-  filter: drop-shadow(0 0 10px rgba(255,150,60,.35));
 }
-
-/* felső “csík” (balra indul / CCW) */
-.card.featured::before{
+.card.hot::before{
+  /* TOP highlight (0deg), CW -> fent jobbra menne, ezért a vizuális “balra” érzethez a másik réteg CCW */
   background: conic-gradient(from 0deg,
-    rgba(255,150,60,.98) 0 22deg,
-    transparent 22deg 360deg);
-  animation: svFeatTop 1.6s linear infinite;
+    rgba(255,145,60,0) 0deg,
+    rgba(255,145,60,0) 340deg,
+    rgba(255,145,60,.95) 352deg,
+    rgba(255,145,60,0) 360deg
+  );
+  animation: svHotCW 2.2s linear infinite;
+  opacity:.85;
 }
-
-/* alsó “csík” (jobbra indul / CW) */
-.card.featured::after{
+.card.hot::after{
+  /* BOTTOM highlight (180deg) CCW -> fent “balra” */
   background: conic-gradient(from 180deg,
-    rgba(255,150,60,.98) 0 22deg,
-    transparent 22deg 360deg);
-  animation: svFeatBot 1.6s linear infinite;
+    rgba(255,145,60,0) 0deg,
+    rgba(255,145,60,0) 340deg,
+    rgba(255,145,60,.95) 352deg,
+    rgba(255,145,60,0) 360deg
+  );
+  animation: svHotCCW 2.2s linear infinite;
+}
+@keyframes svHotCW{ from{ transform:rotate(0deg); } to{ transform:rotate(360deg); } }
+@keyframes svHotCCW{ from{ transform:rotate(0deg); } to{ transform:rotate(-360deg); } }
+
+/* Modal: body legyen scrollos, gombok mindig látszódjanak */
+.modal{
+  max-height: 86vh;
+  display:flex;
+  flex-direction:column;
+}
+#modalBody{
+  overflow:auto;
+  padding-right: 6px;
+}
+#modalActions{
+  position: sticky;
+  bottom: -1px;
+  background: rgba(11,15,23,.72);
+  backdrop-filter: blur(10px);
+  border-top: 1px solid rgba(255,255,255,.08);
+  padding-top: 12px;
 }
 
-@keyframes svFeatTop{ to{ transform: rotate(-360deg); } }
-@keyframes svFeatBot{ to{ transform: rotate(360deg); } }
-}
+/* Szebb scrollbar (admin picker + modal) */
+#modalBody::-webkit-scrollbar{ width: 10px; }
+#modalBody::-webkit-scrollbar-track{ background: rgba(255,255,255,.04); border-radius: 999px; }
+#modalBody::-webkit-scrollbar-thumb{ background: rgba(255,255,255,.14); border-radius: 999px; }
+#modalBody::-webkit-scrollbar-thumb:hover{ background: rgba(255,255,255,.22); }
 
-/* Admin popup picker */
-.pick-grid{
+/* Popup picker (admin) */
+.picker-grid{
   display:grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
 }
 .pick-card{
+  background: rgba(18,27,44,.62);
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 18px;
+  overflow:hidden;
   cursor:pointer;
-  transform: translateZ(0);
+  transition: .15s;
+  display:flex;
+  gap:10px;
+  padding: 10px;
+  align-items:center;
 }
+.pick-card:hover{ transform: translateY(-1px); border-color: rgba(124,92,255,.35); }
 .pick-card.selected{
-  outline: 2px solid rgba(124,92,255,.65);
+  border-color: rgba(124,92,255,.55);
+  box-shadow: 0 0 0 1px rgba(124,92,255,.25), 0 12px 30px rgba(124,92,255,.12);
 }
-.pick-selected .card{
-  max-width: 320px;
+.pick-thumb{
+  width: 66px; height: 66px;
+  border-radius: 14px;
+  overflow:hidden;
+  flex:0 0 auto;
+  border: 1px solid rgba(255,255,255,.10);
+  background: rgba(0,0,0,.25);
 }
+.pick-thumb img{ width:100%; height:100%; object-fit:cover; display:block; }
+.pick-meta{ flex:1; min-width:0; display:flex; flex-direction:column; gap:4px; }
+.pick-meta .t{ font-weight:900; font-size: 13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.pick-meta .s{ font-size: 12px; color: rgba(230,235,245,.70); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.pick-meta .k{ font-size: 12px; color: rgba(230,235,245,.55); }
+.pick-check{
+  width: 18px; height: 18px;
+  border-radius: 6px;
+  border: 1px solid rgba(255,255,255,.18);
+  background: rgba(0,0,0,.25);
+  flex:0 0 auto;
+  display:flex; align-items:center; justify-content:center;
+}
+.pick-card.selected .pick-check{
+  border-color: rgba(124,92,255,.65);
+  background: rgba(124,92,255,.35);
+}
+
+/* USER popup */
+.sv-popup-backdrop{
+  position:fixed; inset:0;
+  background: rgba(0,0,0,.60);
+  display:none;
+  align-items:center;
+  justify-content:center;
+  z-index: 9999;
+  padding: 16px;
+}
+.sv-popup{ width: min(560px, 94vw);
+  max-height: 86vh;
+  background: rgba(18,27,44,.78);
+  border: 1px solid rgba(255,255,255,.10);
+  border-radius: 26px;
+  box-shadow: 0 20px 90px rgba(0,0,0,.55);
+  overflow:hidden;
+  backdrop-filter: blur(16px);
+}
+.sv-popup-top{
+  padding: 16px 16px 10px;
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap: 10px;
+}
+.sv-popup-top h3{ margin:0; font-size: 18px; letter-spacing:.2px; }
+.sv-popup-top .sub{ margin-top:4px; color: rgba(230,235,245,.62); font-size: 13px; }
+.sv-popup-body{ padding: 0 16px 12px; }
+.sv-popup-card{
+  border-radius: 22px;
+  overflow:hidden;
+  border: 1px solid rgba(255,255,255,.10);
+  background: rgba(11,15,23,.22);
+}
+.sv-popup-hero{
+  position:relative;
+  aspect-ratio: 1/1;
+  background: rgba(0,0,0,.25);
+}
+.sv-popup-hero img{ width:100%; height:100%; object-fit:cover; display:block; }
+.sv-popup-info{
+  padding: 12px 12px 14px;
+  display:flex; flex-direction:column; gap:10px;
+}
+.sv-popup-name{ font-weight: 900; font-size: 18px; line-height: 1.1; }
+.sv-popup-flavor{ color: rgba(230,235,245,.70); font-size: 14px; }
+.sv-popup-row{ display:flex; justify-content:space-between; gap:12px; align-items:center; }
+.sv-popup-price{ font-weight: 900; font-size: 18px; }
+.sv-popup-stock{ color: rgba(230,235,245,.60); font-size: 13px; }
+.sv-popup-nav{
+  display:flex; align-items:center; justify-content:space-between;
+  gap: 10px;
+  margin-top: 10px;
+}
+.sv-popup-arrows{
+  display:flex; gap:10px; align-items:center;
+}
+.sv-btn{
+  border:none;
+  border-radius: 16px;
+  padding: 12px 14px;
+  cursor:pointer;
+  background: rgba(124,92,255,.22);
+  color: var(--text);
+}
+.sv-btn:hover{ background: rgba(124,92,255,.30); }
+.sv-btn.ghost{ background: rgba(255,255,255,.07); }
+.sv-btn.ghost:hover{ background: rgba(255,255,255,.10); }
+.sv-popup-footer{
+  padding: 12px 16px 16px;
+  display:flex; justify-content:space-between; align-items:center; gap:10px;
+  border-top: 1px solid rgba(255,255,255,.08);
+  background: rgba(11,15,23,.22);
+}
+.sv-popup-footer label{ display:flex; gap:8px; align-items:center; color: rgba(230,235,245,.68); font-size: 13px; user-select:none; }
+.sv-popup-footer input[type="checkbox"]{ width:16px; height:16px; }
+.sv-counter{ color: rgba(230,235,245,.55); font-size: 13px; }
+.sv-slide-out-left{ animation: svSlideOutLeft .18s ease both; }
+.sv-slide-in-right{ animation: svSlideInRight .22s ease both; }
+.sv-slide-out-right{ animation: svSlideOutRight .18s ease both; }
+.sv-slide-in-left{ animation: svSlideInLeft .22s ease both; }
+@keyframes svSlideOutLeft{ from{ transform:translateX(0); opacity:1; } to{ transform:translateX(-24px); opacity:0; } }
+@keyframes svSlideInRight{ from{ transform:translateX(24px); opacity:0; } to{ transform:translateX(0); opacity:1; } }
+@keyframes svSlideOutRight{ from{ transform:translateX(0); opacity:1; } to{ transform:translateX(24px); opacity:0; } }
+@keyframes svSlideInLeft{ from{ transform:translateX(-24px); opacity:0; } to{ transform:translateX(0); opacity:1; } }
