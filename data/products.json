@@ -88,10 +88,25 @@
       "flavor_en": "Lime Cola"
     }
   ],
-  "popups": [],
+  "popups": [
+    {
+      "id": "popup_2f9293ba6f65c8_19b55fb8716",
+      "enabled": true,
+      "rev": 1766674121354,
+      "title_hu": "Új termékek elérhetőek",
+      "title_en": "New products available",
+      "categoryIds": [],
+      "productIds": [
+        "p_568389f50aa19_19b4d718932",
+        "p_f93b7eb924ed1_19b4e156422"
+      ],
+      "createdAt": 1766674121354,
+      "updatedAt": 1766674121354
+    }
+  ],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1766674091117,
-    "updatedAt": "2025-12-25T14:48:11.117Z"
+    "rev": 1766674122007,
+    "updatedAt": "2025-12-25T14:48:42.007Z"
   }
 }
