@@ -68,7 +68,7 @@
       "stock": 4,
       "visible": true,
       "price": null,
-      "image": "https://media.discordapp.net/attachments/1281700323081326743/1453206184701067396/Elf_bull_no_bg.png?ex=694c9b39&is=694b49b9&hm=d0f47e28607aa6a4a9bb555fc0397c534ff457439fccd6e901abe8690a8447fe&=&format=webp&quality=lossless&width=960&height=960",
+      "image": "https://media.discordapp.net/attachments/1281700323081326743/1453206184701067396/Elf_bull_no_bg.png?ex=694decb9&is=694c9b39&hm=95a7b3b18027e5db830e06c973b497a85e8958196fff13125b38161663726695&=&format=webp&quality=lossless&width=960&height=960",
       "name_hu": "Elfbar Ice King 30k",
       "name_en": "Elfbar Ice King 30k",
       "flavor_hu": "Red Bull",
@@ -91,7 +91,7 @@
   "popups": [],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1766673879118,
-    "updatedAt": "2025-12-25T14:44:39.118Z"
+    "rev": 1766673898120,
+    "updatedAt": "2025-12-25T14:44:58.120Z"
   }
 }
