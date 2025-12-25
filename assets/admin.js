@@ -727,7 +727,7 @@ function markDirty(flags){
       return `
         <div class="rowline table">
           <div class="left">
-            <div style="font-weight:900;">${escapeHtml(p.name_hu||p.name_en||"—")} <span class="small-muted">• ${escapeHtml(p.flavor_hu||p.flavor_en||"")}</span></div>
+            <div style="font-weight:900;">${escapeHtml(p.name_hu||p.name_en||"—")} <span class="small-muted">• ${escapeHtml(p.flavor_hu||"")}</span></div>
             <div class="small-muted">
               Kategória: <b>${escapeHtml(c ? (c.label_hu||c.id) : "—")}</b>
               • Ár: <b>${eff.toLocaleString("hu-HU")} Ft</b>
