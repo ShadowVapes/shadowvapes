@@ -19,6 +19,8 @@
     dirtySales: false,
     saveTimer: null,
     shas: { products: null, sales: null },
+    // hogy a public oldal biztosan megtalálja a RAW forrást (telefonon is)
+    forceSourceSync: false,
     clientId: (globalThis.crypto && crypto.randomUUID) ? crypto.randomUUID() : (Date.now().toString(36) + Math.random().toString(36).slice(2)),
     filters: {
       productsCat: "all",
@@ -81,14 +83,21 @@
     return !!(lock && lock.id && (Date.now() - Number(lock.ts || 0)) < 15000);
   }
   function acquireLock(){
-    const cur = readLock();
-    if(lockValid(cur) && cur.id !== state.clientId) return false;
-    localStorage.setItem(LOCK_KEY, JSON.stringify({ id: state.clientId, ts: Date.now() }));
-    return true;
+    try{
+      const cur = readLock();
+      if(lockValid(cur) && cur.id !== state.clientId) return false;
+      localStorage.setItem(LOCK_KEY, JSON.stringify({ id: state.clientId, ts: Date.now() }));
+      return true;
+    }catch{
+      // ha a localStorage valamiért tiltott/tele van, inkább mentsünk, mint hogy szétálljon az admin
+      return true;
+    }
   }
   function releaseLock(){
-    const cur = readLock();
-    if(cur && cur.id === state.clientId) localStorage.removeItem(LOCK_KEY);
+    try{
+      const cur = readLock();
+      if(cur && cur.id === state.clientId) localStorage.removeItem(LOCK_KEY);
+    }catch{}
   }
   // ha crash/bezárás: engedjük el
   window.addEventListener("beforeunload", releaseLock);
@@ -237,9 +246,22 @@ state.sales = state.sales.map(s => {
     for(const br of branchesToTry){
       try{
         const p = await ShadowGH.getFile({ token: cfg.token, owner: cfg.owner, repo: cfg.repo, branch: br, path: "data/products.json" });
-        const s = await ShadowGH.getFile({ token: cfg.token, owner: cfg.owner, repo: cfg.repo, branch: br, path: "data/sales.json" });
+        // sales.json lehet, hogy még nincs a repo-ban → ilyenkor induljunk üres eladásokkal
+        let s = null;
+        let sales = [];
+        try{
+          s = await ShadowGH.getFile({ token: cfg.token, owner: cfg.owner, repo: cfg.repo, branch: br, path: "data/sales.json" });
+          sales = JSON.parse(s.content || "[]");
+        }catch(e){
+          if(Number(e?.status || 0) === 404){
+            s = { sha: null };
+            sales = [];
+          }else{
+            throw e;
+          }
+        }
+
         const doc = JSON.parse(p.content);
-        const sales = JSON.parse(s.content);
 
         cfg.branch = br;
         saveCfg(cfg);
@@ -247,9 +269,10 @@ state.sales = state.sales.map(s => {
         state.doc = doc;
         state.sales = sales;
         state.shas.products = p.sha;
-        state.shas.sales = s.sha;
+        state.shas.sales = s ? (s.sha || null) : null;
         normalizeDoc();
         state.loaded = true;
+        state.forceSourceSync = true;
 
         return { ok:true };
       }catch(e){
@@ -319,6 +342,15 @@ state.sales = state.sales.map(s => {
       if(p && p.status === "out") p.stock = 0;
       if(p && (!p.name_en || String(p.name_en).trim()==="")) p.name_en = p.name_hu || "";
     }
+    // _meta.rev: public old cache ne tudja felülírni a friss mentést
+    if(state.dirtyProducts){
+      state.doc._meta = {
+        ...(state.doc._meta || {}),
+        rev: Date.now(),
+        updatedAt: new Date().toISOString(),
+      };
+    }
+
     const productsText = JSON.stringify(state.doc, null, 2);
     const salesText = JSON.stringify(state.sales, null, 2);
 
@@ -334,8 +366,14 @@ try{
     state.shas.products = pOld.sha;
   }
   if(wantSales && !state.shas.sales){
-    const sOld = await ShadowGH.getFile({ token: cfg.token, owner: cfg.owner, repo: cfg.repo, branch: cfg.branch, path: "data/sales.json" });
-    state.shas.sales = sOld.sha;
+    try{
+      const sOld = await ShadowGH.getFile({ token: cfg.token, owner: cfg.owner, repo: cfg.repo, branch: cfg.branch, path: "data/sales.json" });
+      state.shas.sales = sOld.sha;
+    }catch(e){
+      // ha még nem létezik, mentés sha nélkül fogja létrehozni
+      if(Number(e?.status || 0) === 404) state.shas.sales = null;
+      else throw e;
+    }
   }
 
   const tasks = [];
@@ -375,8 +413,9 @@ try{
     const srcObj = { owner: cfg.owner, repo: cfg.repo, branch: cfg.branch };
     const srcText = JSON.stringify(srcObj, null, 2);
     const prev = localStorage.getItem("sv_source_json") || "";
-    if(prev !== srcText){
-      localStorage.setItem("sv_source_json", srcText);
+    if(state.forceSourceSync || prev !== srcText){
+      state.forceSourceSync = false;
+      try{ localStorage.setItem("sv_source_json", srcText); }catch{}
       tasks.push(
         ShadowGH.putFileSafe({
           token: cfg.token, owner: cfg.owner, repo: cfg.repo, branch: cfg.branch,
@@ -445,14 +484,15 @@ function markDirty(flags){
     }
     if(state.saveTimer) clearTimeout(state.saveTimer);
     setSaveStatus("busy","Változás…");
+    // mobilon is stabilabb: ne lőjünk 0.3mp-enként mentést minden billentyűre
     state.saveTimer = setTimeout(() => {
       saveDataNow();
-    }, 320);
+    }, 650);
   }
 
   /* ---------- Rendering ---------- */
   function renderTabs(){
-    $("#tabs").addEventListener("click", (e) => {
+    $("#tabs").onclick = (e) => {
       const b = e.target.closest("button[data-tab]");
       if(!b) return;
       $("#tabs").querySelectorAll("button").forEach(x => x.classList.remove("active"));
@@ -468,7 +508,7 @@ function markDirty(flags){
 
       if(tab === "chart") drawChart();
       if(tab === "popups") renderPopups();
-    });
+    };
   }
 
   function renderSettings(){
@@ -589,7 +629,7 @@ function markDirty(flags){
     };
 
     $("#panelCategories").querySelectorAll("input[data-cid]").forEach(inp => {
-      inp.addEventListener("input", () => {
+      const apply = () => {
         const id = inp.dataset.cid;
         const k = inp.dataset.k;
         const c = catById(id);
@@ -598,19 +638,10 @@ function markDirty(flags){
         else if(k === "featuredEnabled") c.featuredEnabled = !!inp.checked;
         else c[k] = inp.value;
         markDirty({ products:true });
-        inp.addEventListener("change", () => {
-        if(inp.dataset.k === "featuredEnabled"){
-          const c = catById(inp.dataset.cid);
-          if(c){ c.featuredEnabled = !!inp.checked; markDirty({ products:true }); }
-        }
-      });
-    });
-      inp.addEventListener("change", () => {
-        if(inp.dataset.k === "featuredEnabled"){
-          const c = catById(inp.dataset.cid);
-          if(c){ c.featuredEnabled = !!inp.checked; markDirty({ products:true }); }
-        }
-      });
+      };
+      // checkbox → change, a többi → input
+      if(inp.type === "checkbox") inp.onchange = apply;
+      else inp.oninput = apply;
     });
 
     $("#panelCategories").querySelectorAll("button[data-delcat]").forEach(btn => {
@@ -698,41 +729,32 @@ function markDirty(flags){
     $("#btnAddProd").onclick = () => openProductModal(null);
 
     $("#panelProducts").querySelectorAll("[data-pid]").forEach(el => {
-      el.addEventListener("input", () => {
+      const apply = () => {
         const pid = el.dataset.pid;
         const k = el.dataset.k;
         const p = prodById(pid);
         if(!p) return;
-        if(k === "stock") p.stock = Math.max(0, Number(el.value||0));
-        else if(k === "price") p.price = (el.value === "" ? null : Math.max(0, Number(el.value||0)));
-        else if(k === "status") p.status = el.value;
-        else if(k === "categoryId") p.categoryId = el.value;
-        else if(k === "visible") p.visible = !!el.checked;
+
+        if(k === "stock"){
+          p.stock = Math.max(0, Number(el.value||0));
+          if(p.stock <= 0 && p.status !== "soon") p.status = "out";
+        }else if(k === "price"){
+          p.price = (el.value === "" ? null : Math.max(0, Number(el.value||0)));
+        }else if(k === "status"){
+          p.status = el.value;
+          if(p.status === "out") p.stock = 0;
+        }else if(k === "categoryId"){
+          p.categoryId = el.value;
+        }else if(k === "visible"){
+          p.visible = !!el.checked;
+        }
 
         markDirty({ products:true });
-      });
-      el.addEventListener("change", () => {
-        const pid = el.dataset.pid;
-        const k = el.dataset.k;
-        const p = prodById(pid);
-        if(!p) return;
-        if(k === "status") p.status = el.value;
-        if(k === "categoryId") p.categoryId = el.value;
-        if(k === "visible") p.visible = !!el.checked;
-        markDirty({ products:true });
-        inp.addEventListener("change", () => {
-        if(inp.dataset.k === "featuredEnabled"){
-          const c = catById(inp.dataset.cid);
-          if(c){ c.featuredEnabled = !!inp.checked; markDirty({ products:true }); }
-        }
-      });
-    });
-      inp.addEventListener("change", () => {
-        if(inp.dataset.k === "featuredEnabled"){
-          const c = catById(inp.dataset.cid);
-          if(c){ c.featuredEnabled = !!inp.checked; markDirty({ products:true }); }
-        }
-      });
+      };
+
+      const tag = String(el.tagName||"").toLowerCase();
+      if(tag === "select" || el.type === "checkbox") el.onchange = apply;
+      else el.oninput = apply;
     });
 
     $("#panelProducts").querySelectorAll("button[data-edit]").forEach(b => {
@@ -1388,8 +1410,6 @@ function drawChart(){
 
     // betöltés ha van config
     const cfg = loadCfg();
-    // hozzuk létre a settings inputokat előbb
-    renderSettings();
 
     // autoload, ha van minden
     if(cfg.owner && cfg.repo && cfg.token){
