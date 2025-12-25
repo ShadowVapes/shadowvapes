@@ -9,7 +9,7 @@
   };
 
   const state = {
-    doc: { categories: [], products: [], popups: [] },
+    doc: { categories: [], products: [], popups: [], ui: {} },
     sales: [],
     loaded: false,
     saving: false,
@@ -71,6 +71,7 @@
   function escapeHtml(s){
     return String(s ?? "").replace(/[&<>"']/g, m => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;" }[m]));
   }
+  const clamp = (v, min, max) => Math.min(max, Math.max(min, Number(v)));
 
   /* ---------- Cross-tab save lock (ugyanazon böngészőben) ---------- */
   const LOCK_KEY = "sv_save_lock";
@@ -125,6 +126,7 @@
     if(!Array.isArray(state.doc.categories)) state.doc.categories = [];
     if(!Array.isArray(state.doc.products)) state.doc.products = [];
     if(!Array.isArray(state.sales)) state.sales = [];
+    if(!state.doc.ui || typeof state.doc.ui !== "object") state.doc.ui = {};
 
     state.doc.categories = state.doc.categories
       .filter(c => c && c.id)
@@ -151,6 +153,17 @@
       flavor_en: p.flavor_en || ""
     })).filter(p => p.id);
 
+    const rawUi = state.doc.ui || {};
+    state.doc.ui = {
+      outlineWidth: clamp(rawUi.outlineWidth ?? 2, 1, 6),
+      hotOutlineWidth: clamp(rawUi.hotOutlineWidth ?? rawUi.outlineWidth ?? 2, 1, 6),
+      soonOverlayOpacity: clamp(rawUi.soonOverlayOpacity ?? 0.08, 0, 0.3),
+      outGray: clamp(rawUi.outGray ?? 0.75, 0, 1),
+      outBrightness: clamp(rawUi.outBrightness ?? 0.55, 0.2, 1.4),
+      soonGray: clamp(rawUi.soonGray ?? 0.25, 0, 1),
+      soonBrightness: clamp(rawUi.soonBrightness ?? 0.95, 0.5, 1.4),
+    };
+
     // Popups normalize (külön fülön szerkeszthető)
     if(!Array.isArray(state.doc.popups)) state.doc.popups = [];
     state.doc.popups = state.doc.popups
@@ -160,16 +173,16 @@
         const updatedAt = Number(x.updatedAt || x.rev || Date.now());
         const createdAt = Number(x.createdAt || x.rev || updatedAt || Date.now());
         const rev = Number(x.rev || updatedAt || Date.now());
-        const catIds = Array.isArray(x.categoryIds) ? x.categoryIds.map(v => String(v)) : [];
-        const prodIds = Array.isArray(x.productIds) ? x.productIds.map(v => String(v)) : [];
+        const catIds = Array.isArray(x.categories || x.categoryIds) ? (x.categories || x.categoryIds).map(v => String(v)) : [];
+        const prodIds = Array.isArray(x.products || x.productIds) ? (x.products || x.productIds).map(v => String(v)) : [];
         return {
           id,
-          enabled: (x.enabled === false) ? false : true,
+          active: (x.active === false || x.enabled === false) ? false : true,
           rev,
           title_hu: String(x.title_hu || x.title || ""),
           title_en: String(x.title_en || x.title_hu || x.title || ""),
-          categoryIds: catIds.filter(Boolean),
-          productIds: prodIds.filter(Boolean),
+          categories: catIds.filter(Boolean),
+          products: prodIds.filter(Boolean),
           createdAt,
           updatedAt
         };
@@ -493,6 +506,16 @@ function markDirty(flags){
 
   function renderSettings(){
     const cfg = loadCfg();
+    const ui = state.doc.ui || {};
+    const uiCfg = {
+      outlineWidth: Number(ui.outlineWidth ?? 2),
+      hotOutlineWidth: Number(ui.hotOutlineWidth ?? ui.outlineWidth ?? 2),
+      soonOverlayOpacity: Number(ui.soonOverlayOpacity ?? 0.08),
+      outGray: Number(ui.outGray ?? 0.75),
+      outBrightness: Number(ui.outBrightness ?? 0.55),
+      soonGray: Number(ui.soonGray ?? 0.25),
+      soonBrightness: Number(ui.soonBrightness ?? 0.95),
+    };
     $("#panelSettings").innerHTML = `
       <div class="small-muted">GitHub mentés (token localStorage-ben). Branch: ha rossz, automatikusan próbál main/master.</div>
       <div class="form-grid" style="margin-top:12px;">
@@ -513,6 +536,17 @@ function markDirty(flags){
       <div class="actions table" style="margin-top:10px;align-items:center;">
         <input id="syncUrl" readonly value="" style="min-width:280px;width:100%;" />
         <button class="ghost" id="btnCopySync">Link másolás</button>
+      </div>
+
+      <div class="small-muted" style="margin-top:16px;">Megjelenés (public oldal): körvonal vastagság, szürkeség és overlay állítása.</div>
+      <div class="form-grid" style="margin-top:12px;">
+        <div class="field third"><label>Hamarosan/Elfogyott outline (px)</label><input id="ui_outline" type="number" min="1" max="6" step="0.5" value="${uiCfg.outlineWidth}"></div>
+        <div class="field third"><label>Felkapott outline (px)</label><input id="ui_hot_outline" type="number" min="1" max="6" step="0.5" value="${uiCfg.hotOutlineWidth}"></div>
+        <div class="field third"><label>Hamarosan overlay (0-0.3)</label><input id="ui_soon_overlay" type="number" min="0" max="0.3" step="0.01" value="${uiCfg.soonOverlayOpacity}"></div>
+        <div class="field third"><label>Elfogyott szürkeség (0-1)</label><input id="ui_out_gray" type="number" min="0" max="1" step="0.05" value="${uiCfg.outGray}"></div>
+        <div class="field third"><label>Elfogyott fényerő (0.2-1.4)</label><input id="ui_out_bright" type="number" min="0.2" max="1.4" step="0.05" value="${uiCfg.outBrightness}"></div>
+        <div class="field third"><label>Hamarosan szürkeség (0-1)</label><input id="ui_soon_gray" type="number" min="0" max="1" step="0.05" value="${uiCfg.soonGray}"></div>
+        <div class="field third"><label>Hamarosan fényerő (0.5-1.4)</label><input id="ui_soon_bright" type="number" min="0.5" max="1.4" step="0.05" value="${uiCfg.soonBrightness}"></div>
       </div>
     `;
 
@@ -549,6 +583,26 @@ function markDirty(flags){
     }catch{}
     ["cfgOwner","cfgRepo","cfgBranch","cfgToken"].forEach(id => {
       $("#"+id).addEventListener("input", () => saveCfg(getCfg()));
+    });
+
+    const updateUi = () => {
+      state.doc.ui = {
+        outlineWidth: clamp($("#ui_outline").value, 1, 6),
+        hotOutlineWidth: clamp($("#ui_hot_outline").value, 1, 6),
+        soonOverlayOpacity: clamp($("#ui_soon_overlay").value, 0, 0.3),
+        outGray: clamp($("#ui_out_gray").value, 0, 1),
+        outBrightness: clamp($("#ui_out_bright").value, 0.2, 1.4),
+        soonGray: clamp($("#ui_soon_gray").value, 0, 1),
+        soonBrightness: clamp($("#ui_soon_bright").value, 0.5, 1.4),
+      };
+      markDirty({ products:true });
+    };
+
+    ["ui_outline","ui_hot_outline","ui_soon_overlay","ui_out_gray","ui_out_bright","ui_soon_gray","ui_soon_bright"].forEach(id => {
+      const el = $("#"+id);
+      if(!el) return;
+      el.addEventListener("change", updateUi);
+      el.addEventListener("input", updateUi);
     });
   }
 
@@ -868,8 +922,8 @@ function markDirty(flags){
 
     const rows = list.map(pu => {
       const title = pu.title_hu || pu.title_en || "(nincs cím)";
-      const cats = (pu.categoryIds||[]).length;
-      const prods = (pu.productIds||[]).length;
+      const cats = (pu.categories||[]).length;
+      const prods = (pu.products||[]).length;
       return `
         <div class="rowline table" style="align-items:center;">
           <div class="left">
@@ -882,7 +936,7 @@ function markDirty(flags){
           </div>
           <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
             <label class="small-muted" style="display:flex;align-items:center;gap:8px;">
-              <input type="checkbox" data-puid="${escapeHtml(pu.id)}" data-k="enabled" ${pu.enabled!==false ? "checked":""}>
+              <input type="checkbox" data-puid="${escapeHtml(pu.id)}" data-k="active" ${pu.active!==false ? "checked":""}>
               Aktív
             </label>
             <button class="ghost" data-editpopup="${escapeHtml(pu.id)}">Szerkeszt</button>
@@ -908,7 +962,7 @@ function markDirty(flags){
         const k = inp.dataset.k;
         const pu = popupById(id);
         if(!pu) return;
-        if(k === "enabled") pu.enabled = !!inp.checked;
+        if(k === "active") pu.active = !!inp.checked;
         pu.updatedAt = Date.now();
         pu.rev = pu.updatedAt;
         markDirty({ products:true });
@@ -937,19 +991,15 @@ function markDirty(flags){
 
     const pu = editing ? JSON.parse(JSON.stringify(editing)) : {
       id: "pu_" + Math.random().toString(16).slice(2) + "_" + now.toString(16),
-      enabled: true,
+      active: true,
       rev: now,
       title_hu: "",
       title_en: "",
-      categoryIds: [],
-      productIds: [],
+      categories: [],
+      products: [],
       createdAt: now,
       updatedAt: now
     };
-
-    // UI state
-    let pSearch = "";
-    let pCat = "all";
 
     const body = document.createElement("div");
     body.innerHTML = `
@@ -959,7 +1009,7 @@ function markDirty(flags){
         <div class="field third"><label>Cím (EN)</label><input id="pu_ten" value="${escapeHtml(pu.title_en)}" placeholder="New products"></div>
         <div class="field full" style="display:flex;gap:10px;align-items:center;">
           <label class="small-muted" style="display:flex;align-items:center;gap:8px;">
-            <input id="pu_enabled" type="checkbox" ${pu.enabled!==false ? "checked":""}> Aktív popup
+            <input id="pu_enabled" type="checkbox" ${pu.active!==false ? "checked":""}> Aktív popup
           </label>
         </div>
       </div>
@@ -967,25 +1017,12 @@ function markDirty(flags){
       <div class="small-muted" style="margin-top:10px;">Kategória kijelölés: ha bejelölöd, a popupban megjelenik az összes (látható) termék abból a kategóriából.</div>
       <div id="pu_catBox" style="margin-top:10px; display:flex; gap:10px; flex-wrap:wrap;"></div>
 
-      <div style="margin-top:14px; display:grid; grid-template-columns: 1fr 340px; gap:14px; align-items:start;">
-        <div>
-          <div class="actions table" style="align-items:center; margin-bottom:10px;">
-            <input id="pu_psearch" placeholder="Keresés termékekben…" value="" style="flex:1;min-width:220px;">
-            <select id="pu_pcat" style="min-width:160px;">
-              <option value="all">Összes</option>
-              ${state.doc.categories.map(c => `<option value="${escapeHtml(c.id)}">${escapeHtml(c.label_hu||c.id)}</option>`).join("")}
-            </select>
-          </div>
-
-          <div id="pu_gridWrap" style="max-height:56vh; overflow:auto; padding-right:6px;">
-            <div id="pu_grid" class="pick-grid"></div>
-          </div>
+      <div style="margin-top:14px;">
+        <div class="actions table" style="align-items:center; margin-bottom:10px;">
+          <button class="ghost" id="pu_addProd">+ Termék</button>
+          <div class="small-muted">A popupba kézzel is kijelölhetsz termékeket (eladásos stílusú választó).</div>
         </div>
-
-        <div>
-          <div class="small-muted" style="margin-bottom:10px;">Kiválasztott termékek (max ~4 látszik, görgethető):</div>
-          <div id="pu_selected" class="pick-selected" style="max-height:420px; overflow:auto; padding-right:6px;"></div>
-        </div>
+        <div id="pu_products"></div>
       </div>
     `;
 
@@ -999,12 +1036,13 @@ function markDirty(flags){
         pu.id = nid;
         pu.title_hu = ($("#pu_thu").value||"").trim();
         pu.title_en = ($("#pu_ten").value||"").trim();
-        pu.enabled = !!$("#pu_enabled").checked;
+        pu.active = !!$("#pu_enabled").checked;
+        pu.products = (pu.products || []).filter(Boolean);
 
         pu.updatedAt = Date.now();
         pu.rev = pu.updatedAt;
 
-        // categoryIds/productIds már UI state-ből frissítve van
+        // categories/products már UI state-ből frissítve van
         if(editing){
           const idx = state.doc.popups.findIndex(x => x.id === editing.id);
           if(idx >= 0) state.doc.popups[idx] = pu;
@@ -1020,7 +1058,7 @@ function markDirty(flags){
 
     const catBox = $("#pu_catBox");
     catBox.innerHTML = state.doc.categories.map(c => {
-      const on = (pu.categoryIds||[]).includes(c.id);
+      const on = (pu.categories||[]).includes(c.id);
       return `
         <label class="badge" style="cursor:pointer;">
           <input type="checkbox" data-pucat="${escapeHtml(c.id)}" ${on?"checked":""} style="margin-right:8px;">
@@ -1033,113 +1071,66 @@ function markDirty(flags){
       const handler = () => {
         const cid = ch.dataset.pucat;
         const on = !!ch.checked;
-        pu.categoryIds = Array.from(new Set((pu.categoryIds||[]).filter(Boolean)));
-        if(on && !pu.categoryIds.includes(cid)) pu.categoryIds.push(cid);
-        if(!on) pu.categoryIds = pu.categoryIds.filter(x => x !== cid);
-        renderPopupPicker();
+        pu.categories = Array.from(new Set((pu.categories||[]).filter(Boolean)));
+        if(on && !pu.categories.includes(cid)) pu.categories.push(cid);
+        if(!on) pu.categories = pu.categories.filter(x => x !== cid);
       };
       ch.addEventListener("change", handler);
       ch.addEventListener("input", handler);
     });
 
-    $("#pu_psearch").oninput = () => { pSearch = ($("#pu_psearch").value||"").toLowerCase(); renderPopupPicker(); };
-    $("#pu_pcat").onchange = () => { pCat = $("#pu_pcat").value; renderPopupPicker(); };
+    const productsRoot = $("#pu_products");
 
-    function renderPopupPicker(){
-      const selected = new Set(pu.productIds||[]);
+    const productOptions = () => state.doc.products.map(p => {
+      const n = p.name_hu || p.name_en || "—";
+      const f = p.flavor_hu || p.flavor_en || "";
+      const stock = p.status === "soon" ? "—" : p.stock;
+      const status = p.status === "out" ? "elfogyott" : (p.status === "soon" ? "hamarosan" : "ok");
+      return `<option value="${escapeHtml(p.id)}">${escapeHtml(n + (f? " • "+f:"") + ` (${status}, stock:${stock})`)}</option>`;
+    }).join("");
 
-      // Selected preview
-      const selWrap = $("#pu_selected");
-      const selList = (pu.productIds||[])
-        .map(id => prodById(id))
-        .filter(Boolean);
-
-      selWrap.innerHTML = selList.map(p => {
-        const eff = effectivePrice(p);
-        const status = p.status || "ok";
-        const cls = "card " + (status==="out" ? "dim out" : (status==="soon" ? "soon" : ""));
-        return `
-          <div class="${cls}" style="margin-bottom:10px; max-width:320px;">
-            <div class="hero"><img src="${escapeHtml(p.image||"")}" alt=""></div>
-            <div class="card-body">
-              <div style="font-weight:900;">${escapeHtml(p.name_hu||p.name_en||"")}</div>
-              <div class="small-muted">${escapeHtml(p.flavor_hu||p.flavor_en||"")}</div>
-              <div class="meta-row">
-                <div class="price">${eff.toLocaleString("hu-HU")} Ft</div>
-                <div class="stock">Készlet: <b>${status==="soon" ? "—" : p.stock}</b></div>
-              </div>
-              <button class="danger" data-unpick="${escapeHtml(p.id)}" style="width:100%; margin-top:10px;">Kivesz</button>
-            </div>
+    const renderPopupProducts = () => {
+      const list = (pu.products || []);
+      if(!list.length){
+        productsRoot.innerHTML = `<div class="small-muted">Még nincs kiválasztva termék.</div>`;
+        return;
+      }
+      productsRoot.innerHTML = list.map((pid, idx) => `
+        <div class="rowline table">
+          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;width:100%;">
+            <select class="pu_prod" data-idx="${idx}" style="min-width:280px;">
+              <option value="">Válassz terméket…</option>
+              ${productOptions()}
+            </select>
+            <button class="danger pu_del" data-idx="${idx}" type="button">Töröl</button>
           </div>
-        `;
-      }).join("") || `<div class="small-muted">Még nincs kiválasztva.</div>`;
+        </div>
+      `).join("");
 
-      selWrap.querySelectorAll("button[data-unpick]").forEach(b => {
-        b.onclick = () => {
-          const id = b.dataset.unpick;
-          pu.productIds = (pu.productIds||[]).filter(x => x !== id);
-          renderPopupPicker();
+      productsRoot.querySelectorAll(".pu_prod").forEach(sel => {
+        const idx = Number(sel.dataset.idx);
+        sel.value = list[idx] || "";
+        sel.onchange = () => {
+          pu.products[idx] = sel.value;
+          pu.products = Array.from(new Set(pu.products.filter(Boolean)));
+          renderPopupProducts();
         };
       });
-
-      // Build full list: category-filtered + search
-      let all = [...state.doc.products];
-      if(pCat !== "all"){
-        all = all.filter(p => p.categoryId === pCat);
-      }
-      if(pSearch){
-        all = all.filter(p => (`${p.name_hu} ${p.name_en} ${p.flavor_hu} ${p.flavor_en}`).toLowerCase().includes(pSearch));
-      }
-      // sort: ok/soon/out, then name/flavor
-      const r = (s) => s==="ok"?0:(s==="soon"?1:2);
-      all.sort((a,b)=>{
-        const ra=r(a.status), rb=r(b.status);
-        if(ra!==rb) return ra-rb;
-        return (`${a.name_hu||a.name_en||""} ${a.flavor_hu||a.flavor_en||""}`).localeCompare(`${b.name_hu||b.name_en||""} ${b.flavor_hu||b.flavor_en||""}`,"hu");
-      });
-
-      $("#pu_grid").innerHTML = all.map(p => {
-        const eff = effectivePrice(p);
-        const status = p.status || "ok";
-        const isSel = selected.has(p.id);
-        const cls = "card pick-card " + (isSel ? "selected " : "") + (status==="out" ? "dim out" : (status==="soon" ? "soon" : ""));
-        return `
-          <div class="${cls}" data-pick="${escapeHtml(p.id)}" style="min-width:220px;">
-            <div class="hero">
-              <img src="${escapeHtml(p.image||"")}" alt="">
-              <div class="badges">
-                ${p.visible===false ? `<span class="badge out">rejtve</span>` : ``}
-                ${status==="soon" ? `<span class="badge soon">hamarosan</span>` : ``}
-                ${status==="out" ? `<span class="badge out">elfogyott</span>` : ``}
-              </div>
-              <div class="overlay-title">
-                <div class="name">${escapeHtml(p.name_hu||p.name_en||"")}</div>
-                <div class="flavor">${escapeHtml(p.flavor_hu||p.flavor_en||"")}</div>
-              </div>
-            </div>
-            <div class="card-body">
-              <div class="meta-row">
-                <div class="price">${eff.toLocaleString("hu-HU")} Ft</div>
-                <div class="stock">Készlet: <b>${status==="soon" ? "—" : p.stock}</b></div>
-              </div>
-              <div class="small-muted">${isSel ? "Kiválasztva ✅" : "Kattints a kijelöléshez"}</div>
-            </div>
-          </div>
-        `;
-      }).join("");
-
-      $("#pu_grid").querySelectorAll("[data-pick]").forEach(el => {
-        el.onclick = () => {
-          const id = el.dataset.pick;
-          const set = new Set(pu.productIds||[]);
-          if(set.has(id)) set.delete(id); else set.add(id);
-          pu.productIds = Array.from(set);
-          renderPopupPicker();
+      productsRoot.querySelectorAll(".pu_del").forEach(btn => {
+        btn.onclick = () => {
+          const idx = Number(btn.dataset.idx);
+          pu.products.splice(idx, 1);
+          renderPopupProducts();
         };
       });
-    }
+    };
 
-    renderPopupPicker();
+    $("#pu_addProd").onclick = () => {
+      pu.products = Array.from(new Set([...(pu.products || []), ""]));
+      renderPopupProducts();
+    };
+
+    renderPopupProducts();
   }
   function renderSales(){
     const cats = [{id:"all", label:"Mind"}, ...state.doc.categories.map(c=>({id:c.id,label:c.label_hu||c.id}))];

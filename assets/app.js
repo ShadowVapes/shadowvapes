@@ -74,6 +74,7 @@
   const locale = () => (state.lang === "hu" ? "hu" : "en");
 
   const norm = (s) => String(s ?? "").trim();
+  const clamp = (v, min, max) => Math.min(max, Math.max(min, Number(v)));
 
   const getName = (p) =>
     state.lang === "hu"
@@ -219,6 +220,16 @@
     const doc = Array.isArray(data)
       ? { categories: [], products: data, popups: [], featuredEnabled: true }
       : { categories: Array.isArray(data && data.categories) ? data.categories : [], products: Array.isArray(data && data.products) ? data.products : [], popups: Array.isArray(data && data.popups) ? data.popups : [], featuredEnabled: (data && data.featuredEnabled) !== false };
+    const rawUi = (data && data.ui) || {};
+    doc.ui = {
+      outlineWidth: clamp(rawUi.outlineWidth ?? 2, 1, 6),
+      hotOutlineWidth: clamp(rawUi.hotOutlineWidth ?? rawUi.outlineWidth ?? 2, 1, 6),
+      soonOverlayOpacity: clamp(rawUi.soonOverlayOpacity ?? 0.08, 0, 0.3),
+      outGray: clamp(rawUi.outGray ?? 0.75, 0, 1),
+      outBrightness: clamp(rawUi.outBrightness ?? 0.55, 0.2, 1.4),
+      soonGray: clamp(rawUi.soonGray ?? 0.25, 0, 1),
+      soonBrightness: clamp(rawUi.soonBrightness ?? 0.95, 0.5, 1.4),
+    };
 
     doc.categories = doc.categories
       .filter((c) => c && c.id)
@@ -259,11 +270,11 @@
       .map((p) => ({
         id: String(p.id || ("pp_" + Math.random().toString(16).slice(2))),
         rev: Number.isFinite(Number(p.rev)) ? Number(p.rev) : 1,
-        active: !!p.active,
+        active: !!(p.active ?? p.enabled),
         title_hu: String(p.title_hu || p.title || TXT.hu.popupTitle),
         title_en: String(p.title_en || p.title || TXT.en.popupTitle),
-        categories: Array.isArray(p.categories) ? [...new Set(p.categories.map(String).filter(Boolean))] : [],
-        products: Array.isArray(p.products) ? [...new Set(p.products.map(String).filter(Boolean))] : [],
+        categories: Array.isArray(p.categories || p.categoryIds) ? [...new Set((p.categories || p.categoryIds).map(String).filter(Boolean))] : [],
+        products: Array.isArray(p.products || p.productIds) ? [...new Set((p.products || p.productIds).map(String).filter(Boolean))] : [],
       }))
       .filter((p) => {
         if (seen.has(p.id)) return false;
@@ -300,7 +311,7 @@
       const inCat = (doc.products || [])
         .filter((p) => isVisible(p))
         .filter((p) => String(p.categoryId) === String(c.id))
-        .filter((p) => !isSoon(p)); // soon not hot
+        .filter((p) => !isSoon(p) && !isOut(p)); // soon/out not hot
 
       let best = null;
       let bestCount = 0;
@@ -462,6 +473,7 @@
     const soon = isSoon(p);
     const price = effectivePrice(p);
     const stockShown = out ? 0 : Math.max(0, Number(p.stock || 0));
+    const ui = state.productsDoc.ui || {};
 
     const card = document.createElement("div");
     card.className = "card fade-in";
@@ -477,8 +489,8 @@
     img.alt = (name + (flavor ? " - " + flavor : "")).trim();
     img.src = p.image || "";
 
-    if (out) img.style.filter = "grayscale(1) brightness(0.26) contrast(0.95)";
-    else if (soon) img.style.filter = "grayscale(0.75) brightness(0.82) contrast(1.02)";
+    if (out) img.style.filter = `grayscale(${ui.outGray ?? 0.75}) brightness(${ui.outBrightness ?? 0.55}) contrast(0.98)`;
+    else if (soon) img.style.filter = `grayscale(${ui.soonGray ?? 0.25}) brightness(${ui.soonBrightness ?? 0.95}) contrast(1)`;
 
     hero.appendChild(img);
 
@@ -493,14 +505,6 @@
       const b = document.createElement("div");
       b.className = "badge out";
       b.textContent = t("out");
-      badges.appendChild(b);
-    } else if (p.__hot) {
-      const b = document.createElement("div");
-      b.className = "badge";
-      b.textContent = "HOT";
-      b.style.background = "rgba(255,145,60,.16)";
-      b.style.borderColor = "rgba(255,145,60,.45)";
-      b.style.color = "rgba(255,205,160,.98)";
       badges.appendChild(b);
     }
     hero.appendChild(badges);
@@ -570,10 +574,19 @@
   }
 
   function applyRender() {
+    applyUiSettings();
     renderNav();
     renderGrid();
     $("#loader").style.display = "none";
     $("#app").style.display = "grid";
+  }
+
+  function applyUiSettings() {
+    const ui = state.productsDoc.ui || {};
+    const root = document.documentElement;
+    root.style.setProperty("--status-outline-width", `${ui.outlineWidth ?? 2}px`);
+    root.style.setProperty("--hot-outline-width", `${ui.hotOutlineWidth ?? 2}px`);
+    root.style.setProperty("--soon-overlay-opacity", `${ui.soonOverlayOpacity ?? 0.08}`);
   }
 
   /* ---------------- Popup (user) ---------------- */
@@ -1050,6 +1063,7 @@
 
       if (changed) {
         state.hotByCat = computeHotByCat(state.productsDoc, state.sales);
+        applyUiSettings();
 
         // render throttling via signature (prevents double flicker)
         const sig = JSON.stringify({
@@ -1058,6 +1072,7 @@
           docLen: (state.productsDoc.products || []).length,
           docHash: (state.productsDoc.products || []).map((x) => [x.id, x.stock, x.status, x.visible, x.price]).slice(0, 200),
           hot: state.hotByCat,
+          ui: state.productsDoc.ui || {},
         });
         if (sig !== state.lastRenderSig) {
           state.lastRenderSig = sig;
@@ -1092,6 +1107,7 @@
               }
               if (ch) {
                 state.hotByCat = computeHotByCat(state.productsDoc, state.sales);
+                applyUiSettings();
                 renderNav();
                 renderGrid();
                 popupMaybeOpen();
