@@ -77,12 +77,15 @@
       return `${year}. ${monthNames[monthNum - 1]}`;
     } catch {
       return monthStr;
-    }
-  }
-
-  function effectivePrice(p) {
-    const price = p && p.price;
-    if (price !== null && price !== undefined && price !== "" && Number(price) > 0) return Number(price);
+    function getName(p) {
+  return (p && (p.name_hu || p.name_en || p.name)) || "";
+}
+function getFlavor(p) {
+  if (!p) return "";
+  return state.lang === "en"
+    ? (p.flavor_en || p.flavor_hu || p.flavor || "")
+    : (p.flavor_hu || p.flavor_en || p.flavor || "");
+}
     const c = (state.productsDoc.categories || []).find((x) => String(x.id) === String(p.categoryId));
     const bp = c ? Number(c.basePrice || 0) : 0;
     return Number.isFinite(bp) ? bp : 0;
@@ -174,32 +177,26 @@
           return source;
         }
       }
-    } catch {}
-
-    const or = getOwnerRepoFromUrl() || getOwnerRepoCfg();
-    if (!or) return null;
-
-    const branches = [or.branch, "main", "master", "gh-pages"]
-      .filter(Boolean)
-      .filter((v, i, a) => a.indexOf(v) === i);
-
-    for (const br of branches) {
-      const testUrl = `https://raw.githubusercontent.com/${or.owner}/${or.repo}/${br}/data/products.json?_=${Date.now()}`;
-      try {
-        const r = await fetch(testUrl, { cache: "no-store" });
-        if (r.ok) {
-          source = { owner: or.owner, repo: or.repo, branch: br };
-          try { localStorage.setItem("sv_source", JSON.stringify(source)); } catch {}
-          return source;
-        }
-      } catch {}
-    }
-
-    return null;
+    function formatMonth(monthStr) {
+  if (!monthStr) return "";
+  try {
+    const [year, month] = monthStr.split("-");
+    if (!month) return "";
+    
+    const monthNum = parseInt(month, 10);
+    if (isNaN(monthNum) || monthNum < 1 || monthNum > 12) return "";
+    
+    const monthNames = state.lang === "en" 
+      ? ["January", "February", "March", "April", "May", "June", 
+         "July", "August", "September", "October", "November", "December"]
+      : ["Január", "Február", "Március", "Április", "Május", "Június",
+         "Július", "Augusztus", "Szeptember", "Október", "November", "December"];
+    
+    return monthNames[monthNum - 1]; // Csak hónap név
+  } catch {
+    return "";
   }
-
-  async function fetchJson(relPath, { forceBust=false } = {}){
-    const src = await resolveSource();
+}
     const relBase = relPath;
     const rawBase = src ? `https://raw.githubusercontent.com/${src.owner}/${src.repo}/${src.branch}/${relPath}` : null;
 
@@ -495,12 +492,12 @@
   function getFeaturedListForAll(){
     const cats = (state.productsDoc.categories || []).filter(c => c && c.id && (c.featuredEnabled === false ? false : true));
     cats.sort((a,b)=>catLabel(a).localeCompare(catLabel(b), locale()));
-    const out = [];
-    for(const c of cats){
-      const pid = state.featuredByCat.get(String(c.id));
-      if(!pid) continue;
-      const p = (state.productsDoc.products||[]).find(x=>String(x.id)===String(pid));
-      if(p && p.visible !== false) out.push(p);
+        // CSS osztályok a szűréshez
+      if (soon) {
+        img.classList.add("soon-img");
+      } else if (out) {
+        img.classList.add("out-img");
+      }
     }
     return out;
   }
@@ -515,17 +512,12 @@
     // ✅ Featured: kategóriánként 1-1 (ha van eladás) + kategória toggle (admin)
     const featuredIds = new Set();
     let featuredToPrepend = [];
-
-    if(state.active !== "soon"){
-      if(state.active === "all"){
-        featuredToPrepend = getFeaturedListForAll();
-      }else{
-        const pid = state.featuredByCat.get(String(state.active));
-        if(pid){
-          const p = (state.productsDoc.products||[]).find(x=>String(x.id)===String(pid));
-          if(p && p.visible !== false) featuredToPrepend = [p];
+        if (p.soonEta) {
+          const expectedBadge = document.createElement("div");
+          expectedBadge.className = "badge soon"; // Módosítva: calendar helyett soon
+          expectedBadge.textContent = `📅 ${t("expected")}: ${formatMonth(p.soonEta)}`;
+          badges.appendChild(expectedBadge);
         }
-      }
     }
 
     for(const fp of featuredToPrepend){
