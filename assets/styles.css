@@ -725,71 +725,71 @@ button, input, select{
   .sidebar{ height:auto; position:relative; }
   
   .popup-slide{
-    padding: 15px; /* Kisebb padding */
-    min-height: 0; /* Fontos: engedje a zsugorodást */
+    padding: 15px !important; /* 20px helyett 15px */
+    min-height: 0 !important;
   }
   
   .popup-product-image {
-    max-width: 300px !important; /* Kisebb kép mobilon */
-    margin-bottom: 15px; /* Kisebb térköz */
+    max-width: 300px !important;
+    margin-bottom: 15px !important;
   }
   
   .popup-product-name{
-    font-size: 18px !important; /* Kisebb betűméret */
+    font-size: 18px !important;
   }
   
   .popup-product-flavor{
-    font-size: 14px !important; /* Kisebb betűméret */
+    font-size: 14px !important;
   }
   
   .popup-product-price{
-    font-size: 20px !important; /* Kisebb betűméret */
+    font-size: 20px !important;
   }
   
   .popup-product-stock,
   .popup-product-expected {
-    font-size: 14px !important; /* Kisebb betűméret */
+    font-size: 14px !important;
   }
   
   .popup-arrow {
-    display: none; /* Mobile swipe - maradjon elrejtve */
+    display: none !important;
   }
   
   .popup-footer {
-    flex-direction: column; /* Oszlopos elrendezés */
-    gap: 12px; /* Kisebb térköz */
-    padding: 15px; /* Kisebb padding */
+    flex-direction: column !important;
+    gap: 12px !important;
+    padding: 15px !important;
   }
   
   .popup-buttons {
-    width: 100%; /* Teljes szélesség */
-    display: flex;
-    gap: 10px;
+    width: 100% !important;
+    display: flex !important;
+    gap: 10px !important;
   }
   
   .popup-buttons button {
-    flex: 1; /* Egyenlő szélességű gombok */
-    min-height: 44px; /* Könnyebb érintés mobilon */
+    flex: 1 !important;
+    min-height: 44px !important;
   }
   
   .chk {
-    order: 3; /* Alulra kerül */
-    width: 100%;
-    text-align: center;
-    margin-top: 8px;
+    order: 3 !important;
+    width: 100% !important;
+    text-align: center !important;
+    margin-top: 8px !important;
     justify-content: center !important;
   }
   
   .popup-dots {
-    order: 2; /* Középre */
-    margin: 5px 0;
+    order: 2 !important;
+    margin: 5px 0 !important;
   }
   
   .popup-modal {
-    max-height: 85vh; /* Kisebb magasság mobilon */
+    max-height: 85vh !important;
   }
   
   .popup-content {
-    min-height: 0; /* Engedje a zsugorodást */
+    min-height: 0 !important;
   }
 }
