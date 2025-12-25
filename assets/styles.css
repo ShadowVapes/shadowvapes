@@ -275,6 +275,7 @@ button, input, select{
   background: rgba(255,152,0,.18);
   border-color: rgba(255,152,0,.35);
 }
+/* ✅ DÁTUM BADGE UGYANOLYAN MINT A HAMAROSAN */
 .badge.calendar{
   background: rgba(255,193,7,.18);
   border-color: rgba(255,193,7,.35);
@@ -524,9 +525,10 @@ button, input, select{
   padding: 20px;
   z-index: 9999;
 }
+/* ✅ POPUP MODAL JAVÍTVA - NE CSÚSSZON EL */
 .popup-modal{
   width: min(900px, 95vw);
-  max-height: min(700px, 90vh); /* height helyett max-height */
+  max-height: 90vh;
   background: rgba(15,22,36,.95);
   border: 1px solid rgba(255,255,255,.1);
   border-radius: 22px;
@@ -534,6 +536,7 @@ button, input, select{
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  position: relative;
 }
 .popup-header{
   padding: 20px;
@@ -549,31 +552,30 @@ button, input, select{
   color: var(--muted);
   font-size: 14px;
 }
+/* ✅ POPUP CONTENT JAVÍTVA - GÖRGETÉS */
 .popup-content{
   flex: 1;
-  overflow: hidden;
+  overflow-y: auto;
   position: relative;
   touch-action: pan-y;
-  display: flex;
-  flex-direction: column;
+  padding: 0;
 }
-
 .popup-slider{
   display: flex;
-  flex: 1;
+  height: 100%;
+  min-height: 400px;
   transition: transform 0.5s ease;
   will-change: transform;
-  min-height: 0; /* fontos: flex shrink engedélyezése */
 }
-
+/* ✅ POPUP SLIDE JAVÍTVA - TELJES MAGASSÁG */
 .popup-slide{
   flex: 0 0 100%;
-  padding: 20px 30px;
+  padding: 30px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: flex-start;
-  overflow-y: auto;
+  justify-content: center;
+  min-height: 100%;
   box-sizing: border-box;
 }
 .popup-product-image{
@@ -584,6 +586,9 @@ button, input, select{
   overflow: hidden;
   background: rgba(255,255,255,.05);
   margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 .popup-product-image img{
   width: 100%;
@@ -628,12 +633,14 @@ button, input, select{
   align-items: center;
   gap: 15px;
   flex-shrink: 0;
+  flex-wrap: wrap;
 }
 .popup-dots{
   display: flex;
   gap: 8px;
   justify-content: center;
   flex: 1;
+  order: 2;
 }
 .popup-dot{
   width: 10px;
@@ -649,6 +656,9 @@ button, input, select{
 .popup-buttons{
   display: flex;
   gap: 10px;
+  order: 3;
+  width: 100%;
+  justify-content: flex-end;
 }
 
 /* Navigation arrows */
@@ -720,76 +730,52 @@ button, input, select{
   background: rgba(255,255,255,0.1);
 }
 
+/* ✅ MOBILE STÍLUSOK JAVÍTVA */
 @media (max-width: 860px){
   .wrap{ grid-template-columns: 1fr; }
   .sidebar{ height:auto; position:relative; }
   
   .popup-slide{
-    padding: 15px !important; /* 20px helyett 15px */
-    min-height: 0 !important;
-  }
-  
-  .popup-product-image {
-    max-width: 300px !important;
-    margin-bottom: 15px !important;
+    padding: 20px;
+    min-height: auto;
+    justify-content: flex-start;
+    padding-top: 40px;
+    padding-bottom: 40px;
   }
   
   .popup-product-name{
-    font-size: 18px !important;
+    font-size: 20px;
   }
-  
   .popup-product-flavor{
-    font-size: 14px !important;
+    font-size: 16px;
   }
-  
   .popup-product-price{
-    font-size: 20px !important;
-  }
-  
-  .popup-product-stock,
-  .popup-product-expected {
-    font-size: 14px !important;
-  }
-  
-  .popup-arrow {
-    display: none !important;
+    font-size: 24px;
   }
   
   .popup-footer {
-    flex-direction: column !important;
-    gap: 12px !important;
-    padding: 15px !important;
-  }
-  
-  .popup-buttons {
-    width: 100% !important;
-    display: flex !important;
-    gap: 10px !important;
-  }
-  
-  .popup-buttons button {
-    flex: 1 !important;
-    min-height: 44px !important;
-  }
-  
-  .chk {
-    order: 3 !important;
-    width: 100% !important;
-    text-align: center !important;
-    margin-top: 8px !important;
-    justify-content: center !important;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
   }
   
   .popup-dots {
-    order: 2 !important;
-    margin: 5px 0 !important;
+    order: 1;
+    margin-bottom: 10px;
   }
   
+  .popup-buttons {
+    order: 3;
+    flex-direction: column;
+  }
+  
+  .popup-arrow {
+    display: none; /* Mobile swipe */
+  }
+  
+  /* ✅ MOBILE POPUP MODAL JAVÍTVA */
   .popup-modal {
-    max-height: 85vh !important;
-  }
-  
-  .popup-content {
-    min-height: 0 !important;
+    max-height: 95vh;
+    margin: 10px;
   }
 }
