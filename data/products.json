@@ -88,20 +88,6 @@
       "flavor_en": "Lime Cola"
     }
   ],
-  "popups": [
-    {
-      "id": "pu_78c05d78cfd83_19b5555e0d7",
-      "enabled": true,
-      "rev": 1766663254391,
-      "title_hu": "",
-      "title_en": "",
-      "categoryIds": [],
-      "productIds": [
-        "p_568389f50aa19_19b4d718932"
-      ],
-      "createdAt": 1766663250135,
-      "updatedAt": 1766663254391
-    }
-  ],
-  "updatedAt": 1766663254715
+  "popups": [],
+  "updatedAt": 1766663262487
 }
