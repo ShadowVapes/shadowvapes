@@ -158,7 +158,8 @@
       name_hu: p.name_hu || "",
       name_en: p.name_en || "",
       flavor_hu: p.flavor_hu || "",
-      flavor_en: p.flavor_en || ""
+      flavor_en: p.flavor_en || "",
+      expectedDate: p.expectedDate || ""
     })).filter(p => p.id);
 
     // Popups normalize
@@ -239,7 +240,7 @@ state.sales = state.sales.map(s => {
 
   /* ---------- GitHub load/save ---------- */
   async function tryLoadFromGithub(cfg){
-    // branch fallback main/master automatikusan, ha “No commit found for the ref ...”
+    // branch fallback main/master automatikusan, ha "No commit found for the ref ..."
     const branchesToTry = [cfg.branch, "main", "master"].filter((v,i,a)=> v && a.indexOf(v)===i);
 
     let lastErr = null;
@@ -524,6 +525,8 @@ function markDirty(flags){
       <div class="actions">
         <button class="ghost" id="btnLoad">Betöltés</button>
         <button class="primary" id="btnSave">Mentés most</button>
+        <button class="ghost" id="btnClearCache">Gyorsítótár törlése</button>
+        <button class="ghost" id="btnCheckUpdate">Frissítés ellenőrzése</button>
       </div>
       <div class="small-muted" style="margin-top:10px;">
         Tipp: public oldalon RAW-ból töltünk, ezért a frissítés gyorsabb lesz (nem vársz 6 percet).
@@ -534,10 +537,47 @@ function markDirty(flags){
         <input id="syncUrl" readonly value="" style="min-width:280px;width:100%;" />
         <button class="ghost" id="btnCopySync">Link másolás</button>
       </div>
+      
+      <div class="form-grid" style="margin-top:20px;">
+        <div class="field full">
+          <label>Alapértelmezett dátum formátum (várható dátum megjelenítéséhez)</label>
+          <select id="cfgDateFormat">
+            <option value="YYYY-MM-DD">ÉÉÉÉ-HH-NN (2025-12-31)</option>
+            <option value="YYYY.MM.DD">ÉÉÉÉ.HH.NN (2025.12.31)</option>
+            <option value="DD/MM/YYYY">NN/HH/ÉÉÉÉ (31/12/2025)</option>
+          </select>
+        </div>
+      </div>
     `;
+
+    // Dátum formátum beállítás
+    const dateFormat = localStorage.getItem("sv_date_format") || "YYYY-MM-DD";
+    $("#cfgDateFormat").value = dateFormat;
+    $("#cfgDateFormat").onchange = () => {
+      localStorage.setItem("sv_date_format", $("#cfgDateFormat").value);
+    };
 
     $("#btnLoad").onclick = loadData;
     $("#btnSave").onclick = saveDataNow;
+    
+    $("#btnClearCache").onclick = () => {
+      try {
+        localStorage.removeItem("sv_source");
+        localStorage.removeItem("sv_live_payload");
+        state.forceSourceSync = true;
+        setSaveStatus("ok", "Gyorsítótár törölve");
+      } catch (e) {
+        setSaveStatus("bad", "Hiba a törléskor");
+      }
+    };
+    
+    $("#btnCheckUpdate").onclick = () => {
+      setSaveStatus("busy", "Ellenőrzés...");
+      setTimeout(() => {
+        setSaveStatus("ok", "Frissítve");
+        loadData();
+      }, 500);
+    };
 
     // Sync link generálás (katalógus URL + query paramok)
     try{
@@ -604,8 +644,7 @@ function markDirty(flags){
       body.innerHTML = `
         <div class="form-grid">
           <div class="field third"><label>ID (pl. elf)</label><input id="newCid" placeholder="elf"></div>
-          <div class="field third"><label>HU</label><input id="newChu" placeholder="ELF"></div>
-          <div class="field third"><label>EN</label><input id="newCen" placeholder="ELF"></div>
+          <div class="field third"><label>Magyar név</label><input id="newChu" placeholder="ELF"></div>
           <div class="field third"><label>Alap ár</label><input id="newCprice" type="number" min="0" value="0"></div>
         </div>
       `;
@@ -618,7 +657,7 @@ function markDirty(flags){
           state.doc.categories.push({
             id,
             label_hu: ($("#newChu").value||"").trim() || id,
-            label_en: ($("#newCen").value||"").trim() || ($("#newChu").value||"").trim() || id,
+            label_en: ($("#newChu").value||"").trim() || id,
             basePrice: Math.max(0, Number($("#newCprice").value||0))
           });
           closeModal();
@@ -690,6 +729,7 @@ function markDirty(flags){
               Kategória: <b>${escapeHtml(c ? (c.label_hu||c.id) : "—")}</b>
               • Ár: <b>${eff.toLocaleString("hu-HU")} Ft</b>
               • Készlet: <b>${p.status==="soon" ? "—" : p.stock}</b>
+              ${p.expectedDate ? `• Várható: <b>${escapeHtml(p.expectedDate)}</b>` : ''}
             </div>
           </div>
           <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
@@ -704,6 +744,7 @@ function markDirty(flags){
             </select>
             <input data-pid="${escapeHtml(p.id)}" data-k="stock" type="number" min="0" value="${p.stock}" style="width:110px;">
             <input data-pid="${escapeHtml(p.id)}" data-k="price" type="number" min="0" value="${p.price===null? "" : p.price}" placeholder="(kategória ár)" style="width:150px;">
+            <input data-pid="${escapeHtml(p.id)}" data-k="expectedDate" type="date" value="${p.expectedDate || ''}" placeholder="Várható dátum" style="width:150px;">
             <button class="ghost" data-edit="${escapeHtml(p.id)}">Szerkeszt</button>
             <button class="danger" data-del="${escapeHtml(p.id)}">Töröl</button>
           </div>
@@ -747,13 +788,15 @@ function markDirty(flags){
           p.categoryId = el.value;
         }else if(k === "visible"){
           p.visible = !!el.checked;
+        }else if(k === "expectedDate"){
+          p.expectedDate = el.value || "";
         }
 
         markDirty({ products:true });
       };
 
       const tag = String(el.tagName||"").toLowerCase();
-      if(tag === "select" || el.type === "checkbox") el.onchange = apply;
+      if(tag === "select" || el.type === "checkbox" || el.type === "date") el.onchange = apply;
       else el.oninput = apply;
     });
 
@@ -785,7 +828,8 @@ function markDirty(flags){
       name_en: "",
       flavor_hu: "",
       flavor_en: "",
-      visible: true
+      visible: true,
+      expectedDate: ""
     };
 
     const body = document.createElement("div");
@@ -809,6 +853,7 @@ function markDirty(flags){
 
         <div class="field third"><label>Készlet</label><input id="p_stock" type="number" min="0" value="${p.stock}"></div>
         <div class="field third"><label>Ár (Ft) — üres: kategória ár</label><input id="p_price" type="number" min="0" value="${p.price===null?"":p.price}"></div>
+        <div class="field third"><label>Várható dátum (soon)</label><input id="p_expected" type="date" value="${p.expectedDate || ""}"></div>
         <div class="field full"><label>Kép URL</label><input id="p_img" value="${escapeHtml(p.image)}"></div>
 
         <div class="field third"><label>Termék neve</label><input id="p_name" value="${escapeHtml(p.name_hu)}"></div>
@@ -816,7 +861,8 @@ function markDirty(flags){
         <div class="field third"><label>Íz EN</label><input id="p_fen" value="${escapeHtml(p.flavor_en)}"></div>
       </div>
       <div class="small-muted" style="margin-top:10px;">
-        soon → csak a “Hamarosan” tabban látszik. out/stock=0 → public oldalon leghátul + szürke.
+        soon → csak a "Hamarosan" tabban látszik. out/stock=0 → public oldalon leghátul + szürke.<br>
+        Várható dátum: csak soon termékeknél jelenik meg (pl. 2025-12-31).
       </div>
     `;
 
@@ -830,6 +876,7 @@ function markDirty(flags){
           visible: !!$("#p_visible").checked,
           stock: Math.max(0, Number($("#p_stock").value||0)),
           price: ($("#p_price").value === "" ? null : Math.max(0, Number($("#p_price").value||0))),
+          expectedDate: ($("#p_expected").value||"").trim(),
           image: ($("#p_img").value||"").trim(),
           name_hu: ($("#p_name").value||"").trim(),
           name_en: ($("#p_name").value||"").trim(),
@@ -852,13 +899,20 @@ function markDirty(flags){
     // out -> stock automatikusan 0 + lock
     const stSel = $("#p_status");
     const stInp = $("#p_stock");
+    const expInp = $("#p_expected");
     const syncStockLock = () => {
-      if(!stSel || !stInp) return;
+      if(!stSel || !stInp || !expInp) return;
       if(stSel.value === "out"){
         stInp.value = "0";
         stInp.disabled = true;
+        expInp.disabled = true;
+      }else if(stSel.value === "soon"){
+        stInp.disabled = false;
+        expInp.disabled = false;
       }else{
         stInp.disabled = false;
+        expInp.disabled = true;
+        expInp.value = "";
       }
     };
     if(stSel){
@@ -1189,15 +1243,38 @@ function markDirty(flags){
     const cats = [...state.doc.categories].sort((a,b)=>(a.label_hu||a.id).localeCompare((b.label_hu||b.id),"hu"));
     const prods = [...state.doc.products].sort((a,b)=>(a.name_hu||a.name_en||"").localeCompare((b.name_hu||b.name_en||""),"hu"));
 
+    // Group products by category
+    const prodsByCat = new Map();
+    prods.forEach(p => {
+      const catId = p.categoryId;
+      if(!prodsByCat.has(catId)) prodsByCat.set(catId, []);
+      prodsByCat.get(catId).push(p);
+    });
+
+    let productsHtml = "";
+    for (const [catId, prodList] of prodsByCat.entries()) {
+      const cat = cats.find(c => c.id === catId);
+      productsHtml += `
+        <div class="cat-group">
+          <h4>${escapeHtml(cat ? cat.label_hu : catId)}</h4>
+          <div class="check-grid">
+            ${prodList.map(p => `
+              <label class="chk"><input type="checkbox" class="pp_prod" value="${escapeHtml(p.id)}"${(pp.productIds||[]).includes(p.id)?" checked":""}> 
+              ${escapeHtml(p.name_hu||p.name_en||"—")} <span class="small-muted">• ${escapeHtml(p.flavor_hu||p.flavor_en||"")}</span></label>
+            `).join("")}
+          </div>
+        </div>
+      `;
+    }
+
     body.innerHTML = `
       <div class="form-grid">
         <div class="field third"><label>ID</label><input id="pp_id" value="${escapeHtml(pp.id)}" ${editing?"disabled":""}></div>
         <div class="field third"><label>Aktív</label><label class="chk" style="justify-content:flex-start;"><input type="checkbox" id="pp_enabled" ${pp.enabled===false?"":"checked"}> Bekapcsolva</label></div>
         <div class="field third"><label>Rev (auto)</label><input id="pp_rev" value="${Number(pp.rev||0)}" disabled></div>
 
-        <div class="field third"><label>Cím HU</label><input id="pp_thu" value="${escapeHtml(pp.title_hu||"")}"></div>
-        <div class="field third"><label>Cím EN</label><input id="pp_ten" value="${escapeHtml(pp.title_en||"")}"></div>
-        <div class="field third"><label></label><div class="small-muted">Mentéskor rev frissül → újra feldobható.</div></div>
+        <div class="field full"><label>Cím (magyar)</label><input id="pp_thu" value="${escapeHtml(pp.title_hu||"")}"></div>
+        <div class="field full"><label></label><div class="small-muted">Mentéskor rev frissül → újra feldobható.</div></div>
 
         <div class="field full"><label>Kategóriák (ha bejelölöd: az összes termék abból a kategóriából)</label>
           <div class="check-grid">
@@ -1209,10 +1286,8 @@ function markDirty(flags){
 
         <div class="field full"><label>Kézi termékek (opcionális)</label>
           <input id="pp_search" placeholder="Keresés..." style="margin-bottom:10px;">
-          <div class="check-grid" id="pp_prod_list">
-            ${prods.map(p => `
-              <label class="chk"><input type="checkbox" class="pp_prod" value="${escapeHtml(p.id)}"${(pp.productIds||[]).includes(p.id)?" checked":""}> ${escapeHtml(p.name_hu||p.name_en||"—")} <span class="small-muted">• ${escapeHtml(p.flavor_hu||p.flavor_en||"")}</span></label>
-            `).join("")}
+          <div class="check-grid" id="pp_prod_list" style="max-height: 300px; overflow-y: auto;">
+            ${productsHtml}
           </div>
         </div>
       </div>
@@ -1225,9 +1300,15 @@ function markDirty(flags){
       if(inp && list){
         inp.oninput = () => {
           const q = (inp.value||"").toLowerCase();
-          list.querySelectorAll("label.chk").forEach(lab => {
-            const txt = (lab.textContent||"").toLowerCase();
-            lab.style.display = (!q || txt.includes(q)) ? "" : "none";
+          list.querySelectorAll(".cat-group").forEach(group => {
+            let hasVisible = false;
+            group.querySelectorAll("label.chk").forEach(lab => {
+              const txt = (lab.textContent||"").toLowerCase();
+              const shouldShow = !q || txt.includes(q);
+              lab.style.display = shouldShow ? "" : "none";
+              if(shouldShow) hasVisible = true;
+            });
+            group.style.display = hasVisible ? "" : "none";
           });
         };
       }
@@ -1245,7 +1326,7 @@ function markDirty(flags){
           id: nid,
           enabled: !!$("#pp_enabled").checked,
           title_hu: ($("#pp_thu").value||"").trim() || "Új termékek elérhetőek",
-          title_en: ($("#pp_ten").value||"").trim() || "New products available",
+          title_en: "New products available",
           categoryIds: Array.from(document.querySelectorAll(".pp_cat:checked")).map(x=>String(x.value)),
           productIds: Array.from(document.querySelectorAll(".pp_prod:checked")).map(x=>String(x.value)),
           createdAt: editing ? Number(editing.createdAt||Date.now()) : Date.now(),
