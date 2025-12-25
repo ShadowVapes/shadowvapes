@@ -30,7 +30,6 @@
     understood: { hu: "Értettem", en: "Got it" },
     skipAll: { hu: "Összes átugrása", en: "Skip all" },
     dontShow: { hu: "Ne mutasd többször", en: "Don't show again" },
-    expected: { hu: "Várható", en: "Expected" }
   };
 
   const t = (k) => (UI[k] ? UI[k][state.lang] : k);
@@ -56,27 +55,6 @@
     return state.lang === "en"
       ? (p.flavor_en || p.flavor_hu || p.flavor || "")
       : (p.flavor_hu || p.flavor_en || p.flavor || "");
-  }
-
-  function formatDate(dateStr) {
-    if (!dateStr) return "";
-    try {
-      const date = new Date(dateStr);
-      if (isNaN(date.getTime())) return dateStr;
-      
-      const format = localStorage.getItem("sv_date_format") || "YYYY-MM-DD";
-      const year = date.getFullYear();
-      const month = String(date.getMonth() + 1).padStart(2, '0');
-      const day = String(date.getDate()).padStart(2, '0');
-      
-      switch(format) {
-        case "YYYY.MM.DD": return `${year}.${month}.${day}`;
-        case "DD/MM/YYYY": return `${day}/${month}/${year}`;
-        default: return `${year}-${month}-${day}`;
-      }
-    } catch {
-      return dateStr;
-    }
   }
 
   function effectivePrice(p) {
@@ -279,10 +257,23 @@
   function computeFeaturedByCategory(){
     state.featuredByCat = new Map();
     if(!state.salesFresh) return; // ✅ ha nem friss a sales, ne találgassunk felkapottat
-    
-    const products = (state.productsDoc.products || []).filter(p => p && p.id && p.visible !== false);
+
+    const products = (state.productsDoc.products || [])
+      .filter(p => p && p.id && p.visible !== false)
+      .map(p => ({
+        ...p,
+        id: String(p.id || ""),
+        categoryId: String(p.categoryId || "")
+      }));
+
+    const byId = new Map(products.map(p => [String(p.id), p]));
+
     const cats = (state.productsDoc.categories || []);
-    const enabledCats = new Set(cats.filter(c => c && c.id && (c.featuredEnabled === false ? false : true)).map(c => String(c.id)));
+    const enabledCats = new Set(
+      cats
+        .filter(c => c && c.id && (c.featuredEnabled === false ? false : true))
+        .map(c => String(c.id))
+    );
 
     // totals: categoryId -> productId -> qty
     const totals = new Map();
@@ -293,14 +284,13 @@
         const pid = String(it.productId || "");
         const qty = Number(it.qty || 0) || 0;
         if(!pid || qty <= 0) continue;
-        const p = products.find(x => String(x.id) === pid);
+
+        const p = byId.get(pid);
         if(!p) continue;
-        
-        // ✅ Kizárjuk az "out" státuszú és 0 készletű termékeket
-        if(p.status === "out" || p.stock <= 0) continue;
-        
+
         const cid = String(p.categoryId || "");
         if(!cid || !enabledCats.has(cid)) continue;
+
         any += qty;
         if(!totals.has(cid)) totals.set(cid, new Map());
         const m = totals.get(cid);
@@ -308,27 +298,29 @@
       }
     }
 
-    if(any <= 0) return; // ✅ nincs eladás → nincs felkapott
+    if(any <= 0) return;
 
     for(const [cid, m] of totals.entries()){
-      let bestPid = null;
-      let bestQty = -1;
+      const entries = [...m.entries()];
+      // qty desc, tie -> ABC név
+      entries.sort((a,b)=>{
+        const q = (b[1]||0) - (a[1]||0);
+        if(q !== 0) return q;
+        const pa = byId.get(a[0]);
+        const pb = byId.get(b[0]);
+        const na = norm(getName(pa || {}));
+        const nb = norm(getName(pb || {}));
+        return na.localeCompare(nb, locale());
+      });
 
-      for(const [pid, qty] of m.entries()){
-        if(qty > bestQty){
-          bestQty = qty; bestPid = pid;
-        }else if(qty === bestQty && bestPid){
-          // tie-break: íz név abc szerint (HU/EN locale)
-          const a = products.find(x=>String(x.id)===pid);
-          const b = products.find(x=>String(x.id)===bestPid);
-          const fa = norm(getFlavor(a));
-          const fb = norm(getFlavor(b));
-          const cmp = fa.localeCompare(fb, locale());
-          if(cmp < 0) bestPid = pid;
-        }
+      for(const [pid] of entries){
+        const p = byId.get(pid);
+        if(!p) continue;
+        // ✅ ne legyen felkapott az, ami elfogyott / hamarosan
+        if(isOut(p) || isSoon(p)) continue;
+        state.featuredByCat.set(cid, pid);
+        break;
       }
-
-      if(bestPid) state.featuredByCat.set(cid, bestPid);
     }
   }
 
@@ -509,6 +501,30 @@
     const empty = $("#empty");
     grid.innerHTML = "";
 
+    const OUTLINE_COLORS = {
+      out: "rgba(255,77,109,.55)",
+      soon: "rgba(255,211,77,.55)",
+      hot: "rgba(255,159,26,.55)"
+    };
+    const BADGE_BG = {
+      out: "rgba(255,77,109,.18)",
+      soon: "rgba(255,211,77,.18)",
+      hot: "rgba(255,159,26,.18)"
+    };
+    const BADGE_BORDER = {
+      out: "rgba(255,77,109,.45)",
+      soon: "rgba(255,211,77,.45)",
+      hot: "rgba(255,159,26,.45)"
+    };
+    const styleBadge = (el, kind) => {
+      el.style.background = BADGE_BG[kind];
+      el.style.borderColor = BADGE_BORDER[kind];
+      el.style.color = "var(--text)";
+      el.style.backdropFilter = "blur(6px)";
+    };
+    const getEta = (p) => String(p?.soonEta || p?.eta || p?.restockEta || p?.expected || "").trim();
+
+
     let list = filterList();
 
     // ✅ Featured: kategóriánként 1-1 (ha van eladás) + kategória toggle (admin)
@@ -549,14 +565,10 @@
       const stockShown = out ? 0 : (soon ? Math.max(0, Number(p.stock || 0)) : Math.max(0, Number(p.stock || 0)));
       const price = effectivePrice(p);
 
-      // Determine card classes based on status
-      let cardClass = "card fade-in";
-      if (out) cardClass += " dim outline-red";
-      else if (soon) cardClass += " outline-yellow";
-      if (featured) cardClass += " outline-orange";
-
       const card = document.createElement("div");
-      card.className = cardClass;
+      card.className = "card fade-in" + (out ? " dim" : "") + (soon ? " soon" : "") + (featured ? " featured" : "");
+      const outline = out ? OUTLINE_COLORS.out : (soon ? OUTLINE_COLORS.soon : (featured ? OUTLINE_COLORS.hot : ""));
+      if(outline) card.style.borderColor = outline;
 
       const hero = document.createElement("div");
       hero.className = "hero";
@@ -577,7 +589,8 @@
       if(featured){
         const b = document.createElement("div");
         b.className = "badge hot";
-        b.textContent = t("hot");
+        b.textContent = "🔥 " + t("hot");
+        styleBadge(b, "hot");
         badges.appendChild(b);
       }
 
@@ -585,21 +598,15 @@
         const b = document.createElement("div");
         b.className = "badge soon";
         b.textContent = t("soon");
+        styleBadge(b, "soon");
         badges.appendChild(b);
-        
-        // Add expected date badge if available
-        if (p.expectedDate) {
-          const expectedBadge = document.createElement("div");
-          expectedBadge.className = "badge calendar";
-          expectedBadge.textContent = `📅 ${t("expected")}: ${formatDate(p.expectedDate)}`;
-          badges.appendChild(expectedBadge);
-        }
       }
 
       if (out) {
         const b = document.createElement("div");
         b.className = "badge out";
         b.textContent = t("out");
+        styleBadge(b, "out");
         badges.appendChild(b);
       }
 
@@ -631,6 +638,15 @@
       meta.appendChild(priceEl);
       meta.appendChild(stockEl);
       body.appendChild(meta);
+
+      const eta = soon ? getEta(p) : "";
+      if(soon && eta){
+        const etaEl = document.createElement("div");
+        etaEl.className = "small-muted";
+        etaEl.style.marginTop = "6px";
+        etaEl.innerHTML = `Várható: <b>${escapeHtml(eta)}</b>`;
+        body.appendChild(etaEl);
+      }
 
       card.appendChild(hero);
       card.appendChild(body);
@@ -708,248 +724,271 @@
   }
 
   function showPopupsIfNeeded(){
+
+    // inline popup style (nem nyúlunk a styles.css-hez, de legyen normális mindenhol)
+    try{
+      if(!document.getElementById("svPopupStyle")){
+        const st = document.createElement("style");
+        st.id = "svPopupStyle";
+        st.textContent = `
+          .popup-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.66);display:flex;align-items:center;justify-content:center;padding:18px;z-index:9999}
+          .popup-modal{width:min(920px,94vw);max-height:86vh;overflow:hidden;background:rgba(12,12,16,.96);border:1px solid rgba(255,255,255,.10);border-radius:22px;box-shadow:0 18px 70px rgba(0,0,0,.55);padding:16px 16px 14px;display:flex;flex-direction:column;gap:12px}
+          .popup-head,.popup-top{display:flex;flex-direction:column;gap:4px}
+          .popup-title{font-size:18px;font-weight:800;letter-spacing:.2px}
+          .popup-sub{font-size:13px;opacity:.75}
+          .popup-carousel{position:relative;overflow:hidden;border-radius:18px;border:1px solid rgba(255,255,255,.08)}
+          .popup-track{display:flex;transition:transform .35s ease;will-change:transform;transform:translate3d(0,0,0)}
+          .popup-item{flex:0 0 100%;display:flex;flex-direction:column;gap:12px;align-items:stretch;padding:12px;background:rgba(255,255,255,.02)}
+          .popup-img{width:100%;height:min(420px,60vw);border-radius:18px;overflow:hidden;background:rgba(255,255,255,.06);flex:0 0 auto}
+          .popup-img img{width:100%;height:100%;object-fit:cover;display:block}
+          .popup-info{display:flex;flex-direction:column;gap:6px;min-width:0}
+          .popup-name{font-weight:900;line-height:1.15;white-space:normal;overflow:hidden}
+          .popup-flavor{font-size:13px;opacity:.85;white-space:normal;overflow:hidden}
+          .popup-meta{display:flex;flex-direction:column;gap:8px;min-width:0}
+          .popup-row{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap;font-size:13px;opacity:.9}
+          .popup-price{font-weight:900;font-size:16px}
+          .popup-stock{opacity:.9;font-size:13px}
+          .popup-nav{display:flex;align-items:center;justify-content:space-between;gap:10px}
+          .popup-dots{font-size:12px;opacity:.75}
+          .popup-btns,.popup-bottom{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+          .popup-chk,.chk{display:flex;align-items:center;gap:8px;font-size:13px;opacity:.85;user-select:none}
+          .popup-actions{display:flex;gap:10px;align-items:center}
+          .popup-actions button{white-space:nowrap}
+        `;
+        document.head.appendChild(st);
+      }
+    }catch{}
     const queue = buildPopupQueue();
     if(!queue.length) return;
 
-    // Remove existing popup if any
-    const existing = document.getElementById("popupBg");
-    if(existing) existing.remove();
+    // modal DOM
+    let bg = document.querySelector("#popupBg");
+    if(bg) bg.remove();
 
-    // Create popup container
-    const bg = document.createElement("div");
+    bg = document.createElement("div");
     bg.id = "popupBg";
     bg.className = "popup-backdrop";
 
     const modal = document.createElement("div");
     modal.className = "popup-modal";
-
-    const header = document.createElement("div");
-    header.className = "popup-header";
-
-    const content = document.createElement("div");
-    content.className = "popup-content";
-
-    const slider = document.createElement("div");
-    slider.className = "popup-slider";
-
-    const footer = document.createElement("div");
-    footer.className = "popup-footer";
-
-    modal.appendChild(header);
-    modal.appendChild(content);
-    modal.appendChild(footer);
     bg.appendChild(modal);
+
     document.body.appendChild(bg);
 
-    let currentPopup = 0;
-    let currentSlide = 0;
-    let slides = [];
-    let slideInterval = null;
+    let popupIndex = 0;
+    let catIndex = 0;
 
-    function renderPopup() {
-      if(currentPopup >= queue.length) {
-        bg.remove();
+    let autoplayTimer = null;
+
+    const cleanupAutoplay = () => {
+      if(autoplayTimer) clearInterval(autoplayTimer);
+      autoplayTimer = null;
+    };
+
+    const closeAll = () => {
+      cleanupAutoplay();
+      bg.remove();
+    };
+
+    const render = () => {
+      cleanupAutoplay();
+
+      const cur = queue[popupIndex];
+      if(!cur){ closeAll(); return; }
+
+      const curCat = cur.categories[catIndex];
+      if(!curCat){
+        popupIndex += 1;
+        catIndex = 0;
+        render();
         return;
       }
 
-      const popupData = queue[currentPopup];
-      const popup = popupData.popup;
-      const categories = popupData.categories;
+      const pp = cur.popup;
 
-      if(currentSlide >= categories.length) {
-        currentPopup++;
-        currentSlide = 0;
-        renderPopup();
-        return;
-      }
+      modal.innerHTML = "";
 
-      const category = categories[currentSlide];
-      const products = category.products;
-
-      if(products.length === 0) {
-        currentSlide++;
-        renderPopup();
-        return;
-      }
-
-      // Clear existing slides
-      slider.innerHTML = "";
-      slides = [];
-
-      // Create slides for each product
-      products.forEach((product, index) => {
-        const slide = document.createElement("div");
-        slide.className = "popup-slide";
-        
-        const name = getName(product);
-        const flavor = getFlavor(product);
-        const price = effectivePrice(product);
-        const stock = product.stock;
-        const isProductSoon = isSoon(product);
-        const isProductOut = isOut(product);
-        
-        slide.innerHTML = `
-          <div class="popup-product-image">
-            <img src="${product.image || ''}" alt="${name} ${flavor}" loading="lazy">
-          </div>
-          <div class="popup-product-info">
-            <div class="popup-product-name">${name}</div>
-            <div class="popup-product-flavor">${flavor}</div>
-            <div class="popup-product-price">${fmtFt(price)}</div>
-            <div class="popup-product-stock">${t("stock")}: <b>${isProductSoon ? "—" : (isProductOut ? 0 : stock)} ${isProductSoon ? "" : t("pcs")}</b></div>
-            ${product.expectedDate ? `<div class="popup-product-expected">${t("expected")}: ${formatDate(product.expectedDate)}</div>` : ''}
-          </div>
-        `;
-        
-        slider.appendChild(slide);
-        slides.push(slide);
-      });
-
-      // Setup infinite slider
-      let currentProductSlide = 0;
-      const totalSlides = slides.length;
-      
-      function goToSlide(index, animate = true) {
-        if(totalSlides === 0) return;
-        
-        currentProductSlide = (index + totalSlides) % totalSlides;
-        const offset = -currentProductSlide * 100;
-        
-        if(animate) {
-          slider.style.transition = 'transform 0.5s ease';
-        } else {
-          slider.style.transition = 'none';
-        }
-        
-        slider.style.transform = `translateX(${offset}%)`;
-        updateDots();
-      }
-
-      function nextSlide() {
-        goToSlide(currentProductSlide + 1);
-      }
-
-      function prevSlide() {
-        goToSlide(currentProductSlide - 1);
-      }
-
-      // Create dots
-      const dots = document.createElement("div");
-      dots.className = "popup-dots";
-      
-      function updateDots() {
-        dots.innerHTML = '';
-        for(let i = 0; i < totalSlides; i++) {
-          const dot = document.createElement("div");
-          dot.className = `popup-dot ${i === currentProductSlide ? 'active' : ''}`;
-          dot.addEventListener('click', () => goToSlide(i));
-          dots.appendChild(dot);
-        }
-      }
-
-      // Auto slide
-      if(slideInterval) clearInterval(slideInterval);
-      if(totalSlides > 1) {
-        slideInterval = setInterval(nextSlide, 4000);
-      }
-
-      // Update header and footer
-      header.innerHTML = `
-        <div class="popup-title">${state.lang === "en" ? (popup.title_en || t("newAvail")) : (popup.title_hu || t("newAvail"))}</div>
-        <div class="popup-subtitle">${category.label}</div>
+      const top = document.createElement("div");
+      top.className = "popup-top";
+      top.innerHTML = `
+        <div class="popup-title">${(state.lang==="en" ? (pp.title_en || t("newAvail")) : (pp.title_hu || t("newAvail")))}</div>
+        <div class="popup-sub">${curCat.label}</div>
       `;
 
-      footer.innerHTML = '';
-      
-      const dontShow = document.createElement("label");
-      dontShow.className = "chk";
-      dontShow.innerHTML = `<input type="checkbox" id="dontShowAgain"> ${t("dontShow")}`;
-      
-      const skipAllBtn = document.createElement("button");
-      skipAllBtn.className = "ghost";
-      skipAllBtn.textContent = t("skipAll");
-      skipAllBtn.onclick = () => {
-        // Hide all popups
-        queue.forEach(q => {
-          try {
-            localStorage.setItem(popupHideKey(q.popup), "1");
-          } catch {}
-        });
-        if(slideInterval) clearInterval(slideInterval);
-        bg.remove();
-      };
-      
-      const understoodBtn = document.createElement("button");
-      understoodBtn.className = "primary";
-      understoodBtn.textContent = t("understood");
-      understoodBtn.onclick = () => {
-        const checkbox = document.getElementById("dontShowAgain");
-        if(checkbox && checkbox.checked) {
-          try {
-            localStorage.setItem(popupHideKey(popup), "1");
-          } catch {}
-        }
-        currentSlide++;
-        if(slideInterval) clearInterval(slideInterval);
-        renderPopup();
-      };
-      
-      const buttons = document.createElement("div");
-      buttons.className = "popup-buttons";
-      buttons.appendChild(skipAllBtn);
-      buttons.appendChild(understoodBtn);
-      
-      footer.appendChild(dontShow);
-      if(totalSlides > 1) footer.appendChild(dots);
-      footer.appendChild(buttons);
+      const carousel = document.createElement("div");
+      carousel.className = "popup-carousel";
 
-      // Add navigation arrows for desktop
-      if(totalSlides > 1) {
-        const prevArrow = document.createElement("button");
-        prevArrow.className = "ghost";
-        prevArrow.style.position = "absolute";
-        prevArrow.style.left = "10px";
-        prevArrow.style.top = "50%";
-        prevArrow.style.transform = "translateY(-50%)";
-        prevArrow.style.zIndex = "100";
-        prevArrow.textContent = "‹";
-        prevArrow.onclick = prevSlide;
-        
-        const nextArrow = document.createElement("button");
-        nextArrow.className = "ghost";
-        nextArrow.style.position = "absolute";
-        nextArrow.style.right = "10px";
-        nextArrow.style.top = "50%";
-        nextArrow.style.transform = "translateY(-50%)";
-        nextArrow.style.zIndex = "100";
-        nextArrow.textContent = "›";
-        nextArrow.onclick = nextSlide;
-        
-        content.appendChild(prevArrow);
-        content.appendChild(nextArrow);
+      const track = document.createElement("div");
+      track.className = "popup-track";
+      carousel.appendChild(track);
+
+      const items = Array.isArray(curCat.products) ? curCat.products : [];
+      if(!items.length){
+        catIndex += 1;
+        render();
+        return;
+      }
+      let slide = 0;
+      let pos = 0;
+      const hasLoop = items.length > 1;
+
+      const nav = document.createElement("div");
+      nav.className = "popup-nav";
+
+      const prev = document.createElement("button");
+      prev.className = "ghost";
+      prev.textContent = "‹";
+
+      const mid = document.createElement("div");
+      mid.className = "popup-dots";
+      function updateMid(){
+        mid.textContent = `${slide+1}/${items.length}`;
       }
 
-      content.innerHTML = '';
-      content.appendChild(slider);
-      if(totalSlides > 1) updateDots();
-      goToSlide(0, false);
-      
-      // Make slider width dynamic
-      slider.style.width = `${totalSlides * 100}%`;
-      slides.forEach(slide => {
-        slide.style.width = `${100 / totalSlides}%`;
+      const next = document.createElement("button");
+      next.className = "ghost";
+      next.textContent = "›";
+
+      nav.appendChild(prev);
+      nav.appendChild(mid);
+      nav.appendChild(next);
+
+      const setTransform = (instant=false) => {
+        track.style.transition = instant ? "none" : "";
+        track.style.transform = `translate3d(${pos * -100}%,0,0)`;
+        if(instant){
+          requestAnimationFrame(()=>{ track.style.transition = ""; });
+        }
+      };
+
+      const go = (dir) => {
+        if(!items.length) return;
+        if(!hasLoop){
+          slide = (slide + dir + items.length) % items.length;
+          pos = slide;
+          setTransform(false);
+          updateMid();
+          return;
+        }
+        pos += dir;
+        slide = (slide + dir + items.length) % items.length;
+        setTransform(false);
+        updateMid();
+      };
+
+      prev.onclick = () => go(-1);
+      next.onclick = () => go(1);
+
+      track.addEventListener("transitionend", () => {
+        if(!hasLoop) return;
+        if(pos === 0){
+          pos = items.length;
+          setTransform(true);
+        }else if(pos === items.length + 1){
+          pos = 1;
+          setTransform(true);
+        }
       });
-    }
 
-    renderPopup();
+      const renderSlides = () => {
+        track.innerHTML = "";
 
-    // Close on background click
+        const mk = (p) => {
+          const card = document.createElement("div");
+          card.className = "popup-item";
+
+          const price = fmtFt(effectivePrice(p));
+          const stockShown = Math.max(0, Number(p.stock || 0));
+          const soon = (p && p.status) === "soon";
+          const eta = soon ? String(p?.soonEta || p?.eta || p?.restockEta || p?.expected || "").trim() : "";
+
+          card.innerHTML = `
+            <div class="popup-img"><img loading="lazy" decoding="async" src="${p.image || ""}" alt="${(getName(p)+" "+getFlavor(p)).trim()}"></div>
+            <div class="popup-meta">
+              <div class="popup-price">${price}</div>
+              <div class="popup-flavor">${getFlavor(p)}</div>
+              <div class="popup-name">${getName(p)}</div>
+              <div class="popup-stock">${t("stock")}: <b>${soon ? "—" : (stockShown + " " + t("pcs"))}</b></div>
+              ${soon && eta ? `<div class="small-muted">Várható: <b>${escapeHtml(eta)}</b></div>` : ``}
+            </div>
+          `;
+          return card;
+        };
+
+        const list = (!items.length)
+          ? []
+          : (hasLoop ? [items[items.length-1], ...items, items[0]] : items);
+
+        for(const p of list){
+          track.appendChild(mk(p));
+        }
+
+        slide = 0;
+        pos = hasLoop ? 1 : 0;
+        setTransform(true);
+        updateMid();
+      };
+
+      renderSlides();
+
+      if(items.length > 1){
+        autoplayTimer = setInterval(() => {
+          go(1);
+        }, 3200);
+      }
+
+      const bottom = document.createElement("div");
+      bottom.className = "popup-bottom";
+
+      const dont = document.createElement("label");
+      dont.className = "chk";
+      dont.innerHTML = `<input type="checkbox" id="ppDont"> ${t("dontShow")}`;
+
+      const btnSkip = document.createElement("button");
+      btnSkip.className = "ghost";
+      btnSkip.textContent = t("skipAll");
+      btnSkip.onclick = () => {
+        // ha be van pipálva a "Ne mutasd többször", akkor az ÖSSZES aktív popup-ot elrejtjük erre a rev-re
+        const chk = modal.querySelector("#ppDont");
+        if(chk && chk.checked){
+          for(const q of queue){
+            try{ localStorage.setItem(popupHideKey(q.popup), "1"); }catch{}
+          }
+        }
+        closeAll();
+      };
+
+      const btnOk = document.createElement("button");
+      btnOk.className = "primary";
+      btnOk.textContent = t("understood");
+      btnOk.onclick = () => {
+        const chk = modal.querySelector("#ppDont");
+        if(chk && chk.checked){
+          try{ localStorage.setItem(popupHideKey(pp), "1"); }catch{}
+        }
+        catIndex += 1;
+        render();
+      };
+
+      bottom.appendChild(dont);
+      bottom.appendChild(btnSkip);
+      bottom.appendChild(btnOk);
+
+      modal.appendChild(top);
+      modal.appendChild(carousel);
+      if(items.length > 1) modal.appendChild(nav);
+      modal.appendChild(bottom);
+    };
+
+    // click outside closes current popup stack? better: do nothing to avoid accidental
     bg.addEventListener("click", (e) => {
-      if(e.target === bg) {
-        if(slideInterval) clearInterval(slideInterval);
-        bg.remove();
+      if(e.target === bg){
+        // same as skip all (no hide)
+        closeAll();
       }
     });
+
+    render();
   }
 
   /* ----------------- Init ----------------- */
