@@ -55,7 +55,7 @@
       "stock": 8,
       "visible": true,
       "price": null,
-      "image": "https://media.discordapp.net/attachments/1281700323081326743/1453190144348786779/Polar_mint_no_bg.png?ex=694c8c49&is=694b3ac9&hm=5a28ae29b489e34a34c96a23913f2a7bbf8380a5c4d924b59d565ed1b2969cdf&=&format=webp&quality=lossless&width=856&height=856",
+      "image": "https://media.discordapp.net/attachments/1281700323081326743/1453190144348786779/Polar_mint_no_bg.png?ex=694dddc9&is=694c8c49&hm=10597dde497eac166be1c560adad0a1d2119eeadba06706a0490d692570fc3e3&=&format=webp&quality=lossless&width=856&height=856",
       "name_hu": "Elfbar Ice King 30k",
       "name_en": "Elfbar Ice King 30k",
       "flavor_hu": "Miami Menta",
@@ -91,7 +91,7 @@
   "popups": [],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1766673898120,
-    "updatedAt": "2025-12-25T14:44:58.120Z"
+    "rev": 1766673917923,
+    "updatedAt": "2025-12-25T14:45:17.923Z"
   }
 }
