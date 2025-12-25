@@ -42,7 +42,7 @@
       "stock": 8,
       "visible": true,
       "price": null,
-      "image": "https://media.discordapp.net/attachments/1281700323081326743/1453190144839516222/Pink_lemonade_no_bg.png?ex=694c8c49&is=694b3ac9&hm=63503e3524f640c02cbbb5587c1406102ddfced5a682fe24019ebf4a87938f28&=&format=webp&quality=lossless&width=856&height=856",
+      "image": "https://media.discordapp.net/attachments/1281700323081326743/1453190144839516222/Pink_lemonade_no_bg.png?ex=694dddc9&is=694c8c49&hm=a6a1e217359b70b00d883cee2189828a2ebbdd2688d25005e2c74edcb05ed6be&=&format=webp&quality=lossless&width=856&height=856",
       "name_hu": "Elfbar Ice King 30k",
       "name_en": "Elfbar Ice King 30k",
       "flavor_hu": "Pink Limonádé",
@@ -91,7 +91,7 @@
   "popups": [],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1766673917923,
-    "updatedAt": "2025-12-25T14:45:17.923Z"
+    "rev": 1766673937119,
+    "updatedAt": "2025-12-25T14:45:37.119Z"
   }
 }
