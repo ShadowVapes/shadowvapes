@@ -118,7 +118,7 @@
       "id": "p_9842bfea4d24c_19b5b637a59",
       "categoryId": "elfraya25",
       "status": "soon",
-      "stock": 0,
+      "stock": 10,
       "visible": true,
       "price": null,
       "image": "https://media.discordapp.net/attachments/1281700323081326743/1454140583923810345/2_watermelon_ice_NOBG.png?ex=69500173&is=694eaff3&hm=96ec5bbc222a273c1cc920614bad59f12787181dc06a5f5dd562a2031261e99b&=&format=webp&quality=lossless&width=856&height=856",
@@ -132,7 +132,7 @@
   "popups": [],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1766764847851,
-    "updatedAt": "2025-12-26T16:00:47.851Z"
+    "rev": 1766764860554,
+    "updatedAt": "2025-12-26T16:01:00.554Z"
   }
 }
