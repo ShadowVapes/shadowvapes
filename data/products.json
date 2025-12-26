@@ -11,7 +11,7 @@
       "id": "elfraya25",
       "label_hu": "Elfbar Raya D3  25k",
       "label_en": "Elfbar Raya D3  25k",
-      "basePrice": 0,
+      "basePrice": 6,
       "featuredEnabled": true
     }
   ],
@@ -118,7 +118,7 @@
   "popups": [],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1766764769518,
-    "updatedAt": "2025-12-26T15:59:29.518Z"
+    "rev": 1766764770637,
+    "updatedAt": "2025-12-26T15:59:30.637Z"
   }
 }
