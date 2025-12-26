@@ -30,7 +30,7 @@
       "stock": 3,
       "visible": true,
       "price": null,
-      "image": "https://media.discordapp.net/attachments/1281700323081326743/1453178739029704795/Grape_ice_bg_removed_correct.png?ex=694dd32a&is=694c81aa&hm=8513a136fbb57f1de475ab544995ac650409c8df51df52cd2dcdca5ed1e1c8da&=&format=webp&quality=lossless&width=960&height=960",
+      "image": "https://i.ibb.co/0T3Ff5S/Grape-ice-bg-removed-correct.png",
       "name_hu": "Elfbar Ice King 30k",
       "name_en": "Elfbar Ice King 30k",
       "flavor_hu": "Szőlő Jég",
@@ -321,7 +321,7 @@
   "popups": [],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1766773028942,
-    "updatedAt": "2025-12-26T18:17:08.942Z"
+    "rev": 1766773069752,
+    "updatedAt": "2025-12-26T18:17:49.752Z"
   }
 }
