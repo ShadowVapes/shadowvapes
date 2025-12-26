@@ -40,8 +40,8 @@
     {
       "id": "p_cdf4d9a12f296_19b4e11ef4e",
       "categoryId": "elf30",
-      "status": "out",
-      "stock": 0,
+      "status": "ok",
+      "stock": 10,
       "visible": true,
       "price": null,
       "image": "https://media.discordapp.net/attachments/1281700323081326743/1453190144839516222/Pink_lemonade_no_bg.png?ex=694dddc9&is=694c8c49&hm=a6a1e217359b70b00d883cee2189828a2ebbdd2688d25005e2c74edcb05ed6be&=&format=webp&quality=lossless&width=856&height=856",
@@ -126,7 +126,7 @@
   ],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1766711771608,
-    "updatedAt": "2025-12-26T01:16:11.608Z"
+    "rev": 1766711820608,
+    "updatedAt": "2025-12-26T01:17:00.608Z"
   }
 }
