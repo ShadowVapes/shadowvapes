@@ -302,12 +302,26 @@
       "flavor_hu": "Fekete Szőlő Jég",
       "flavor_en": "Black Grape Ice",
       "soonEta": "2026-01"
+    },
+    {
+      "id": "p_3eab9151a584a_19b5bd5a4a7",
+      "categoryId": "elflush40",
+      "status": "soon",
+      "stock": 10,
+      "visible": true,
+      "price": null,
+      "image": "https://media.discordapp.net/attachments/1281700323081326743/1454166412938711132/Blue-Razz-Ice_NOBG.png?ex=69501981&is=694ec801&hm=0f849596ef0bea92a9a3a6ff27e3ddf736214a3ae46d91da3ea2bd04b4cee8c5&=&format=webp&quality=lossless&width=856&height=856",
+      "name_hu": "Elfbar Lush King Pro 40k",
+      "name_en": "Elfbar Lush King Pro 40k",
+      "flavor_hu": "Kék Málna Jég",
+      "flavor_en": "Blue Razz Ice",
+      "soonEta": "2026-01"
     }
   ],
   "popups": [],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1766772268215,
-    "updatedAt": "2025-12-26T18:04:28.215Z"
+    "rev": 1766772311214,
+    "updatedAt": "2025-12-26T18:05:11.214Z"
   }
 }
