@@ -246,12 +246,26 @@
       "flavor_hu": "Kaktusz Lime",
       "flavor_en": "Cactus Lime",
       "soonEta": "2026-01"
+    },
+    {
+      "id": "p_57933baaefbb_19b5bc81e53",
+      "categoryId": "elflush40",
+      "status": "soon",
+      "stock": 0,
+      "visible": true,
+      "price": null,
+      "image": "https://media.discordapp.net/attachments/1281700323081326743/1454166413953470557/Cherry-Burst_NOBG.png?ex=69501982&is=694ec802&hm=71e8265c17b277f61d41d90ef7a87ec5da1a4cd6f6b937229aa2c121eed58c88&=&format=webp&quality=lossless&width=856&height=856",
+      "name_hu": "Elfbar Lush King Pro 40k",
+      "name_en": "Elfbar Lush King Pro 40k",
+      "flavor_hu": "Intenzív Cseresznye",
+      "flavor_en": "Cherry Burst",
+      "soonEta": "2026-01"
     }
   ],
   "popups": [],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1766771332218,
-    "updatedAt": "2025-12-26T17:48:52.218Z"
+    "rev": 1766771764215,
+    "updatedAt": "2025-12-26T17:56:04.215Z"
   }
 }
