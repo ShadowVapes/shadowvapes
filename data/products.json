@@ -94,10 +94,24 @@
       "soonEta": ""
     }
   ],
-  "popups": [],
+  "popups": [
+    {
+      "id": "popup_1e9e8cf9853638_19b586204b6",
+      "enabled": true,
+      "rev": 1766714378931,
+      "title_hu": "Új termékek elérhetőek",
+      "title_en": "Új termékek elérhetőek",
+      "categoryIds": [
+        "elf30"
+      ],
+      "productIds": [],
+      "createdAt": 1766714378931,
+      "updatedAt": 1766714378931
+    }
+  ],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1766713761610,
-    "updatedAt": "2025-12-26T01:49:21.610Z"
+    "rev": 1766714380613,
+    "updatedAt": "2025-12-26T01:59:40.613Z"
   }
 }
