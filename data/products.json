@@ -132,7 +132,7 @@
       "id": "p_27f5bd691fa03_19b5b64ea4a",
       "categoryId": "elfraya25",
       "status": "soon",
-      "stock": 0,
+      "stock": 10,
       "visible": true,
       "price": null,
       "image": "https://media.discordapp.net/attachments/1281700323081326743/1454140583517094039/2_strawberry_grape_NOBG.png?ex=69500173&is=694eaff3&hm=e92dc9a85cb3db15286663a496aac497bd81c76e577f4bdec3ee58d001a5a6e5&=&format=webp&quality=lossless&width=856&height=856",
@@ -146,7 +146,7 @@
   "popups": [],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1766764950214,
-    "updatedAt": "2025-12-26T16:02:30.214Z"
+    "rev": 1766764956529,
+    "updatedAt": "2025-12-26T16:02:36.529Z"
   }
 }
