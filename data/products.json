@@ -218,12 +218,26 @@
       "flavor_hu": "Tejes Oolong Tea",
       "flavor_en": "Milky Oolong",
       "soonEta": "2026-01"
+    },
+    {
+      "id": "p_e46535c6ee57a_19b5bc4a0a9",
+      "categoryId": "elflush40",
+      "status": "soon",
+      "stock": 5,
+      "visible": true,
+      "price": null,
+      "image": "https://media.discordapp.net/attachments/1281700323081326743/1454166414310248518/Cucumber-Lime_NOBG.png?ex=69501982&is=694ec802&hm=44230b9bb9c56f3c0bc70a5237e13de9a8799f55539973e78246be299437328a&=&format=webp&quality=lossless&width=856&height=856",
+      "name_hu": "Elfbar Lush King Pro 40k",
+      "name_en": "Elfbar Lush King Pro 40k",
+      "flavor_hu": "Uborka Lime",
+      "flavor_en": "Cucumber Lime",
+      "soonEta": "2026-01"
     }
   ],
   "popups": [],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1766771146213,
-    "updatedAt": "2025-12-26T17:45:46.213Z"
+    "rev": 1766771253565,
+    "updatedAt": "2025-12-26T17:47:33.565Z"
   }
 }
