@@ -268,7 +268,7 @@
       "stock": 5,
       "visible": true,
       "price": null,
-      "image": "https://media.discordapp.net/attachments/1281700323081326743/1454166415127875696/Mountain-Mint_NOBG.png?ex=69501982&is=694ec802&hm=c9e427200fdd792f39dfec31a25e65e200f9b263b8cb13761edcc8aca0e9363a&=&format=webp&quality=lossless&width=856&height=856",
+      "image": "https://i.ibb.co/k6wHq48p/Mountain-Mint-NOBG.png",
       "name_hu": "Elfbar Lush King Pro 40k",
       "name_en": "Elfbar Lush King Pro 40k",
       "flavor_hu": "Hegyi Menta",
@@ -321,7 +321,7 @@
   "popups": [],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1766773676214,
-    "updatedAt": "2025-12-26T18:27:56.214Z"
+    "rev": 1766773705214,
+    "updatedAt": "2025-12-26T18:28:25.214Z"
   }
 }
