@@ -114,7 +114,7 @@
       "stock": 10,
       "visible": true,
       "price": null,
-      "image": "https://media.discordapp.net/attachments/1281700323081326743/1454140582380310773/2_grape_ice_NOBG.png?ex=69500173&is=694eaff3&hm=6a2bee31141b57d378ec52f5a0441371265baf21c9b8abda9d89303367645ef5&=&format=webp&quality=lossless&width=856&height=856",
+      "image": "https://i.ibb.co/1GVHr6XM/2-grape-ice-NOBG.png",
       "name_hu": "Elfbar Raya D3 25K",
       "name_en": "Elfbar Raya D3 25K",
       "flavor_hu": "Szőlő Jég",
@@ -321,7 +321,7 @@
   "popups": [],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1766773940214,
-    "updatedAt": "2025-12-26T18:32:20.215Z"
+    "rev": 1766773978214,
+    "updatedAt": "2025-12-26T18:32:58.214Z"
   }
 }
