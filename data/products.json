@@ -13,6 +13,13 @@
       "label_en": "Elfbar Raya D3  25k",
       "basePrice": 6000,
       "featuredEnabled": true
+    },
+    {
+      "id": "elflush40",
+      "label_hu": "Elfbar Lush King Pro 40k",
+      "label_en": "Elfbar Lush King Pro 40k",
+      "basePrice": 7000,
+      "featuredEnabled": true
     }
   ],
   "products": [
@@ -188,7 +195,7 @@
   "popups": [],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1766766535214,
-    "updatedAt": "2025-12-26T16:28:55.214Z"
+    "rev": 1766767688214,
+    "updatedAt": "2025-12-26T16:48:08.214Z"
   }
 }
