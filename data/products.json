@@ -274,12 +274,26 @@
       "flavor_hu": "Hegyi Menta",
       "flavor_en": "Mountain Mint",
       "soonEta": "2026-01"
+    },
+    {
+      "id": "p_c90c49f8b210b_19b5bcfc553",
+      "categoryId": "elflush40",
+      "status": "soon",
+      "stock": 5,
+      "visible": true,
+      "price": null,
+      "image": "https://media.discordapp.net/attachments/1281700323081326743/1454166411499933716/Sour-Pineapple-Ice_NOBG.png?ex=69501981&is=694ec801&hm=7a3602fa6b477fd2ca5c134877af82c66aa4ed655d40c937c951b22aa662e51f&=&format=webp&quality=lossless&width=856&height=856",
+      "name_hu": "Elfbar Lush King Pro 40k",
+      "name_en": "Elfbar Lush King Pro 40k",
+      "flavor_hu": "Savanyú Ananász Jég",
+      "flavor_en": "Sour Pineapple Ice",
+      "soonEta": "2026-01"
     }
   ],
   "popups": [],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1766771893214,
-    "updatedAt": "2025-12-26T17:58:13.214Z"
+    "rev": 1766771967213,
+    "updatedAt": "2025-12-26T17:59:27.213Z"
   }
 }
