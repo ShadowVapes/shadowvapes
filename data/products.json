@@ -108,11 +108,25 @@
       ],
       "createdAt": 1766711360012,
       "updatedAt": 1766711360012
+    },
+    {
+      "id": "popup_ae9e49f9c173d_19b5833fdd4",
+      "enabled": true,
+      "rev": 1766711363716,
+      "title_hu": "Új termékek elérhetőek",
+      "title_en": "Új termékek elérhetőek",
+      "categoryIds": [],
+      "productIds": [
+        "p_f93b7eb924ed1_19b4e156422",
+        "p_cdf4d9a12f296_19b4e11ef4e"
+      ],
+      "createdAt": 1766711363716,
+      "updatedAt": 1766711363716
     }
   ],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1766711361015,
-    "updatedAt": "2025-12-26T01:09:21.015Z"
+    "rev": 1766711364719,
+    "updatedAt": "2025-12-26T01:09:24.719Z"
   }
 }
