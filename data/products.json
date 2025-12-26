@@ -184,7 +184,7 @@
       "stock": 10,
       "visible": true,
       "price": null,
-      "image": "https://media.discordapp.net/attachments/1281700323081326743/1454148858534690816/2_bue_razz_ice.png?ex=69500928&is=694eb7a8&hm=7d92c318a3e8535a07b16b8c0619dfd026742d1feebb77b2768847e6d6896a07&=&format=webp&quality=lossless&width=350&height=350",
+      "image": "https://i.ibb.co/m5h7W97V/2-bue-razz-ice.png",
       "name_hu": "Elfbar Raya D3 25K",
       "name_en": "Elfbar Raya D3 25K",
       "flavor_hu": "Kék Málna Jég",
@@ -321,7 +321,7 @@
   "popups": [],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1766773734214,
-    "updatedAt": "2025-12-26T18:28:54.214Z"
+    "rev": 1766773940214,
+    "updatedAt": "2025-12-26T18:32:20.215Z"
   }
 }
