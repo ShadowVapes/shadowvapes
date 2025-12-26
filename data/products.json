@@ -226,7 +226,7 @@
       "stock": 5,
       "visible": true,
       "price": null,
-      "image": "https://media.discordapp.net/attachments/1281700323081326743/1454166414310248518/Cucumber-Lime_NOBG.png?ex=69501982&is=694ec802&hm=44230b9bb9c56f3c0bc70a5237e13de9a8799f55539973e78246be299437328a&=&format=webp&quality=lossless&width=856&height=856",
+      "image": "https://i.ibb.co/d0CxFv33/Cucumber-Lime-NOBG.png",
       "name_hu": "Elfbar Lush King Pro 40k",
       "name_en": "Elfbar Lush King Pro 40k",
       "flavor_hu": "Uborka Lime",
@@ -321,7 +321,7 @@
   "popups": [],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1766773611213,
-    "updatedAt": "2025-12-26T18:26:51.213Z"
+    "rev": 1766773647213,
+    "updatedAt": "2025-12-26T18:27:27.213Z"
   }
 }
