@@ -55,7 +55,7 @@
       "id": "p_f93b7eb924ed1_19b4e156422",
       "categoryId": "elf30",
       "status": "ok",
-      "stock": 5,
+      "stock": 8,
       "visible": true,
       "price": null,
       "image": "https://media.discordapp.net/attachments/1281700323081326743/1453190144348786779/Polar_mint_no_bg.png?ex=694dddc9&is=694c8c49&hm=10597dde497eac166be1c560adad0a1d2119eeadba06706a0490d692570fc3e3&=&format=webp&quality=lossless&width=856&height=856",
@@ -97,7 +97,7 @@
   "popups": [],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1766719166208,
-    "updatedAt": "2025-12-26T03:19:26.208Z"
+    "rev": 1766719176819,
+    "updatedAt": "2025-12-26T03:19:36.819Z"
   }
 }
