@@ -13,7 +13,7 @@
       "id": "p_568389f50aa19_19b4d718932",
       "categoryId": "elf30",
       "status": "ok",
-      "stock": 5,
+      "stock": 8,
       "visible": true,
       "price": null,
       "image": "https://media.discordapp.net/attachments/1281700323081326743/1453178739029704795/Grape_ice_bg_removed_correct.png?ex=694dd32a&is=694c81aa&hm=8513a136fbb57f1de475ab544995ac650409c8df51df52cd2dcdca5ed1e1c8da&=&format=webp&quality=lossless&width=960&height=960",
@@ -94,24 +94,10 @@
       "soonEta": ""
     }
   ],
-  "popups": [
-    {
-      "id": "popup_228bbbeb9490f_19b5884b2d8",
-      "enabled": true,
-      "rev": 1766717045138,
-      "title_hu": "Új termékek elérhetőek",
-      "title_en": "Új termékek elérhetőek",
-      "categoryIds": [
-        "elf30"
-      ],
-      "productIds": [],
-      "createdAt": 1766716652169,
-      "updatedAt": 1766717045138
-    }
-  ],
+  "popups": [],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1766717491864,
-    "updatedAt": "2025-12-26T02:51:31.864Z"
+    "rev": 1766717494992,
+    "updatedAt": "2025-12-26T02:51:34.992Z"
   }
 }
