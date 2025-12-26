@@ -82,8 +82,8 @@
     {
       "id": "p_2ff9b502a78a2_19b4e18a6e7",
       "categoryId": "elf30",
-      "status": "ok",
-      "stock": 3,
+      "status": "out",
+      "stock": 0,
       "visible": true,
       "price": null,
       "image": "https://media.discordapp.net/attachments/1281700323081326743/1453206649123770480/Lime_cola_no_bg.png?ex=694ded28&is=694c9ba8&hm=070b214720f8f3242940bfce2c6f05c722fbd3baf6398d1393ffff88c34ba3a2&=&format=webp&quality=lossless&width=960&height=960",
@@ -97,7 +97,7 @@
   "popups": [],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1766713720609,
-    "updatedAt": "2025-12-26T01:48:40.609Z"
+    "rev": 1766713731609,
+    "updatedAt": "2025-12-26T01:48:51.609Z"
   }
 }
