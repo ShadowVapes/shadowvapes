@@ -44,12 +44,12 @@
       "stock": 5,
       "visible": true,
       "price": null,
-      "image": "https://media.discordapp.net/attachments/1281700323081326743/1453180818523426856/BlueRazz_no_bg.png?ex=694dd519&is=694c8399&hm=bc189f4a7348a36e4a4fee7451c617b38a68696f200abda6d1c60386d09cab81&=&format=webp&quality=lossless&width=960&height=960",
+      "image": "https://ibb.co/tT6J55fX",
       "name_hu": "Elfbar Ice King 30k",
       "name_en": "Elfbar Ice King 30k",
       "flavor_hu": "Kék Málna",
       "flavor_en": "Blue Razz",
-      "soonEta": "2026-01"
+      "soonEta": ""
     },
     {
       "id": "p_cdf4d9a12f296_19b4e11ef4e",
@@ -321,7 +321,7 @@
   "popups": [],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1766772311214,
-    "updatedAt": "2025-12-26T18:05:11.214Z"
+    "rev": 1766772767033,
+    "updatedAt": "2025-12-26T18:12:47.033Z"
   }
 }
