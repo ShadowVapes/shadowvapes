@@ -141,12 +141,26 @@
       "flavor_hu": "Eper Szőlő",
       "flavor_en": "Strawberry Grape",
       "soonEta": "2026-01"
+    },
+    {
+      "id": "p_f528825b171d1_19b5b6659bb",
+      "categoryId": "elfraya25",
+      "status": "soon",
+      "stock": 0,
+      "visible": true,
+      "price": null,
+      "image": "https://media.discordapp.net/attachments/1281700323081326743/1454140583005130896/2_peach_ice._NOBGpng.png?ex=69500173&is=694eaff3&hm=2d9d05714ec3464885f9cea828e06bee211932c91db026e4f45de7c0109ed0f4&=&format=webp&quality=lossless&width=856&height=856",
+      "name_hu": "Elfbar Raya D3 25K",
+      "name_en": "Elfbar Raya D3 25K",
+      "flavor_hu": "Barack Jég",
+      "flavor_en": "Peach Ice",
+      "soonEta": "2026-01"
     }
   ],
   "popups": [],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1766764956529,
-    "updatedAt": "2025-12-26T16:02:36.529Z"
+    "rev": 1766765035313,
+    "updatedAt": "2025-12-26T16:03:55.313Z"
   }
 }
