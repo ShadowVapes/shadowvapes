@@ -20,6 +20,13 @@
       "label_en": "Elfbar Lush King Pro 40k",
       "basePrice": 7000,
       "featuredEnabled": true
+    },
+    {
+      "id": "bood12k",
+      "label_hu": "BOOD Pulse Storm 12K",
+      "label_en": "BOOD Pulse Storm 12K",
+      "basePrice": 4500,
+      "featuredEnabled": true
     }
   ],
   "products": [
@@ -335,7 +342,7 @@
   "popups": [],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1767016478217,
-    "updatedAt": "2025-12-29T13:54:38.217Z"
+    "rev": 1767018056488,
+    "updatedAt": "2025-12-29T14:20:56.488Z"
   }
 }
