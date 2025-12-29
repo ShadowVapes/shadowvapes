@@ -372,12 +372,26 @@
       "flavor_hu": "Vanília Kóla & Citrom Barack & Eper Málna Cseresznye Jég & Szőlő Jég",
       "flavor_en": "Vanilla Cola & Lemon Peach & Strawberry Raspberry Cherry Ice & Grape Ice",
       "soonEta": "2026-01"
+    },
+    {
+      "id": "p_7e90788f76589_19b6adc49b6",
+      "categoryId": "elf30",
+      "status": "soon",
+      "stock": 10,
+      "visible": true,
+      "price": null,
+      "image": "https://i.ibb.co/TCXqQSH/4-WATERMELON-ICE-STRAWBERRY-MANGO-BLUEBERRYICE-FIZZY-CHERRY-NOBG.png",
+      "name_hu": "Vapsolo Quads 80k",
+      "name_en": "Vapsolo Quads 80k",
+      "flavor_hu": "Görögdinnye Jég & Eper Mangó & Áfonya Jég & Szénsavas Cseresznye",
+      "flavor_en": "Watermelon Ice & Strawberry Mango & Blueberry Ice & Fizzy Cherry",
+      "soonEta": "2026-01"
     }
   ],
   "popups": [],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1767024276497,
-    "updatedAt": "2025-12-29T16:04:36.497Z"
+    "rev": 1767024769060,
+    "updatedAt": "2025-12-29T16:12:49.060Z"
   }
 }
