@@ -337,12 +337,26 @@
       "flavor_hu": "Szeder Áfonya",
       "flavor_en": "Blackberry Cranberry",
       "soonEta": "2026-01"
+    },
+    {
+      "id": "p_f711f17c5fdd3_19b6a7bed1f",
+      "categoryId": "bood12k",
+      "status": "soon",
+      "stock": 10,
+      "visible": true,
+      "price": null,
+      "image": "https://i.ibb.co/bjKpw35c/7-watermelon-ice-NOBG.png",
+      "name_hu": "BOOD Pulse Storm 12K",
+      "name_en": "BOOD Pulse Storm 12K",
+      "flavor_hu": "Dinnye Jég",
+      "flavor_en": "Watermelon Ice",
+      "soonEta": "2026-01"
     }
   ],
   "popups": [],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1767018056488,
-    "updatedAt": "2025-12-29T14:20:56.488Z"
+    "rev": 1767018090215,
+    "updatedAt": "2025-12-29T14:21:30.215Z"
   }
 }
