@@ -345,7 +345,7 @@
       "stock": 10,
       "visible": true,
       "price": null,
-      "image": "https://i.ibb.co/bjKpw35c/7-watermelon-ice-NOBG.png",
+      "image": "https://i.ibb.co/s9PtGkmB/7-watermelon-ice.png",
       "name_hu": "BOOD Pulse Storm 12K",
       "name_en": "BOOD Pulse Storm 12K",
       "flavor_hu": "Dinnye Jég",
@@ -356,7 +356,7 @@
   "popups": [],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1767018090215,
-    "updatedAt": "2025-12-29T14:21:30.215Z"
+    "rev": 1767018230216,
+    "updatedAt": "2025-12-29T14:23:50.216Z"
   }
 }
