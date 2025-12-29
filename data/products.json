@@ -386,12 +386,26 @@
       "flavor_hu": "Görögdinnye Jég & Eper Mangó & Áfonya Jég & Szénsavas Cseresznye",
       "flavor_en": "Watermelon Ice & Strawberry Mango & Blueberry Ice & Fizzy Cherry",
       "soonEta": "2026-01"
+    },
+    {
+      "id": "p_4f4efd0510951_19b6ae36cba",
+      "categoryId": "vapsolo80k",
+      "status": "soon",
+      "stock": 10,
+      "visible": true,
+      "price": null,
+      "image": "https://i.ibb.co/fGx1X0GK/10-MOJITO-MONSTER-MANGO-LADY-KILLER-PINK-LEMONADE-NOBG.png",
+      "name_hu": "Vapsolo Quads 80k",
+      "name_en": "Vapsolo Quads 80k",
+      "flavor_hu": "Mojito & Monster Mangó & Lady Gyilkos & Rózsaszín Limonádé",
+      "flavor_en": "Mojito & Monster Mango & Lady killer & Pink Lemonade",
+      "soonEta": ""
     }
   ],
   "popups": [],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1767024829259,
-    "updatedAt": "2025-12-29T16:13:49.259Z"
+    "rev": 1767025685612,
+    "updatedAt": "2025-12-29T16:28:05.612Z"
   }
 }
