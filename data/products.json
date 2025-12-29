@@ -316,12 +316,26 @@
       "flavor_hu": "Kék Málna Jég",
       "flavor_en": "Blue Razz Ice",
       "soonEta": "2026-01"
+    },
+    {
+      "id": "p_96e473e02863_19b6a6106ac",
+      "categoryId": "elf30",
+      "status": "soon",
+      "stock": 10,
+      "visible": true,
+      "price": null,
+      "image": "https://i.ibb.co/60r2WcXw/Blackberry-cranberry-NOBG.png",
+      "name_hu": "Elfbar Ice King 30k",
+      "name_en": "Elfbar Ice King 30k",
+      "flavor_hu": "Szeder Áfonya",
+      "flavor_en": "Blackberry Cranberry",
+      "soonEta": "2026-01"
     }
   ],
   "popups": [],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1766774061215,
-    "updatedAt": "2025-12-26T18:34:21.215Z"
+    "rev": 1767016478217,
+    "updatedAt": "2025-12-29T13:54:38.217Z"
   }
 }
