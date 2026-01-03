@@ -55,7 +55,7 @@
       "id": "p_c9b37b233bdb5_19b4dbb80eb",
       "categoryId": "elf30",
       "status": "ok",
-      "stock": 4,
+      "stock": 3,
       "visible": true,
       "price": null,
       "image": "https://i.ibb.co/C3yHFFd2/Blue-Razz-no-bg.png",
@@ -69,7 +69,7 @@
       "id": "p_cdf4d9a12f296_19b4e11ef4e",
       "categoryId": "elf30",
       "status": "ok",
-      "stock": 6,
+      "stock": 5,
       "visible": true,
       "price": null,
       "image": "https://i.ibb.co/d4wGkYQG/Pink-lemonade-no-bg.png",
@@ -96,8 +96,8 @@
     {
       "id": "p_bb90038d7199d8_19b4e1762ba",
       "categoryId": "elf30",
-      "status": "ok",
-      "stock": 1,
+      "status": "out",
+      "stock": 0,
       "visible": true,
       "price": null,
       "image": "https://i.ibb.co/FkvwxtSk/Elf-bull-no-bg.png",
@@ -405,7 +405,7 @@
   "popups": [],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1767462223981,
-    "updatedAt": "2026-01-03T17:43:43.981Z"
+    "rev": 1767462267327,
+    "updatedAt": "2026-01-03T17:44:27.327Z"
   }
 }
