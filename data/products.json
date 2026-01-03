@@ -69,7 +69,7 @@
       "id": "p_cdf4d9a12f296_19b4e11ef4e",
       "categoryId": "elf30",
       "status": "ok",
-      "stock": 5,
+      "stock": 4,
       "visible": true,
       "price": null,
       "image": "https://i.ibb.co/d4wGkYQG/Pink-lemonade-no-bg.png",
@@ -405,7 +405,7 @@
   "popups": [],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1767462267327,
-    "updatedAt": "2026-01-03T17:44:27.327Z"
+    "rev": 1767474799847,
+    "updatedAt": "2026-01-03T21:13:19.847Z"
   }
 }
