@@ -41,7 +41,7 @@
       "id": "p_568389f50aa19_19b4d718932",
       "categoryId": "elf30",
       "status": "ok",
-      "stock": 3,
+      "stock": 2,
       "visible": true,
       "price": null,
       "image": "https://i.ibb.co/0T3Ff5S/Grape-ice-bg-removed-correct.png",
@@ -55,7 +55,7 @@
       "id": "p_c9b37b233bdb5_19b4dbb80eb",
       "categoryId": "elf30",
       "status": "ok",
-      "stock": 5,
+      "stock": 4,
       "visible": true,
       "price": null,
       "image": "https://i.ibb.co/C3yHFFd2/Blue-Razz-no-bg.png",
@@ -405,7 +405,7 @@
   "popups": [],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1767418361525,
-    "updatedAt": "2026-01-03T05:32:41.525Z"
+    "rev": 1767457249911,
+    "updatedAt": "2026-01-03T16:20:49.911Z"
   }
 }
