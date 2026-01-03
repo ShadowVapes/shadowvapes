@@ -87,6 +87,8 @@
 
   function isOut(p) {
     const st = (p && p.status) || "ok";
+    // ✅ a "soon" soha nem számít elfogyottnak, még 0 stock mellett sem
+    if (st === "soon") return false;
     const stock = Math.max(0, Number(p && p.stock ? p.stock : 0));
     return st === "out" || stock <= 0;
   }
@@ -440,10 +442,10 @@
       list = list.filter((p) => norm(getName(p) + " " + getFlavor(p)).includes(q));
     }
 
-    // ✅ order: ok ... then soon ... then out
+    // ✅ order: ok ... then out ... then soon (HAMAROSAN mindig a legvégén)
     const okPart = list.filter((p) => !isOut(p) && !isSoon(p));
-    const soonPart = list.filter((p) => !isOut(p) && isSoon(p));
-    const outPart = list.filter((p) => isOut(p));
+    const outPart = list.filter((p) => isOut(p) && !isSoon(p));
+    const soonPart = list.filter((p) => isSoon(p));
 
     const groupSort = (arr) => {
       const map = new Map();
@@ -462,7 +464,7 @@
       return out;
     };
 
-    return [...groupSort(okPart), ...groupSort(soonPart), ...groupSort(outPart)];
+    return [...groupSort(okPart), ...groupSort(outPart), ...groupSort(soonPart)];
   }
 
   function fmtFt(n) {
@@ -507,47 +509,65 @@
     const empty = $("#empty");
     grid.innerHTML = "";
 
-    let list = filterList();
+    // layout mode
+    grid.classList.toggle("all-accordion", state.active === "all");
 
-    // ✅ Featured: kategóriánként 1-1 (ha van eladás) + kategória toggle (admin)
-    const featuredIds = new Set();
-    let featuredToPrepend = [];
+    const q = norm(state.search);
 
-    if(state.active !== "soon"){
-      if(state.active === "all"){
-        featuredToPrepend = getFeaturedListForAll();
-      }else{
-        const pid = state.featuredByCat.get(String(state.active));
-        if(pid){
-          const p = (state.productsDoc.products||[]).find(x=>String(x.id)===String(pid));
-          if(p && p.visible !== false) featuredToPrepend = [p];
-        }
+    // normalize + visible + search (közös alap)
+    const baseList = (state.productsDoc.products || [])
+      .map((p) => ({
+        ...p,
+        id: String(p.id || ""),
+        categoryId: String(p.categoryId || ""),
+        status: p.status === "soon" || p.status === "out" || p.status === "ok" ? p.status : "ok",
+        stock: Math.max(0, Number(p.stock || 0)),
+        visible: (p.visible === false) ? false : true
+      }))
+      .filter(p => p.id && p.visible !== false)
+      .filter(p => !q || norm(getName(p) + " " + getFlavor(p)).includes(q));
+
+    const groupSort = (arr) => {
+      const map = new Map();
+      for (const p of arr) {
+        const key = norm(getName(p));
+        if (!map.has(key)) map.set(key, []);
+        map.get(key).push(p);
       }
-    }
+      const keys = [...map.keys()].sort((a, b) => a.localeCompare(b, locale()));
+      const out = [];
+      for (const k of keys) {
+        const items = map.get(k);
+        items.sort((a, b) => norm(getFlavor(a)).localeCompare(norm(getFlavor(b)), locale()));
+        out.push(...items);
+      }
+      return out;
+    };
 
-    for(const fp of featuredToPrepend){
-      featuredIds.add(String(fp.id));
-    }
+    const sortForCategory = (arr, featuredId) => {
+      const fid = featuredId ? String(featuredId) : "";
+      const featured = fid ? arr.find(p => String(p.id) === fid) : null;
+      const rest = fid ? arr.filter(p => String(p.id) !== fid) : arr.slice();
 
-    if(featuredToPrepend.length){
-      // remove from main list so ne duplázzon
-      list = list.filter(p => !featuredIds.has(String(p.id)));
-      list = [...featuredToPrepend, ...list];
-    }
+      // ✅ rend: ok -> out -> soon (hamarosan a legvégén)
+      const okPart = rest.filter(p => !isOut(p) && !isSoon(p));
+      const outPart = rest.filter(p => isOut(p) && !isSoon(p));
+      const soonPart = rest.filter(p => isSoon(p));
 
-    $("#count").textContent = String(list.length);
-    empty.style.display = list.length ? "none" : "block";
+      const out = [];
+      if (featured) out.push(featured); // ✅ felkapott kivétel: mindig legelöl a kategóriában
+      out.push(...groupSort(okPart), ...groupSort(outPart), ...groupSort(soonPart));
+      return out;
+    };
 
-    for (const p of list) {
+    const buildCard = (p, { featured = false } = {}) => {
       const name = getName(p);
       const flavor = getFlavor(p);
       const out = isOut(p);
       const soon = isSoon(p);
-      const featured = featuredIds.has(String(p.id));
-      const stockShown = out ? 0 : (soon ? Math.max(0, Number(p.stock || 0)) : Math.max(0, Number(p.stock || 0)));
+      const stockShown = out ? 0 : Math.max(0, Number(p.stock || 0));
       const price = effectivePrice(p);
 
-      // Determine card classes based on status
       let cardClass = "card fade-in";
       if (out) cardClass += " dim outline-red";
       else if (soon) cardClass += " outline-yellow";
@@ -564,18 +584,16 @@
       img.alt = (name + (flavor ? " - " + flavor : "")).trim();
       img.src = p.image || "";
 
-      // sold-out legyen szürke (CSS is)
       if (out) {
         img.style.filter = "grayscale(.75) contrast(.95) brightness(.85)";
       } else if (soon) {
-        // hamarosan: kicsit szürkébb, de ne annyira mint az elfogyott
         img.style.filter = "grayscale(.25) contrast(.98) brightness(.92)";
       }
 
       const badges = document.createElement("div");
       badges.className = "badges";
 
-      if(featured){
+      if (featured) {
         const b = document.createElement("div");
         b.className = "badge hot";
         b.textContent = t("hot");
@@ -587,11 +605,10 @@
         b.className = "badge soon";
         b.textContent = t("soon");
         badges.appendChild(b);
-        
-        // Add expected month badge if available
+
         if (p.soonEta) {
           const expectedBadge = document.createElement("div");
-          expectedBadge.className = "badge soon";
+          expectedBadge.className = "badge eta";
           expectedBadge.textContent = `📅 ${t("expected")}: ${formatMonth(p.soonEta)}`;
           badges.appendChild(expectedBadge);
         }
@@ -636,9 +653,116 @@
       card.appendChild(hero);
       card.appendChild(body);
 
-      grid.appendChild(card);
+      return card;
+    };
+
+    // ---------- SOON tab ----------
+    if (state.active === "soon") {
+      const list = sortForCategory(baseList.filter(p => p.status === "soon"), null);
+      $("#count").textContent = String(list.length);
+      empty.style.display = list.length ? "none" : "block";
+      for (const p of list) grid.appendChild(buildCard(p));
+      return;
     }
+
+    // ---------- Single category ----------
+    if (state.active !== "all") {
+      const cid = String(state.active);
+      const cat = (state.productsDoc.categories || []).find(c => String(c.id) === cid);
+      const featuredEnabled = cat ? (cat.featuredEnabled === false ? false : true) : true;
+      const fid = featuredEnabled ? state.featuredByCat.get(cid) : null;
+
+      const list = sortForCategory(baseList.filter(p => String(p.categoryId) === cid), fid);
+      $("#count").textContent = String(list.length);
+      empty.style.display = list.length ? "none" : "block";
+
+      for (const p of list) {
+        const featured = fid && String(p.id) === String(fid);
+        grid.appendChild(buildCard(p, { featured }));
+      }
+      return;
+    }
+
+    // ---------- ALL (accordion, kategóriánként) ----------
+    const cats = (state.productsDoc.categories || [])
+      .filter(c => c && c.id)
+      .map(c => ({
+        id: String(c.id),
+        label: catLabel(c),
+        featuredEnabled: (c.featuredEnabled === false ? false : true)
+      }))
+      .sort((a, b) => a.label.localeCompare(b.label, locale()));
+
+    const byCat = new Map();
+    const unknown = [];
+    const catIds = new Set(cats.map(c => c.id));
+
+    for (const p of baseList) {
+      const cid = String(p.categoryId || "");
+      if (!cid) continue;
+      if (!catIds.has(cid)) {
+        unknown.push(p);
+        continue;
+      }
+      if (!byCat.has(cid)) byCat.set(cid, []);
+      byCat.get(cid).push(p);
+    }
+
+    let total = 0;
+
+    for (const c of cats) {
+      const arr = byCat.get(c.id) || [];
+      if (!arr.length) continue;
+
+      const fid = c.featuredEnabled ? state.featuredByCat.get(String(c.id)) : null;
+      const sorted = sortForCategory(arr, fid);
+      total += sorted.length;
+
+      const details = document.createElement("details");
+      details.className = "cat-accordion";
+      details.open = true;
+
+      const summary = document.createElement("summary");
+      summary.innerHTML = `<span class="cat-title">${c.label}</span><span class="cat-count">${sorted.length}</span>`;
+      details.appendChild(summary);
+
+      const inner = document.createElement("div");
+      inner.className = "cat-grid";
+
+      for (const p of sorted) {
+        const featured = fid && String(p.id) === String(fid);
+        inner.appendChild(buildCard(p, { featured }));
+      }
+
+      details.appendChild(inner);
+      grid.appendChild(details);
+    }
+
+    // Unknown categories fallback
+    if (unknown.length) {
+      const sorted = sortForCategory(unknown, null);
+      total += sorted.length;
+
+      const details = document.createElement("details");
+      details.className = "cat-accordion";
+      details.open = true;
+
+      const summary = document.createElement("summary");
+      summary.innerHTML = `<span class="cat-title">Egyéb</span><span class="cat-count">${sorted.length}</span>`;
+      details.appendChild(summary);
+
+      const inner = document.createElement("div");
+      inner.className = "cat-grid";
+      for (const p of sorted) inner.appendChild(buildCard(p));
+      details.appendChild(inner);
+      grid.appendChild(details);
+    }
+
+    $("#count").textContent = String(total);
+    empty.style.display = total ? "none" : "block";
   }
+
+
 
   /* ----------------- Popups (New products) ----------------- */
   function popupHideKey(pp){

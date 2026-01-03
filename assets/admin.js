@@ -26,6 +26,7 @@
       productsCat: "all",
       salesCat: "all",
       chartCat: "all",
+      chartMode: (localStorage.getItem("sv_chart_mode") || "daily"),
       productsSearch: "",
       salesSearch: ""
     }
@@ -195,9 +196,20 @@ state.sales = state.sales.map(s => {
         unitPrice: Math.max(0, Number.parseFloat(legacyPrice) || 0)
       }] : []);
 
+  const dateStr = String(s.date || s.day || "");
+  const cleanDate = dateStr ? String(dateStr).split("T")[0].split(" ")[0] : "";
+
+  // ✅ timestamp a rendezéshez (új eladás legyen legfelül)
+  let ts = Number(s.ts || 0) || 0;
+  if(!ts && cleanDate && /^\d{4}-\d{2}-\d{2}$/.test(cleanDate)){
+    const parsed = Date.parse(cleanDate + "T00:00:00");
+    if(Number.isFinite(parsed)) ts = parsed;
+  }
+
   return {
     id: String(s.id || ""),
-    date: String(s.date || s.day || s.createdAt || ""),
+    date: cleanDate || String(s.date || s.day || s.createdAt || ""),
+    ts,
     name: s.name || "",
     payment: s.payment || s.method || "",
     items
@@ -723,15 +735,17 @@ function markDirty(flags){
     const rows = list.map(p => {
       const c = catById(p.categoryId);
       const eff = effectivePrice(p);
+      const low = (p.status === "ok" && Number(p.stock||0) > 0 && Number(p.stock||0) <= 3);
 
       return `
-        <div class="rowline table">
+        <div class="rowline table ${low ? "low-stock" : ""}">
           <div class="left">
             <div style="font-weight:900;">${escapeHtml(p.name_hu||p.name_en||"—")} <span class="small-muted">• ${escapeHtml(p.flavor_hu||p.flavor_en||"")}</span></div>
             <div class="small-muted">
               Kategória: <b>${escapeHtml(c ? (c.label_hu||c.id) : "—")}</b>
               • Ár: <b>${eff.toLocaleString("hu-HU")} Ft</b>
               • Készlet: <b>${p.status==="soon" ? "—" : p.stock}</b>
+              ${low ? ` • <span class="low-stock-badge">⚠️ Alacsony készlet</span>` : ""}
               ${p.status==="soon" && p.soonEta ? `• Várható: <b>${escapeHtml(p.soonEta)}</b>` : ""}
             </div>
           </div>
@@ -923,32 +937,71 @@ function markDirty(flags){
     const filterCat = state.filters.salesCat;
     const q = (state.filters.salesSearch || "").toLowerCase();
 
-    let list = [...state.sales].sort((a,b)=> String(b.date).localeCompare(String(a.date)));
+    // ✅ rendezés: legújabb eladás legfelül (ts), fallback: dátum
+    let list = [...state.sales].sort((a,b)=> (Number(b.ts||0) - Number(a.ts||0)) || String(b.date).localeCompare(String(a.date)));
+
     if(q){
-      list = list.filter(s => (`${s.name} ${s.payment}`).toLowerCase().includes(q));
+      list = list.filter(s => (`${s.name} ${s.payment} ${s.date}`).toLowerCase().includes(q));
     }
     if(filterCat !== "all"){
       list = list.filter(s => saleTotals(s, filterCat).hit);
     }
 
-    const rows = list.map(s => {
-      const tot = saleTotals(s, filterCat);
-      const itemsCount = s.items.reduce((acc,it)=> acc + Number(it.qty||0), 0);
+    // csoport dátum szerint
+    const byDay = new Map();
+    for(const s of list){
+      const d = String(s.date||"").split("T")[0].split(" ")[0];
+      if(!d) continue;
+      if(!byDay.has(d)) byDay.set(d, []);
+      byDay.get(d).push(s);
+    }
+
+    const days = [...byDay.keys()].sort((a,b)=> b.localeCompare(a)); // YYYY-MM-DD desc
+
+    const dayBlocks = days.map((d, idx) => {
+      const arr = byDay.get(d) || [];
+      arr.sort((a,b)=> (Number(b.ts||0) - Number(a.ts||0)));
+
+      let dayRev = 0;
+      let dayItems = 0;
+      for(const s of arr){
+        const tot = saleTotals(s, filterCat);
+        dayRev += Number(tot.revenue||0);
+        dayItems += s.items.reduce((acc,it)=> acc + Number(it.qty||0), 0);
+      }
+
+      const rows = arr.map(s => {
+        const tot = saleTotals(s, filterCat);
+        const itemsCount = s.items.reduce((acc,it)=> acc + Number(it.qty||0), 0);
+        const timeTxt = s.ts ? new Date(Number(s.ts)).toLocaleTimeString("hu-HU",{hour:"2-digit",minute:"2-digit"}) : "";
+
+        return `
+          <div class="rowline">
+            <div class="left">
+              <div style="font-weight:900;">
+                ${escapeHtml(s.name || "—")}
+                <span class="small-muted">• ${escapeHtml(s.payment || "")}${timeTxt ? " • " + escapeHtml(timeTxt) : ""}</span>
+              </div>
+              <div class="small-muted">Tételek: <b>${itemsCount}</b> • Bevétel: <b>${tot.revenue.toLocaleString("hu-HU")} Ft</b></div>
+            </div>
+            <div style="display:flex;gap:10px;align-items:center;">
+              <button class="ghost" data-view="${escapeHtml(s.id)}">Megnéz</button>
+              <button class="danger" data-delsale="${escapeHtml(s.id)}">Töröl (rollback)</button>
+            </div>
+          </div>
+        `;
+      }).join("");
 
       return `
-        <div class="rowline">
-          <div class="left">
-            <div style="font-weight:900;">
-              ${escapeHtml(s.date)} • ${escapeHtml(s.name || "—")}
-              <span class="small-muted">• ${escapeHtml(s.payment || "")}</span>
-            </div>
-            <div class="small-muted">Tételek: <b>${itemsCount}</b> • Bevétel: <b>${tot.revenue.toLocaleString("hu-HU")} Ft</b></div>
+        <details class="cat-accordion day-accordion" ${idx===0 ? "open" : ""}>
+          <summary>
+            <span class="cat-title">${escapeHtml(d)}</span>
+            <span class="cat-count">${dayRev.toLocaleString("hu-HU")} Ft • ${dayItems} db</span>
+          </summary>
+          <div style="padding:0 14px 14px;">
+            ${rows || `<div class="small-muted">Nincs eladás.</div>`}
           </div>
-          <div style="display:flex;gap:10px;align-items:center;">
-            <button class="ghost" data-view="${escapeHtml(s.id)}">Megnéz</button>
-            <button class="danger" data-delsale="${escapeHtml(s.id)}">Töröl (rollback)</button>
-          </div>
-        </div>
+        </details>
       `;
     }).join("");
 
@@ -958,10 +1011,12 @@ function markDirty(flags){
         <select id="salesCat">
           ${cats.map(c => `<option value="${escapeHtml(c.id)}"${c.id===filterCat?" selected":""}>${escapeHtml(c.label)}</option>`).join("")}
         </select>
-        <input id="salesSearch" placeholder="Keresés név / mód szerint..." value="${escapeHtml(state.filters.salesSearch)}" style="flex:1;min-width:220px;">
-        <div class="small-muted">Szűrés kategóriára: csak az adott kategória tételeit számolja.</div>
+        <input id="salesSearch" placeholder="Keresés (név / mód / dátum)..." value="${escapeHtml(state.filters.salesSearch)}" style="flex:1;min-width:220px;">
+        <div class="small-muted">Dátum fülönként. Szűrés kategóriára: csak az adott kategória tételeit számolja.</div>
       </div>
-      <div style="margin-top:10px;">${rows || `<div class="small-muted">Nincs eladás.</div>`}</div>
+      <div style="margin-top:10px;">
+        ${dayBlocks || `<div class="small-muted">Nincs eladás.</div>`}
+      </div>
     `;
 
     $("#salesCat").onchange = () => { state.filters.salesCat = $("#salesCat").value; renderSales(); drawChart(); };
@@ -1065,9 +1120,10 @@ function markDirty(flags){
           if(p.stock <= 0) p.status = "out";
         }
 
-        state.sales.push({
+        state.sales.unshift({
           id: "s_" + Math.random().toString(16).slice(2) + "_" + Date.now().toString(16),
           date,
+          ts: Date.now(),
           name,
           payment,
           items
@@ -1135,12 +1191,24 @@ function markDirty(flags){
   function renderChartPanel(){
     const cats = [{id:"all", label:"Mind"}, ...state.doc.categories.map(c=>({id:c.id,label:c.label_hu||c.id}))];
 
+    const mode = state.filters.chartMode || "daily";
+
     $("#panelChart").innerHTML = `
       <div class="actions table" style="align-items:center;">
         <select id="chartCat">
           ${cats.map(c => `<option value="${escapeHtml(c.id)}"${c.id===state.filters.chartCat?" selected":""}>${escapeHtml(c.label)}</option>`).join("")}
         </select>
-        <div class="small-muted">Csak bevétel (Ft), napra bontva. Kategória szűrésnél csak az adott kategória tételeit számolja.</div>
+
+        <select id="chartMode" style="min-width:190px;">
+          <option value="daily"${mode==="daily"?" selected":""}>Napi (30 nap)</option>
+          <option value="weekly"${mode==="weekly"?" selected":""}>Heti (26 hét)</option>
+          <option value="monthly"${mode==="monthly"?" selected":""}>Havi (24 hó)</option>
+          <option value="max"${mode==="max"?" selected":""}>Max (összes nap)</option>
+        </select>
+
+        <div class="small-muted" style="flex:1;">
+          Bevétel (Ft) • cikkcakk • kategória szűrésnél csak az adott kategória tételeit számolja.
+        </div>
       </div>
 
       <div class="kpi" style="margin-top:12px;" id="chartKpi"></div>
@@ -1151,6 +1219,11 @@ function markDirty(flags){
     `;
 
     $("#chartCat").onchange = () => { state.filters.chartCat = $("#chartCat").value; drawChart(); };
+    $("#chartMode").onchange = () => {
+      state.filters.chartMode = $("#chartMode").value;
+      try{ localStorage.setItem("sv_chart_mode", state.filters.chartMode); }catch{}
+      drawChart();
+    };
   }
 
 
@@ -1371,6 +1444,28 @@ function drawChart(){
   const kpi = $("#chartKpi");
   if(!canvas) return;
 
+  // -------- helpers (bucketization) --------
+  const pad2 = (n) => String(n).padStart(2,"0");
+  const ymd = (d) => `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`;
+  const ym = (d) => `${d.getFullYear()}-${pad2(d.getMonth()+1)}`;
+
+  // ISO week (Monday start)
+  function isoWeek(d){
+    const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+    const dayNum = date.getUTCDay() || 7;
+    date.setUTCDate(date.getUTCDate() + 4 - dayNum);
+    const yearStart = new Date(Date.UTC(date.getUTCFullYear(),0,1));
+    const weekNo = Math.ceil((((date - yearStart) / 86400000) + 1) / 7);
+    return { year: date.getUTCFullYear(), week: weekNo };
+  }
+  function weekStart(d){
+    const x = new Date(d);
+    const day = x.getDay() || 7; // 1..7
+    x.setHours(0,0,0,0);
+    x.setDate(x.getDate() - (day - 1)); // Monday
+    return x;
+  }
+
   try{
     const rect = canvas.getBoundingClientRect();
     const cssW = Math.max(520, Math.floor(rect.width || 1100));
@@ -1385,33 +1480,121 @@ function drawChart(){
     ctx.font = "12px system-ui, -apple-system, Segoe UI, Roboto, Arial";
     ctx.clearRect(0,0,cssW,cssH);
 
-    const cat = state.filters.chartCat;
+    const cat = state.filters.chartCat || "all";
+    const mode = state.filters.chartMode || "daily";
 
-    // group by date => revenue
-    const map = new Map();
+    // group revenue per bucket
+    const buckets = new Map(); // key -> { t, rev }
+    const productAgg = new Map(); // pid -> { qty, rev }
     let total = 0;
+
     for(const s of state.sales){
       const st = saleTotals(s, cat);
       if(cat !== "all" && !st.hit) continue;
 
-      let d = String(s.date || "");
-      if(!d) continue;
-      // ha véletlen idő is van benne: "YYYY-MM-DDTHH:MM" -> "YYYY-MM-DD"
-      d = d.split("T")[0].split(" ")[0];
+      const dateStr = String(s.date || "").split("T")[0].split(" ")[0];
+      if(!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) continue;
+
+      const d = new Date(dateStr + "T00:00:00");
+      if(!Number.isFinite(d.getTime())) continue;
+
+      let key = "";
+      let t = 0;
+      if(mode === "weekly"){
+        const ws = weekStart(d);
+        const w = isoWeek(d);
+        key = `${w.year}-W${pad2(w.week)}`;
+        t = ws.getTime();
+      }else if(mode === "monthly"){
+        key = ym(d);
+        t = new Date(d.getFullYear(), d.getMonth(), 1).getTime();
+      }else{
+        // daily + max
+        key = ymd(d);
+        t = d.getTime();
+      }
 
       const rev = Number(st.revenue || 0);
       if(!Number.isFinite(rev)) continue;
 
-      map.set(d, (map.get(d) || 0) + rev);
+      if(!buckets.has(key)) buckets.set(key, { t, rev: 0 });
+      const b = buckets.get(key);
+      b.rev += rev;
+      b.t = Math.min(b.t, t);
+
       total += rev;
+
+      // top products (within selected cat)
+      for(const it of (s.items||[])){
+        const p = prodById(it.productId);
+        if(!p) continue;
+        if(cat !== "all" && p.categoryId !== cat) continue;
+
+        const pid = String(it.productId);
+        const qty = Number(it.qty||0);
+        const irev = Number(it.unitPrice||0) * qty;
+
+        if(!productAgg.has(pid)) productAgg.set(pid, { qty:0, rev:0 });
+        const a = productAgg.get(pid);
+        a.qty += qty;
+        a.rev += irev;
+      }
     }
 
-    const days = [...map.keys()].sort();
-    const revs = days.map(d => Number(map.get(d) || 0));
-    const labels = days.map(d => d); // teljes dátum
+    const arr = [...buckets.entries()].map(([k,v]) => ({ key:k, t:v.t, rev:Number(v.rev||0) }));
+    arr.sort((a,b)=> a.t - b.t);
+
+    const limit = mode === "daily" ? 30 : (mode === "weekly" ? 26 : (mode === "monthly" ? 24 : 999999));
+    const sliced = (mode === "max") ? arr : arr.slice(Math.max(0, arr.length - limit));
+
+    const labels = sliced.map(x => x.key);
+    const revs = sliced.map(x => x.rev);
+
+    // KPI
+    const bucketsCount = labels.length;
+    const avg = bucketsCount ? (total / bucketsCount) : 0;
+    let best = { key: "—", rev: 0 };
+    for(const x of sliced){
+      if(x.rev >= best.rev) best = { key: x.key, rev: x.rev };
+    }
+
+    const top5 = [...productAgg.entries()]
+      .map(([pid,v]) => ({ pid, qty:v.qty, rev:v.rev }))
+      .sort((a,b)=> (b.qty - a.qty) || (b.rev - a.rev))
+      .slice(0,5);
+
+    const top5Html = top5.length ? `
+      <ol style="margin:8px 0 0 18px;padding:0;">
+        ${top5.map(x => {
+          const p = prodById(x.pid);
+          const n = p ? (p.name_hu||p.name_en||"—") : "—";
+          const f = p ? (p.flavor_hu||p.flavor_en||"") : "";
+          return `<li style="margin:6px 0;">
+            <span style="font-weight:900;">${escapeHtml(n)}</span>
+            <span class="small-muted">${escapeHtml(f? " • "+f:"")}</span>
+            <span class="small-muted"> — <b>${Math.round(x.qty)}</b> db • <b>${Math.round(x.rev).toLocaleString("hu-HU")} Ft</b></span>
+          </li>`;
+        }).join("")}
+      </ol>
+    ` : `<div class="small-muted" style="margin-top:8px;">Nincs adat.</div>`;
 
     if(kpi){
-      kpi.innerHTML = `<div class="small-muted">Összes bevétel: <b>${total.toLocaleString("hu-HU")} Ft</b> • Napok: <b>${days.length}</b></div>`;
+      kpi.innerHTML = `
+        <div class="box">
+          <div class="t">Összes bevétel (szűrés szerint)</div>
+          <div class="v">${Math.round(total).toLocaleString("hu-HU")} Ft</div>
+          <div class="small-muted" style="margin-top:6px;">Bucketek: <b>${bucketsCount}</b> • Mód: <b>${escapeHtml(mode)}</b></div>
+        </div>
+        <div class="box">
+          <div class="t">Átlag / bucket</div>
+          <div class="v">${Math.round(avg).toLocaleString("hu-HU")} Ft</div>
+          <div class="small-muted" style="margin-top:6px;">Legjobb: <b>${escapeHtml(best.key)}</b> • <b>${Math.round(best.rev).toLocaleString("hu-HU")} Ft</b></div>
+        </div>
+        <div class="box" style="min-width:320px;flex:1.2;">
+          <div class="t">Top 5 termék (db alapján)</div>
+          ${top5Html}
+        </div>
+      `;
     }
 
     // grid
@@ -1427,7 +1610,7 @@ function drawChart(){
       ctx.beginPath(); ctx.moveTo(left,y); ctx.lineTo(right,y); ctx.stroke();
     }
 
-    if(!days.length){
+    if(!labels.length){
       ctx.fillStyle = "rgba(255,255,255,.65)";
       ctx.font = "16px ui-sans-serif, system-ui";
       ctx.fillText("Nincs adat a diagrammhoz.", left, top + 28);
@@ -1448,35 +1631,37 @@ function drawChart(){
       ctx.fillText(`${v.toLocaleString("hu-HU")} Ft`, left - 10, y);
     }
 
-    // x labels (ritkítva)
-    const step = Math.ceil(days.length / 6);
+    // x labels
+    const step = Math.ceil(labels.length / 6);
     ctx.textAlign = "center";
     ctx.textBaseline = "top";
     ctx.fillStyle = "rgba(255,255,255,.70)";
-    for(let i=0;i<days.length;i+=step){
-      const x = left + (days.length===1 ? w/2 : (i/(days.length-1))*w);
+    for(let i=0;i<labels.length;i+=step){
+      const x = left + (labels.length===1 ? w/2 : (i/(labels.length-1))*w);
       ctx.fillText(labels[i], x, bottom + 10);
     }
 
-    const xAt = (i) => left + (days.length===1 ? w/2 : (i/(days.length-1))*w);
+    const xAt = (i) => left + (labels.length===1 ? w/2 : (i/(labels.length-1))*w);
     const yAt = (v) => bottom - (v/maxRev)*h;
 
-    // revenue line (crypto-style)
+    // line
     ctx.strokeStyle = "rgba(124,92,255,.95)";
     ctx.lineWidth = 2.8;
     ctx.beginPath();
-    for(let i=0;i<days.length;i++){
+    for(let i=0;i<labels.length;i++){
       const x = xAt(i);
       const y = yAt(revs[i]);
       if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
     }
     ctx.stroke();
 
-    // last point highlight
-    const lx = xAt(days.length-1);
-    const ly = yAt(revs[revs.length-1]);
+    // points
     ctx.fillStyle = "rgba(124,92,255,.95)";
-    ctx.beginPath(); ctx.arc(lx, ly, 3.8, 0, Math.PI*2); ctx.fill();
+    for(let i=0;i<labels.length;i++){
+      const x = xAt(i);
+      const y = yAt(revs[i]);
+      ctx.beginPath(); ctx.arc(x, y, 2.6, 0, Math.PI*2); ctx.fill();
+    }
 
   }catch(e){
     console.error(e);
@@ -1485,6 +1670,7 @@ function drawChart(){
     }
   }
 }
+
 
 
   function renderAll(){

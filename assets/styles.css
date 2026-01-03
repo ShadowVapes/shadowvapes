@@ -12,16 +12,23 @@
   --hot:#ff9800;
   --shadow: 0 20px 60px rgba(0,0,0,.85);
   --radius: 18px;
+  --glass: rgba(18,27,44,.62);
+  --glass2: rgba(11,15,23,.38);
+  --stroke: rgba(255,255,255,.08);
+  --stroke2: rgba(124,92,255,.28);
 }
+
 
 *{ box-sizing:border-box; }
 html,body{ height:100%; }
 body{
   margin:0;
   font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
-  background: radial-gradient(1200px 600px at 10% 10%, rgba(124,92,255,.25), transparent 60%),
-              radial-gradient(900px 500px at 90% 20%, rgba(40,215,255,.18), transparent 55%),
-              var(--bg);
+  background:
+    radial-gradient(1200px 600px at 10% 10%, rgba(124,92,255,.28), transparent 60%),
+    radial-gradient(900px 500px at 90% 20%, rgba(40,215,255,.20), transparent 55%),
+    radial-gradient(900px 520px at 50% 110%, rgba(255,255,255,.06), transparent 60%),
+    var(--bg);
   color:var(--text);
 }
 
@@ -205,6 +212,63 @@ button, input, select{
   gap: 14px;
 }
 
+/* ---------- Összes termék: kategóriás lenyitható blokkok ---------- */
+.grid.all-accordion{
+  display:flex;
+  flex-direction:column;
+  gap: 14px;
+}
+
+.cat-accordion{
+  background: rgba(18,27,44,.50);
+  border: 1px solid rgba(255,255,255,.07);
+  border-radius: 18px;
+  overflow:hidden;
+  box-shadow: 0 14px 46px rgba(0,0,0,.28);
+}
+
+.cat-accordion > summary{
+  list-style:none;
+  cursor:pointer;
+  padding: 14px 14px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  user-select:none;
+  background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(11,15,23,.18));
+  border-bottom: 1px solid rgba(255,255,255,.06);
+}
+
+.cat-accordion > summary::-webkit-details-marker{ display:none; }
+
+.cat-accordion > summary .cat-title{
+  font-weight: 900;
+  letter-spacing: .2px;
+  font-size: 15px;
+}
+
+.cat-accordion > summary .cat-count{
+  font-weight: 900;
+  font-size: 12px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(124,92,255,.16);
+  border: 1px solid rgba(124,92,255,.25);
+  color: var(--text);
+}
+
+.cat-accordion[open] > summary{
+  border-bottom-color: rgba(124,92,255,.18);
+}
+
+.cat-grid{
+  padding: 14px;
+  display:grid;
+  grid-template-columns: repeat( auto-fill, minmax(250px, 1fr) );
+  gap: 14px;
+}
+
 .card{
   background: rgba(18,27,44,.70);
   border: 1px solid rgba(255,255,255,.06);
@@ -255,9 +319,10 @@ button, input, select{
 }
 .badge{
   font-size: 12px;
-  padding: 6px 10px;
+  padding: 7px 11px;
   border-radius: 999px;
-  background: rgba(0,0,0,.45);
+  background: rgba(0,0,0,.48);
+  border: 1px solid rgba(255,255,255,.10);
   border: 1px solid rgba(255,255,255,.12);
 }
 .badge.out{
@@ -733,4 +798,37 @@ button, input, select{
   .popup-arrow {
     display: none; /* Mobile swipe */
   }
+}
+
+/* Expected badge (soon ETA) */
+.badge.eta{
+  background: rgba(40,215,255,.12);
+  border-color: rgba(40,215,255,.22);
+}
+
+/* Admin: low stock highlight */
+.rowline.low-stock{
+  border-color: rgba(255,193,7,.25);
+  background: linear-gradient(180deg, rgba(255,193,7,.07), rgba(11,15,23,.25));
+}
+.low-stock-badge{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,193,7,.28);
+  background: rgba(255,193,7,.10);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+/* Admin: same premium skin */
+body.admin{
+  background:
+    radial-gradient(1200px 600px at 10% 10%, rgba(124,92,255,.22), transparent 60%),
+    radial-gradient(900px 500px at 90% 20%, rgba(40,215,255,.16), transparent 55%),
+    radial-gradient(900px 520px at 50% 110%, rgba(255,255,255,.05), transparent 60%),
+    var(--bg);
 }
