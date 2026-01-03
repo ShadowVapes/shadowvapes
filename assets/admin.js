@@ -198,7 +198,6 @@ state.sales = state.sales.map(s => {
   return {
     id: String(s.id || ""),
     date: String(s.date || s.day || s.createdAt || ""),
-    ts: Number.parseFloat(s.ts || s.createdAt || 0) || 0,
     name: s.name || "",
     payment: s.payment || s.method || "",
     items
@@ -924,12 +923,7 @@ function markDirty(flags){
     const filterCat = state.filters.salesCat;
     const q = (state.filters.salesSearch || "").toLowerCase();
 
-    let list = [...state.sales].sort((a,b)=>{
-      const da = String(a.date||""), db = String(b.date||"");
-      const cmp = db.localeCompare(da);
-      if(cmp) return cmp;
-      return Number(b.ts||0) - Number(a.ts||0);
-    });
+    let list = [...state.sales].sort((a,b)=> String(b.date).localeCompare(String(a.date)));
     if(q){
       list = list.filter(s => (`${s.name} ${s.payment}`).toLowerCase().includes(q));
     }
@@ -937,54 +931,26 @@ function markDirty(flags){
       list = list.filter(s => saleTotals(s, filterCat).hit);
     }
 
+    const rows = list.map(s => {
+      const tot = saleTotals(s, filterCat);
+      const itemsCount = s.items.reduce((acc,it)=> acc + Number(it.qty||0), 0);
 
-const groups = new Map();
-const order = [];
-for(const s of list){
-  const d = String(s.date || "");
-  if(!groups.has(d)){ groups.set(d, []); order.push(d); }
-  groups.get(d).push(s);
-}
-
-const rows = order.map(day => {
-  const daySales = groups.get(day) || [];
-  let dayRev = 0;
-  let dayQty = 0;
-
-  const inner = daySales.map(s => {
-    const tot = saleTotals(s, filterCat);
-    const itemsCount = s.items.reduce((acc,it)=> acc + Number(it.qty||0), 0);
-    dayRev += tot.revenue;
-    dayQty += itemsCount;
-
-    return `
-      <div class="rowline day-row">
-        <div class="left">
-          <div style="font-weight:900;">
-            ${escapeHtml(s.name || "—")}
-            <span class="small-muted">• ${escapeHtml(s.payment || "")}</span>
+      return `
+        <div class="rowline">
+          <div class="left">
+            <div style="font-weight:900;">
+              ${escapeHtml(s.date)} • ${escapeHtml(s.name || "—")}
+              <span class="small-muted">• ${escapeHtml(s.payment || "")}</span>
+            </div>
+            <div class="small-muted">Tételek: <b>${itemsCount}</b> • Bevétel: <b>${tot.revenue.toLocaleString("hu-HU")} Ft</b></div>
           </div>
-          <div class="small-muted">Tételek: <b>${itemsCount}</b> • Bevétel: <b>${tot.revenue.toLocaleString("hu-HU")} Ft</b></div>
+          <div style="display:flex;gap:10px;align-items:center;">
+            <button class="ghost" data-view="${escapeHtml(s.id)}">Megnéz</button>
+            <button class="danger" data-delsale="${escapeHtml(s.id)}">Töröl (rollback)</button>
+          </div>
         </div>
-        <div style="display:flex;gap:10px;align-items:center;">
-          <button class="ghost" data-view="${escapeHtml(s.id)}">Megnéz</button>
-          <button class="danger" data-delsale="${escapeHtml(s.id)}">Töröl (rollback)</button>
-        </div>
-      </div>
-    `;
-  }).join("");
-
-  return `
-    <details class="day-accordion" open>
-      <summary>
-        <span class="day-title">${escapeHtml(day)}</span>
-        <span class="day-meta">${daySales.length} eladás • <b>${dayRev.toLocaleString("hu-HU")} Ft</b></span>
-      </summary>
-      <div class="day-list">${inner}</div>
-    </details>
-  `;
-}).join("");
-
+      `;
+    }).join("");
 
     $("#panelSales").innerHTML = `
       <div class="actions table" style="align-items:center;">
@@ -1099,9 +1065,8 @@ const rows = order.map(day => {
           if(p.stock <= 0) p.status = "out";
         }
 
-        state.sales.unshift({
+        state.sales.push({
           id: "s_" + Math.random().toString(16).slice(2) + "_" + Date.now().toString(16),
-          ts: Date.now(),
           date,
           name,
           payment,
@@ -1422,51 +1387,28 @@ function drawChart(){
 
     const cat = state.filters.chartCat;
 
-    // helper: normalize date to YYYY-MM-DD (accepts YYYY-M-D too)
-    const normDay = (raw) => {
-      let d = String(raw || "").trim();
-      if(!d) return "";
-      d = d.split("T")[0].split(" ")[0];
-      const m = d.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
-      if(m){
-        const yyyy = m[1];
-        const mm = String(Number(m[2])).padStart(2,"0");
-        const dd = String(Number(m[3])).padStart(2,"0");
-        return `${yyyy}-${mm}-${dd}`;
-      }
-      // already padded ISO?
-      if(/^\d{4}-\d{2}-\d{2}$/.test(d)) return d;
-      return d;
-    };
-    const dayTs = (ymd) => {
-      // Use UTC midnight so ordering is stable across timezones
-      const t = Date.parse(`${ymd}T00:00:00Z`);
-      return Number.isFinite(t) ? t : 0;
-    };
-
     // group by date => revenue
-    const map = new Map(); // day -> revenue
-    const tsMap = new Map(); // day -> ts
+    const map = new Map();
     let total = 0;
-
     for(const s of state.sales){
       const st = saleTotals(s, cat);
       if(cat !== "all" && !st.hit) continue;
 
-      const d = normDay(s.date);
+      let d = String(s.date || "");
       if(!d) continue;
+      // ha véletlen idő is van benne: "YYYY-MM-DDTHH:MM" -> "YYYY-MM-DD"
+      d = d.split("T")[0].split(" ")[0];
 
       const rev = Number(st.revenue || 0);
       if(!Number.isFinite(rev)) continue;
 
       map.set(d, (map.get(d) || 0) + rev);
-      if(!tsMap.has(d)) tsMap.set(d, dayTs(d));
       total += rev;
     }
 
-    const days = [...map.keys()].sort((a,b) => (tsMap.get(a)||0) - (tsMap.get(b)||0));
+    const days = [...map.keys()].sort();
     const revs = days.map(d => Number(map.get(d) || 0));
-    const labels = days.slice();
+    const labels = days.map(d => d); // teljes dátum
 
     if(kpi){
       kpi.innerHTML = `<div class="small-muted">Összes bevétel: <b>${total.toLocaleString("hu-HU")} Ft</b> • Napok: <b>${days.length}</b></div>`;
@@ -1476,8 +1418,7 @@ function drawChart(){
     ctx.strokeStyle = "rgba(255,255,255,.10)";
     ctx.lineWidth = 1;
 
-    // Give a little more right padding so the last label is visible
-    const left = 96, right = cssW - 36, top = 18, bottom = cssH - 54;
+    const left = 96, right = cssW - 18, top = 18, bottom = cssH - 46;
     const w = right - left;
     const h = bottom - top;
 
@@ -1507,37 +1448,20 @@ function drawChart(){
       ctx.fillText(`${v.toLocaleString("hu-HU")} Ft`, left - 10, y);
     }
 
+    // x labels (ritkítva)
+    const step = Math.ceil(days.length / 6);
+    ctx.textAlign = "center";
+    ctx.textBaseline = "top";
+    ctx.fillStyle = "rgba(255,255,255,.70)";
+    for(let i=0;i<days.length;i+=step){
+      const x = left + (days.length===1 ? w/2 : (i/(days.length-1))*w);
+      ctx.fillText(labels[i], x, bottom + 10);
+    }
+
     const xAt = (i) => left + (days.length===1 ? w/2 : (i/(days.length-1))*w);
     const yAt = (v) => bottom - (v/maxRev)*h;
 
-    // x labels: always show first + last, and a few in-between
-    ctx.textBaseline = "top";
-    ctx.fillStyle = "rgba(255,255,255,.70)";
-
-    const idx = new Set([0, days.length-1]);
-    const targetCount = 6; // approx
-    if(days.length > 2){
-      const step = Math.max(1, Math.ceil((days.length-2) / (targetCount-2)));
-      for(let i=step; i<days.length-1; i+=step) idx.add(i);
-    }
-    const idxArr = [...idx].sort((a,b)=>a-b);
-
-    ctx.font = "12px ui-sans-serif, system-ui";
-    for(const i of idxArr){
-      const x = xAt(i);
-      if(i === 0){
-        ctx.textAlign = "left";
-        ctx.fillText(labels[i], left, bottom + 10);
-      }else if(i === days.length-1){
-        ctx.textAlign = "right";
-        ctx.fillText(labels[i], right, bottom + 10);
-      }else{
-        ctx.textAlign = "center";
-        ctx.fillText(labels[i], x, bottom + 10);
-      }
-    }
-
-    // revenue line (crypto-style) - keep original color
+    // revenue line (crypto-style)
     ctx.strokeStyle = "rgba(124,92,255,.95)";
     ctx.lineWidth = 2.8;
     ctx.beginPath();

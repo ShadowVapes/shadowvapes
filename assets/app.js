@@ -33,7 +33,7 @@
     expected: { hu: "Várható", en: "Expected" }
   };
 
-  const t = (k) => (UI[k] ? (UI[k][state.lang] || UI[k].hu || UI[k].en) : k);
+  const t = (k) => (UI[k] ? UI[k].hu : k);
 
   const locale = () => "hu";
 
@@ -87,8 +87,6 @@
 
   function isOut(p) {
     const st = (p && p.status) || "ok";
-    // ✅ Hamarosan NEM elfogyott (akkor sem, ha a stock 0)
-    if (st === "soon") return false;
     const stock = Math.max(0, Number(p && p.stock ? p.stock : 0));
     return st === "out" || stock <= 0;
   }
@@ -442,30 +440,29 @@
       list = list.filter((p) => norm(getName(p) + " " + getFlavor(p)).includes(q));
     }
 
-    // ✅ order: ok ... then out ... then soon
-const okPart = list.filter((p) => !isSoon(p) && !isOut(p));
-const outPart = list.filter((p) => !isSoon(p) && isOut(p));
-const soonPart = list.filter((p) => isSoon(p));
+    // ✅ order: ok ... then soon ... then out
+    const okPart = list.filter((p) => !isOut(p) && !isSoon(p));
+    const soonPart = list.filter((p) => !isOut(p) && isSoon(p));
+    const outPart = list.filter((p) => isOut(p));
 
-const groupSort = (arr) => {
-  const map = new Map();
-  for (const p of arr) {
-    const key = norm(getName(p));
-    if (!map.has(key)) map.set(key, []);
-    map.get(key).push(p);
-  }
-  const keys = [...map.keys()].sort((a, b) => a.localeCompare(b, locale()));
-  const out = [];
-  for (const k of keys) {
-    const items = map.get(k);
-    items.sort((a, b) => norm(getFlavor(a)).localeCompare(norm(getFlavor(b)), locale()));
-    out.push(...items);
-  }
-  return out;
-};
+    const groupSort = (arr) => {
+      const map = new Map();
+      for (const p of arr) {
+        const key = norm(getName(p));
+        if (!map.has(key)) map.set(key, []);
+        map.get(key).push(p);
+      }
+      const keys = [...map.keys()].sort((a, b) => a.localeCompare(b, locale()));
+      const out = [];
+      for (const k of keys) {
+        const items = map.get(k);
+        items.sort((a, b) => norm(getFlavor(a)).localeCompare(norm(getFlavor(b)), locale()));
+        out.push(...items);
+      }
+      return out;
+    };
 
-return [...groupSort(okPart), ...groupSort(outPart), ...groupSort(soonPart)];
-
+    return [...groupSort(okPart), ...groupSort(soonPart), ...groupSort(outPart)];
   }
 
   function fmtFt(n) {
@@ -505,7 +502,6 @@ return [...groupSort(okPart), ...groupSort(outPart), ...groupSort(soonPart)];
     return out;
   }
 
-  
   function renderGrid() {
     const grid = $("#grid");
     const empty = $("#empty");
@@ -513,12 +509,42 @@ return [...groupSort(okPart), ...groupSort(outPart), ...groupSort(soonPart)];
 
     let list = filterList();
 
-    // ----- card factory -----
-    const makeCard = (p, { featured=false } = {}) => {
+    // ✅ Featured: kategóriánként 1-1 (ha van eladás) + kategória toggle (admin)
+    const featuredIds = new Set();
+    let featuredToPrepend = [];
+
+    if(state.active !== "soon"){
+      if(state.active === "all"){
+        featuredToPrepend = getFeaturedListForAll();
+      }else{
+        const pid = state.featuredByCat.get(String(state.active));
+        if(pid){
+          const p = (state.productsDoc.products||[]).find(x=>String(x.id)===String(pid));
+          if(p && p.visible !== false) featuredToPrepend = [p];
+        }
+      }
+    }
+
+    for(const fp of featuredToPrepend){
+      featuredIds.add(String(fp.id));
+    }
+
+    if(featuredToPrepend.length){
+      // remove from main list so ne duplázzon
+      list = list.filter(p => !featuredIds.has(String(p.id)));
+      list = [...featuredToPrepend, ...list];
+    }
+
+    $("#count").textContent = String(list.length);
+    empty.style.display = list.length ? "none" : "block";
+
+    for (const p of list) {
       const name = getName(p);
       const flavor = getFlavor(p);
       const out = isOut(p);
       const soon = isSoon(p);
+      const featured = featuredIds.has(String(p.id));
+      const stockShown = out ? 0 : (soon ? Math.max(0, Number(p.stock || 0)) : Math.max(0, Number(p.stock || 0)));
       const price = effectivePrice(p);
 
       // Determine card classes based on status
@@ -538,16 +564,18 @@ return [...groupSort(okPart), ...groupSort(outPart), ...groupSort(soonPart)];
       img.alt = (name + (flavor ? " - " + flavor : "")).trim();
       img.src = p.image || "";
 
+      // sold-out legyen szürke (CSS is)
       if (out) {
         img.style.filter = "grayscale(.75) contrast(.95) brightness(.85)";
       } else if (soon) {
+        // hamarosan: kicsit szürkébb, de ne annyira mint az elfogyott
         img.style.filter = "grayscale(.25) contrast(.98) brightness(.92)";
       }
 
       const badges = document.createElement("div");
       badges.className = "badges";
 
-      if (featured) {
+      if(featured){
         const b = document.createElement("div");
         b.className = "badge hot";
         b.textContent = t("hot");
@@ -559,10 +587,11 @@ return [...groupSort(okPart), ...groupSort(outPart), ...groupSort(soonPart)];
         b.className = "badge soon";
         b.textContent = t("soon");
         badges.appendChild(b);
-
+        
+        // Add expected month badge if available
         if (p.soonEta) {
           const expectedBadge = document.createElement("div");
-          expectedBadge.className = "badge calendar";
+          expectedBadge.className = "badge soon";
           expectedBadge.textContent = `📅 ${t("expected")}: ${formatMonth(p.soonEta)}`;
           badges.appendChild(expectedBadge);
         }
@@ -577,17 +606,10 @@ return [...groupSort(okPart), ...groupSort(outPart), ...groupSort(soonPart)];
 
       const overlay = document.createElement("div");
       overlay.className = "overlay-title";
-
-      const nameEl = document.createElement("div");
-      nameEl.className = "name";
-      nameEl.textContent = name;
-
-      const flavorEl = document.createElement("div");
-      flavorEl.className = "flavor";
-      flavorEl.textContent = flavor;
-
-      overlay.appendChild(nameEl);
-      if (flavor) overlay.appendChild(flavorEl);
+      overlay.innerHTML = `
+        <div class="name">${name}</div>
+        <div class="flavor">${flavor}</div>
+      `;
 
       hero.appendChild(img);
       hero.appendChild(badges);
@@ -605,7 +627,7 @@ return [...groupSort(okPart), ...groupSort(outPart), ...groupSort(soonPart)];
 
       const stockEl = document.createElement("div");
       stockEl.className = "stock";
-      stockEl.innerHTML = `${t("stock")}: <b>${soon ? "—" : Math.max(0, Number(p.stock || 0))} ${soon ? "" : t("pcs")}</b>`;
+      stockEl.innerHTML = `${t("stock")}: <b>${soon ? "—" : stockShown} ${soon ? "" : t("pcs")}</b>`;
 
       meta.appendChild(priceEl);
       meta.appendChild(stockEl);
@@ -614,114 +636,7 @@ return [...groupSort(okPart), ...groupSort(outPart), ...groupSort(soonPart)];
       card.appendChild(hero);
       card.appendChild(body);
 
-      return card;
-    };
-
-    // ----- Featured handling -----
-    const featuredIds = new Set();
-
-    // ALL products: category accordions
-    if (state.active === "all") {
-      const cats = orderedCategories().filter(c => !c.virtual && c.id && c.id !== "all" && c.id !== "soon");
-      const catMap = new Map();
-      for (const c of cats) catMap.set(String(c.id), c);
-
-      // group products by category
-      const byCat = new Map();
-      const other = [];
-      for (const p of list) {
-        const cid = String(p.categoryId || "");
-        if (catMap.has(cid)) {
-          if (!byCat.has(cid)) byCat.set(cid, []);
-          byCat.get(cid).push(p);
-        } else {
-          other.push(p);
-        }
-      }
-
-      const renderCat = (cid, catObj, products) => {
-        if (!products || !products.length) return;
-
-        // featured per category
-        const pid = state.featuredByCat.get(String(cid));
-        if (pid) {
-          const i = products.findIndex(x => String(x.id) === String(pid));
-          if (i >= 0) {
-            const fp = products.splice(i, 1)[0];
-            products.unshift(fp);
-            featuredIds.add(String(fp.id));
-          }
-        }
-
-        const details = document.createElement("details");
-        details.className = "cat-accordion fade-in";
-        details.open = true;
-
-        const summary = document.createElement("summary");
-        const st = document.createElement("span");
-        st.className = "cat-title";
-        st.textContent = catLabel(catObj);
-
-        const sm = document.createElement("span");
-        sm.className = "cat-meta";
-        sm.textContent = `${products.length} db`;
-
-        summary.appendChild(st);
-        summary.appendChild(sm);
-        details.appendChild(summary);
-
-        const inner = document.createElement("div");
-        inner.className = "grid subgrid";
-        for (const p of products) {
-          inner.appendChild(makeCard(p, { featured: featuredIds.has(String(p.id)) }));
-        }
-        details.appendChild(inner);
-
-        grid.appendChild(details);
-      };
-
-      for (const c of cats) {
-        const cid = String(c.id);
-        const products = (byCat.get(cid) || []).slice();
-        renderCat(cid, c, products);
-      }
-
-      // "Other" bucket at the end (if any)
-      if (other.length) {
-        renderCat("__other__", { label_hu: "Egyéb", label_en: "Other" }, other.slice());
-      }
-
-      $("#count").textContent = String(list.length);
-      empty.style.display = list.length ? "none" : "block";
-      return;
-    }
-
-    // Non-all: keep previous behavior (1 featured / tab)
-    let featuredToPrepend = [];
-    if (state.active !== "soon") {
-      if (state.active === "all") {
-        featuredToPrepend = getFeaturedListForAll();
-      } else {
-        const pid = state.featuredByCat.get(String(state.active));
-        if (pid) {
-          const p = (state.productsDoc.products || []).find(x => String(x.id) === String(pid));
-          if (p && p.visible !== false) featuredToPrepend = [p];
-        }
-      }
-    }
-
-    for (const fp of featuredToPrepend) featuredIds.add(String(fp.id));
-
-    if (featuredToPrepend.length) {
-      list = list.filter(p => !featuredIds.has(String(p.id)));
-      list = [...featuredToPrepend, ...list];
-    }
-
-    $("#count").textContent = String(list.length);
-    empty.style.display = list.length ? "none" : "block";
-
-    for (const p of list) {
-      grid.appendChild(makeCard(p, { featured: featuredIds.has(String(p.id)) }));
+      grid.appendChild(card);
     }
   }
 
