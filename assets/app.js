@@ -199,37 +199,28 @@
   }
 
   async function fetchJson(relPath, { forceBust=false } = {}){
-    const src = await resolveSource();
-    const relBase = relPath;
-    const rawBase = src ? `https://raw.githubusercontent.com/${src.owner}/${src.repo}/${src.branch}/${relPath}` : null;
+  // ✅ Prefer same-origin (GitHub Pages) to avoid CORS issues.
+  const mkUrl = (base) => forceBust ? `${base}${base.includes("?") ? "&" : "?"}_=${Date.now()}` : base;
 
-    const mkUrl = (base) => forceBust ? `${base}${base.includes("?") ? "&" : "?"}_=${Date.now()}` : base;
+  // 1) Same-origin first
+  try{
+    const url = mkUrl(relPath);
+    const r = await fetch(url, { cache: "no-store" });
+    if(r.ok) return await r.json();
+  }catch{}
 
-    const headers = {
-      "Cache-Control": "no-cache, no-store, must-revalidate",
-      Pragma: "no-cache",
-    };
-
-    if (rawBase) {
-      try {
-        const url = mkUrl(rawBase);
-        const r = await fetch(url, { cache: "no-store", headers });
-        if (r.status === 304) return null;
-        if (r.ok) return await r.json();
-        try { localStorage.removeItem("sv_source"); } catch {}
-        source = null;
-      } catch {
-        try { localStorage.removeItem("sv_source"); } catch {}
-        source = null;
-      }
-    }
-
-    const url = mkUrl(relBase);
-    const r = await fetch(url, { cache: "no-store", headers });
-    if (r.status === 304) return null;
+  // 2) Fallback: raw.githubusercontent (only if a source is configured)
+  const src = await resolveSource();
+  if(src){
+    const rawUrl = `https://raw.githubusercontent.com/${src.owner}/${src.repo}/${src.branch}/${relPath}`;
+    const url = mkUrl(rawUrl);
+    const r = await fetch(url, { cache: "no-store" });
     if (!r.ok) throw new Error(`Nem tudtam betölteni: ${relPath} (${r.status})`);
     return await r.json();
   }
+
+  throw new Error(`Nem tudtam betölteni: ${relPath}`);
+}
 
   async function fetchProducts({ forceBust=false } = {}){
     return await fetchJson("data/products.json", { forceBust });
@@ -610,127 +601,124 @@
     };
 
     const buildCard = (p, { featured = false, tag = "" } = {}) => {
-      const name = getName(p);
-      const flavor = getFlavor(p);
-      const out = isOut(p);
-      const soon = isSoon(p);
-      const stockShown = out ? 0 : Math.max(0, Number(p.stock || 0));
-      const price = effectivePrice(p);
+  const name = getName(p);
+  const flavor = getFlavor(p);
+  const out = isOut(p);
+  const soon = isSoon(p);
+  const stockShown = out ? 0 : Math.max(0, Number(p.stock || 0));
+  const price = effectivePrice(p);
 
-      let cardClass = "card fade-in";
-      if (out) cardClass += " dim outline-red";
-      else if (soon) cardClass += " outline-yellow";
-      if (featured) cardClass += " outline-orange";
+  let cardClass = "card fade-in";
+  if (out) cardClass += " dim outline-red";
+  else if (soon) cardClass += " outline-yellow";
+  if (featured) cardClass += " outline-orange";
 
-      const card = document.createElement("div");
-      card.className = cardClass;
+  const card = document.createElement("div");
+  card.className = cardClass;
 
-      const hero = document.createElement("div");
-      hero.className = "hero";
+  const hero = document.createElement("div");
+  hero.className = "hero";
 
-      const img = document.createElement("img");
-      img.loading = "lazy";
-      img.alt = (name + (flavor ? " - " + flavor : "")).trim();
-      img.src = p.image || "";
+  const img = document.createElement("img");
+  img.loading = "lazy";
+  img.alt = (name + (flavor ? " - " + flavor : "")).trim();
+  img.src = p.image || "";
 
-      if (out) {
-        img.style.filter = "grayscale(.75) contrast(.95) brightness(.85)";
-      } else if (soon) {
-        img.style.filter = "grayscale(.25) contrast(.98) brightness(.92)";
-      }
+  if (out) img.style.filter = "grayscale(.85) contrast(.95) brightness(.75)";
+  else if (soon) img.style.filter = "grayscale(.25) contrast(.98) brightness(.9)";
 
-      const badges = document.createElement("div");
-      badges.className = "badges";
+  const badges = document.createElement("div");
+  badges.className = "badges";
 
-      if (featured) {
-        const b = document.createElement("div");
-        b.className = "badge hot";
-        b.textContent = t("hot");
-        badges.appendChild(b);
-      }
+  if (featured) {
+    const b = document.createElement("div");
+    b.className = "badge hot";
+    b.textContent = t("hot");
+    badges.appendChild(b);
+  }
 
-      if (tag) {
-        const b = document.createElement("div");
-        b.className = "badge cat";
-        b.textContent = tag;
-        badges.appendChild(b);
-      }
+  if (tag) {
+    const b = document.createElement("div");
+    b.className = "badge tag";
+    b.textContent = tag;
+    badges.appendChild(b);
+  }
 
-      if (soon) {
-        const b = document.createElement("div");
-        b.className = "badge soon";
-        b.textContent = t("soon");
-        badges.appendChild(b);
+  if (soon) {
+    const b = document.createElement("div");
+    b.className = "badge soon";
+    b.textContent = t("soon");
+    badges.appendChild(b);
+  }
 
-        if (p.soonEta) {
-          const expectedBadge = document.createElement("div");
-          expectedBadge.className = "badge eta";
-          expectedBadge.textContent = `📅 ${t("expected")}: ${formatMonth(p.soonEta)}`;
-          badges.appendChild(expectedBadge);
-        }
-      }
+  if (out) {
+    const b = document.createElement("div");
+    b.className = "badge out";
+    b.textContent = t("out");
+    badges.appendChild(b);
+  }
 
-      if (out) {
-        const b = document.createElement("div");
-        b.className = "badge out";
-        b.textContent = t("out");
-        badges.appendChild(b);
-      }
+  const overlay = document.createElement("div");
+  overlay.className = "overlay-title";
 
-      const overlay = document.createElement("div");
-      overlay.className = "overlay-title";
-      overlay.innerHTML = `
-        <div class="name">${name}</div>
-        <div class="flavor">${flavor}</div>
-      `;
+  const nm = document.createElement("div");
+  nm.className = "name";
+  nm.textContent = name;
 
-      hero.appendChild(img);
-      hero.appendChild(badges);
-      hero.appendChild(overlay);
+  const fl = document.createElement("div");
+  fl.className = "flavor";
+  fl.textContent = flavor;
 
-      const body = document.createElement("div");
-      body.className = "card-body";
+  overlay.appendChild(nm);
+  overlay.appendChild(fl);
 
-      const meta = document.createElement("div");
-      meta.className = "meta-row";
+  hero.appendChild(img);
+  hero.appendChild(badges);
+  hero.appendChild(overlay);
 
-      const priceEl = document.createElement("div");
-      priceEl.className = "price";
-      priceEl.textContent = fmtFt(price);
+  const body = document.createElement("div");
+  body.className = "card-body";
 
-      const stockEl = document.createElement("div");
-      stockEl.className = "stock";
-      stockEl.innerHTML = `${t("stock")}: <b>${soon ? "—" : stockShown} ${soon ? "" : t("pcs")}</b>`;
+  const meta = document.createElement("div");
+  meta.className = "meta-row";
 
-      met
-    // ---------- HOT (Felkapott termékek) ----------
-    if (state.active === "hot") {
-      let list = getFeaturedListForAll();
-      if (q) {
-        list = list.filter(p => norm(getName(p) + " " + getFlavor(p)).includes(q));
-      }
-      $("#count").textContent = String(list.length);
-      empty.style.display = list.length ? "none" : "block";
-      for (const p of list) {
-        const c = (state.productsDoc.categories || []).find(x => String(x.id) === String(p.categoryId));
-        const tag = c ? catLabel(c) : "";
-        grid.appendChild(buildCard(p, { featured: true, tag }));
-      }
-      return;
-    }
+  const priceEl = document.createElement("div");
+  priceEl.className = "price";
+  priceEl.textContent = fmtFt(price);
 
+  const stockEl = document.createElement("div");
+  stockEl.className = "stock";
+  stockEl.innerHTML = `${t("stock")}: <b>${soon ? "—" : stockShown} ${soon ? "" : t("pcs")}</b>`;
 
-a.appendChild(priceEl);
-      meta.appendChild(stockEl);
-      body.appendChild(meta);
+  meta.appendChild(priceEl);
+  meta.appendChild(stockEl);
+  body.appendChild(meta);
 
-      card.appendChild(hero);
-      card.appendChild(body);
+  card.appendChild(hero);
+  card.appendChild(body);
 
-      return card;
-    };
+  return card;
+};
 
-    // ---------- SOON tab ----------
+// ---------- HOT (Felkapott termékek) ----------
+if (state.active === "hot") {
+  let list = getFeaturedListForAll();
+  if (q) {
+    list = list.filter(p => norm(getName(p) + " " + getFlavor(p)).includes(q));
+  }
+  $("#count").textContent = String(list.length);
+  empty.style.display = list.length ? "none" : "block";
+  for (const p of list) {
+    const cat = (state.productsDoc.categories || []).find(x => String(x.id) === String(p.categoryId));
+    const featuredEnabled = cat ? (cat.featuredEnabled === false ? false : true) : true;
+    const fid = featuredEnabled ? state.featuredByCat.get(String(p.categoryId)) : null;
+    const featured = fid && String(p.id) === String(fid);
+    const tag = cat ? catLabel(cat) : "";
+    grid.appendChild(buildCard(p, { featured, tag }));
+  }
+  return;
+}
+// ---------- SOON tab ----------
     if (state.active === "soon") {
       const list = sortForCategory(baseList.filter(p => p.status === "soon"), null);
       $("#count").textContent = String(list.length);

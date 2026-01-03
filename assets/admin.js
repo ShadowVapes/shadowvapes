@@ -1747,7 +1747,7 @@ function drawChart(){
     ctx.strokeStyle = "rgba(255,255,255,.10)";
     ctx.lineWidth = 1;
 
-    const left = 96, right = cssW - 28, top = 18, bottom = cssH - 66;
+    const left = 86, right = cssW - 18, top = 18, bottom = cssH - 60;
     const w = right - left;
     const h = bottom - top;
 
@@ -1798,7 +1798,8 @@ function drawChart(){
       ctx.fillText(txt, x, bottom + 12);
     }
 
-    const xAt = (i) => left + (labels.length===1 ? w/2 : (i/(labels.length-1))*w);
+    const padX = 6;
+    const xAt = (i) => left + padX + (labels.length===1 ? (w-2*padX)/2 : (i/(labels.length-1))*(w-2*padX));
     const yAt = (v) => bottom - (v/maxRev)*h;
 
     // line
