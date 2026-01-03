@@ -25,6 +25,7 @@
     stock: { hu: "Készlet", en: "Stock" },
     pcs: { hu: "db", en: "pcs" },
     out: { hu: "Elfogyott", en: "Sold out" },
+    hotProducts: { hu: "Felkapott termékek", en: "Trending products" },
     hot: { hu: "Felkapott", en: "Trending" },
     newAvail: { hu: "Új termékek elérhetőek", en: "New products available" },
     understood: { hu: "Értettem", en: "Got it" },
@@ -414,6 +415,7 @@
       .sort((a, b) => catLabel(a).localeCompare(catLabel(b), locale()));
 
     return [
+      { id: "hot", label_hu: t("hotProducts"), label_en: t("hotProducts"), virtual: true },
       { id: "all", label_hu: t("all"), label_en: t("all"), virtual: true },
       ...cats,
       { id: "soon", label_hu: t("soon"), label_en: t("soon"), virtual: true },
@@ -429,7 +431,8 @@
       categoryId: String(p.categoryId || ""),
       status: p.status === "soon" || p.status === "out" || p.status === "ok" ? p.status : "ok",
       stock: Math.max(0, Number(p.stock || 0)),
-      visible: (p.visible === false) ? false : true
+      visible: (p.visible === false) ? false : true,
+      sort: (p.sort === null || p.sort === undefined || p.sort === "") ? null : Number(p.sort)
     })).filter(p => p.id && p.visible !== false);
 
     if (state.active === "soon") {
@@ -454,10 +457,32 @@
         if (!map.has(key)) map.set(key, []);
         map.get(key).push(p);
       }
-      const keys = [...map.keys()].sort((a, b) => a.localeCompare(b, locale()));
+
+      const groups = [...map.entries()].map(([k, items]) => {
+        // manual order: min(p.sort) within the group, null/undefined => Infinity
+        let minSort = Infinity;
+        for (const it of items) {
+          const v = it && it.sort;
+          if (v === null || v === undefined || v === "") continue;
+          const n = Number(v);
+          if (Number.isFinite(n)) minSort = Math.min(minSort, n);
+        }
+        return { k, items, minSort };
+      });
+
+      const anyManual = groups.some(g => Number.isFinite(g.minSort) && g.minSort !== Infinity);
+      groups.sort((a, b) => {
+        if (anyManual) {
+          const sa = (a.minSort === Infinity ? 1e15 : a.minSort);
+          const sb = (b.minSort === Infinity ? 1e15 : b.minSort);
+          if (sa !== sb) return sa - sb;
+        }
+        return a.k.localeCompare(b.k, locale());
+      });
+
       const out = [];
-      for (const k of keys) {
-        const items = map.get(k);
+      for (const g of groups) {
+        const items = g.items;
         items.sort((a, b) => norm(getFlavor(a)).localeCompare(norm(getFlavor(b)), locale()));
         out.push(...items);
       }
@@ -479,8 +504,9 @@
     const cats = orderedCategories();
     for (const c of cats) {
       const btn = document.createElement("button");
-      btn.textContent = c.id === "all" ? t("all") : c.id === "soon" ? t("soon") : catLabel(c);
+      btn.textContent = c.id === "hot" ? t("hotProducts") : c.id === "all" ? t("all") : c.id === "soon" ? t("soon") : catLabel(c);
       if (state.active === c.id) btn.classList.add("active");
+      if (c.id === "hot") btn.classList.add("hot-tab");
       btn.onclick = () => {
         state.active = c.id;
         $("#title").textContent = btn.textContent;
@@ -522,7 +548,8 @@
         categoryId: String(p.categoryId || ""),
         status: p.status === "soon" || p.status === "out" || p.status === "ok" ? p.status : "ok",
         stock: Math.max(0, Number(p.stock || 0)),
-        visible: (p.visible === false) ? false : true
+        visible: (p.visible === false) ? false : true,
+        sort: (p.sort === null || p.sort === undefined || p.sort === "") ? null : Number(p.sort)
       }))
       .filter(p => p.id && p.visible !== false)
       .filter(p => !q || norm(getName(p) + " " + getFlavor(p)).includes(q));
@@ -534,10 +561,32 @@
         if (!map.has(key)) map.set(key, []);
         map.get(key).push(p);
       }
-      const keys = [...map.keys()].sort((a, b) => a.localeCompare(b, locale()));
+
+      const groups = [...map.entries()].map(([k, items]) => {
+        // manual order: min(p.sort) within the group, null/undefined => Infinity
+        let minSort = Infinity;
+        for (const it of items) {
+          const v = it && it.sort;
+          if (v === null || v === undefined || v === "") continue;
+          const n = Number(v);
+          if (Number.isFinite(n)) minSort = Math.min(minSort, n);
+        }
+        return { k, items, minSort };
+      });
+
+      const anyManual = groups.some(g => Number.isFinite(g.minSort) && g.minSort !== Infinity);
+      groups.sort((a, b) => {
+        if (anyManual) {
+          const sa = (a.minSort === Infinity ? 1e15 : a.minSort);
+          const sb = (b.minSort === Infinity ? 1e15 : b.minSort);
+          if (sa !== sb) return sa - sb;
+        }
+        return a.k.localeCompare(b.k, locale());
+      });
+
       const out = [];
-      for (const k of keys) {
-        const items = map.get(k);
+      for (const g of groups) {
+        const items = g.items;
         items.sort((a, b) => norm(getFlavor(a)).localeCompare(norm(getFlavor(b)), locale()));
         out.push(...items);
       }
@@ -560,7 +609,7 @@
       return out;
     };
 
-    const buildCard = (p, { featured = false } = {}) => {
+    const buildCard = (p, { featured = false, tag = "" } = {}) => {
       const name = getName(p);
       const flavor = getFlavor(p);
       const out = isOut(p);
@@ -597,6 +646,13 @@
         const b = document.createElement("div");
         b.className = "badge hot";
         b.textContent = t("hot");
+        badges.appendChild(b);
+      }
+
+      if (tag) {
+        const b = document.createElement("div");
+        b.className = "badge cat";
+        b.textContent = tag;
         badges.appendChild(b);
       }
 
@@ -646,7 +702,25 @@
       stockEl.className = "stock";
       stockEl.innerHTML = `${t("stock")}: <b>${soon ? "—" : stockShown} ${soon ? "" : t("pcs")}</b>`;
 
-      meta.appendChild(priceEl);
+      met
+    // ---------- HOT (Felkapott termékek) ----------
+    if (state.active === "hot") {
+      let list = getFeaturedListForAll();
+      if (q) {
+        list = list.filter(p => norm(getName(p) + " " + getFlavor(p)).includes(q));
+      }
+      $("#count").textContent = String(list.length);
+      empty.style.display = list.length ? "none" : "block";
+      for (const p of list) {
+        const c = (state.productsDoc.categories || []).find(x => String(x.id) === String(p.categoryId));
+        const tag = c ? catLabel(c) : "";
+        grid.appendChild(buildCard(p, { featured: true, tag }));
+      }
+      return;
+    }
+
+
+a.appendChild(priceEl);
       meta.appendChild(stockEl);
       body.appendChild(meta);
 

@@ -161,7 +161,8 @@
       flavor_hu: p.flavor_hu || "",
       flavor_en: p.flavor_en || "",
       // ✅ Csak hónap formátum: YYYY-MM
-      soonEta: String(p.soonEta || p.eta || "").replace(/^(\d{4}-\d{2}).*$/, "$1")
+      soonEta: String(p.soonEta || p.eta || "").replace(/^(\d{4}-\d{2}).*$/, "$1"),
+      sort: (p.sort === null || p.sort === undefined || p.sort === "") ? null : Number(p.sort)
     })).filter(p => p.id);
 
     // Popups normalize
@@ -735,17 +736,15 @@ function markDirty(flags){
     const rows = list.map(p => {
       const c = catById(p.categoryId);
       const eff = effectivePrice(p);
-      const low = (p.status === "ok" && Number(p.stock||0) > 0 && Number(p.stock||0) <= 3);
 
       return `
-        <div class="rowline table ${low ? "low-stock" : ""}">
+        <div class="rowline table">
           <div class="left">
             <div style="font-weight:900;">${escapeHtml(p.name_hu||p.name_en||"—")} <span class="small-muted">• ${escapeHtml(p.flavor_hu||p.flavor_en||"")}</span></div>
             <div class="small-muted">
               Kategória: <b>${escapeHtml(c ? (c.label_hu||c.id) : "—")}</b>
               • Ár: <b>${eff.toLocaleString("hu-HU")} Ft</b>
               • Készlet: <b>${p.status==="soon" ? "—" : p.stock}</b>
-              ${low ? ` • <span class="low-stock-badge">⚠️ Alacsony készlet</span>` : ""}
               ${p.status==="soon" && p.soonEta ? `• Várható: <b>${escapeHtml(p.soonEta)}</b>` : ""}
             </div>
           </div>
@@ -778,6 +777,25 @@ function markDirty(flags){
         <div class="small-muted">Out termékek a public oldalon automatikusan leghátul.</div>
       </div>
       <div style="margin-top:10px;">${rows || `<div class="small-muted">Nincs találat.</div>`}</div>
+      <div class="divider" style="margin:18px 0;"></div>
+
+      <div class="section">
+        <div class="section-head">
+          <div class="h2">Összes termék sorrend (kategóriánként)</div>
+          <div class="small-muted">Itt tudod beállítani, hogy az "Összes termék" fülön a kategóriákon belül milyen sorrendben jöjjenek a termékek. A felkapott mindig legelöl marad, a "Hamarosan" pedig a legvégén.</div>
+        </div>
+
+        <div class="actions table" style="align-items:center;margin-top:10px;">
+          <select id="orderCat" style="min-width:240px;">
+            ${state.doc.categories.map(c=>`<option value="${escapeHtml(c.id)}">${escapeHtml(c.label_hu||c.id)}</option>`).join("")}
+          </select>
+          <button class="ghost" id="orderReset">ABC visszaállítás</button>
+          <div class="small-muted" style="flex:1;">Feljebb/lejjebb gombokkal rendezed. Mentés automatikus.</div>
+        </div>
+
+        <div id="orderList" class="order-list" style="margin-top:10px;"></div>
+      </div>
+
     `;
 
     $("#prodCat").onchange = () => { state.filters.productsCat = $("#prodCat").value; renderProducts(); };
@@ -929,6 +947,135 @@ function markDirty(flags){
       stSel.addEventListener("change", syncStockLock);
     }
     syncStockLock();
+    // ---------- Összes termék sorrend (kategóriánként) ----------
+    const orderCatSel = $("#orderCat");
+    const orderList = $("#orderList");
+    const orderResetBtn = $("#orderReset");
+
+    function groupKeyFor(p){
+      const n = String(p.name_hu || p.name_en || "").trim();
+      return n.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    }
+    function buildOrderGroups(cid){
+      const items = state.doc.products.filter(p => String(p.categoryId) === String(cid));
+      const map = new Map(); // key -> { name, ids:[], minSort, count, flags }
+      for(const p of items){
+        const k = groupKeyFor(p);
+        if(!k) continue;
+        if(!map.has(k)){
+          map.set(k, {
+            key: k,
+            name: (p.name_hu || p.name_en || "—"),
+            ids: [],
+            minSort: Infinity,
+            count: 0,
+            flags: { ok:false, out:false, soon:false }
+          });
+        }
+        const g = map.get(k);
+        g.ids.push(p.id);
+        g.count++;
+        g.flags[p.status] = true;
+        const v = p.sort;
+        if(v !== null && v !== undefined && v !== "" && Number.isFinite(Number(v))){
+          g.minSort = Math.min(g.minSort, Number(v));
+        }
+      }
+
+      const groups = [...map.values()];
+      const anyManual = groups.some(g => g.minSort !== Infinity);
+      groups.sort((a,b)=>{
+        if(anyManual){
+          const sa = (a.minSort===Infinity ? 1e15 : a.minSort);
+          const sb = (b.minSort===Infinity ? 1e15 : b.minSort);
+          if(sa !== sb) return sa - sb;
+        }
+        return a.name.localeCompare(b.name, "hu");
+      });
+      return groups;
+    }
+    function applyGroupOrder(cid, groups){
+      // assign sort to all products in each group, same index for the group
+      groups.forEach((g, idx) => {
+        for(const pid of g.ids){
+          const p = prodById(pid);
+          if(!p) continue;
+          p.sort = idx; // group order index
+        }
+      });
+      markDirty({ products:true });
+    }
+    function renderOrderList(){
+      if(!orderCatSel || !orderList) return;
+      const cid = orderCatSel.value;
+      const groups = buildOrderGroups(cid);
+
+      if(!groups.length){
+        orderList.innerHTML = `<div class="small-muted">Ebben a kategóriában nincs termék.</div>`;
+        return;
+      }
+
+      orderList.innerHTML = groups.map((g, idx) => {
+        const badges = [
+          g.flags.ok ? `<span class="mini-tag ok">ok</span>` : ``,
+          g.flags.out ? `<span class="mini-tag out">out</span>` : ``,
+          g.flags.soon ? `<span class="mini-tag soon">soon</span>` : ``
+        ].join("");
+        return `
+          <div class="order-row" data-idx="${idx}">
+            <div class="order-left">
+              <div class="order-title">${escapeHtml(g.name)}</div>
+              <div class="small-muted">Tételek: <b>${g.count}</b> ${badges ? " • " + badges : ""}</div>
+            </div>
+            <div class="order-actions">
+              <button class="ghost small" data-move="up" ${idx===0?"disabled":""}>↑</button>
+              <button class="ghost small" data-move="down" ${idx===groups.length-1?"disabled":""}>↓</button>
+            </div>
+          </div>
+        `;
+      }).join("");
+
+      orderList.querySelectorAll("button[data-move]").forEach(btn => {
+        btn.onclick = () => {
+          const row = btn.closest(".order-row");
+          const i = Number(row?.dataset?.idx || 0);
+          const dir = btn.dataset.move;
+          const cid = orderCatSel.value;
+          const g = buildOrderGroups(cid);
+          const j = dir === "up" ? i-1 : i+1;
+          if(j < 0 || j >= g.length) return;
+          const tmp = g[i];
+          g[i] = g[j];
+          g[j] = tmp;
+          applyGroupOrder(cid, g);
+          renderOrderList();
+        };
+      });
+    }
+
+    if(orderCatSel && orderList){
+      // default: current filter category if not all, else first category
+      const defaultCid = (filterCat !== "all" ? filterCat : (state.doc.categories[0]?.id || ""));
+      if(defaultCid) orderCatSel.value = defaultCid;
+
+      orderCatSel.onchange = renderOrderList;
+
+      if(orderResetBtn){
+        orderResetBtn.onclick = () => {
+          const cid = orderCatSel.value;
+          for(const p of state.doc.products){
+            if(String(p.categoryId) === String(cid)){
+              p.sort = null; // fallback to ABC on public
+            }
+          }
+          markDirty({ products:true });
+          renderOrderList();
+        };
+      }
+
+      renderOrderList();
+    }
+
   }
 
   function renderSales(){
@@ -1200,9 +1347,9 @@ function markDirty(flags){
         </select>
 
         <select id="chartMode" style="min-width:190px;">
-          <option value="daily"${mode==="daily"?" selected":""}>Napi (30 nap)</option>
-          <option value="weekly"${mode==="weekly"?" selected":""}>Heti (26 hét)</option>
-          <option value="monthly"${mode==="monthly"?" selected":""}>Havi (24 hó)</option>
+          <option value="daily"${mode==="daily"?" selected":""}>Napi (összes nap)</option>
+          <option value="weekly"${mode==="weekly"?" selected":""}>Heti (összes hét)</option>
+          <option value="monthly"${mode==="monthly"?" selected":""}>Havi (összes hó)</option>
           <option value="max"${mode==="max"?" selected":""}>Max (összes nap)</option>
         </select>
 
@@ -1544,8 +1691,7 @@ function drawChart(){
     const arr = [...buckets.entries()].map(([k,v]) => ({ key:k, t:v.t, rev:Number(v.rev||0) }));
     arr.sort((a,b)=> a.t - b.t);
 
-    const limit = mode === "daily" ? 30 : (mode === "weekly" ? 26 : (mode === "monthly" ? 24 : 999999));
-    const sliced = (mode === "max") ? arr : arr.slice(Math.max(0, arr.length - limit));
+    const sliced = arr; // ✅ minden módban a teljes cikkcakk látszik
 
     const labels = sliced.map(x => x.key);
     const revs = sliced.map(x => x.rev);
@@ -1601,7 +1747,7 @@ function drawChart(){
     ctx.strokeStyle = "rgba(255,255,255,.10)";
     ctx.lineWidth = 1;
 
-    const left = 96, right = cssW - 18, top = 18, bottom = cssH - 46;
+    const left = 96, right = cssW - 28, top = 18, bottom = cssH - 66;
     const w = right - left;
     const h = bottom - top;
 
@@ -1631,21 +1777,32 @@ function drawChart(){
       ctx.fillText(`${v.toLocaleString("hu-HU")} Ft`, left - 10, y);
     }
 
-    // x labels
-    const step = Math.ceil(labels.length / 6);
+    // x labels (mindig legyen első + utolsó, és ne vágódjon le)
     ctx.textAlign = "center";
     ctx.textBaseline = "top";
     ctx.fillStyle = "rgba(255,255,255,.70)";
-    for(let i=0;i<labels.length;i+=step){
-      const x = left + (labels.length===1 ? w/2 : (i/(labels.length-1))*w);
-      ctx.fillText(labels[i], x, bottom + 10);
+    const picks = new Set();
+    const n = labels.length;
+    if(n >= 1){ picks.add(0); picks.add(n-1); }
+    const target = 6;
+    for(let k=1;k<target-1;k++){
+      const i = Math.round((k/(target-1))*(n-1));
+      picks.add(i);
+    }
+    const idxs = [...picks].sort((a,b)=>a-b);
+    for(const i of idxs){
+      const x0 = left + (n===1 ? w/2 : (i/(n-1))*w);
+      const txt = labels[i];
+      const tw = ctx.measureText(txt).width;
+      const x = Math.min(Math.max(x0, left + tw/2), right - tw/2);
+      ctx.fillText(txt, x, bottom + 12);
     }
 
     const xAt = (i) => left + (labels.length===1 ? w/2 : (i/(labels.length-1))*w);
     const yAt = (v) => bottom - (v/maxRev)*h;
 
     // line
-    ctx.strokeStyle = "rgba(124,92,255,.95)";
+    ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue("--brand").trim() || "rgba(30,255,140,.95)";
     ctx.lineWidth = 2.8;
     ctx.beginPath();
     for(let i=0;i<labels.length;i++){
@@ -1656,7 +1813,7 @@ function drawChart(){
     ctx.stroke();
 
     // points
-    ctx.fillStyle = "rgba(124,92,255,.95)";
+    ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue("--brand").trim() || "rgba(30,255,140,.95)";
     for(let i=0;i<labels.length;i++){
       const x = xAt(i);
       const y = yAt(revs[i]);

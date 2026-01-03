@@ -1,21 +1,27 @@
 :root{
-  --bg:#0b0f17;
-  --panel:#0f1624;
-  --card:#121b2c;
-  --text:#e8eefc;
-  --muted:#dfdfdf;
-  --brand:#7c5cff;
-  --brand2:#28d7ff;
+  --bg:#070c0a;
+  --panel:#0b1410;
+  --card:#0e1b15;
+  --text:#e9fff1;
+  --muted:rgba(233,255,241,.72);
+
+  /* Green theme */
+  --brand:#19e26e;      /* primary */
+  --brand2:#00ffd5;     /* secondary glow */
   --danger:#ff4d6d;
-  --ok:#34d399;
-  --warning:#ffc107;
-  --hot:#ff9800;
-  --shadow: 0 20px 60px rgba(0,0,0,.85);
+  --ok:#19e26e;
+  --warning:#ffd166;
+  --hot:#ffb020;
+
+  --shadow: 0 26px 80px rgba(0,0,0,.82);
   --radius: 18px;
-  --glass: rgba(18,27,44,.62);
-  --glass2: rgba(11,15,23,.38);
+
+  --glass: rgba(14,27,21,.68);
+  --glass2: rgba(7,12,10,.42);
+
   --stroke: rgba(255,255,255,.08);
-  --stroke2: rgba(124,92,255,.28);
+  --stroke2: rgba(25,226,110,.35);
+  --glow: 0 0 0 1px rgba(25,226,110,.20), 0 18px 55px rgba(25,226,110,.10);
 }
 
 
@@ -25,10 +31,10 @@ body{
   margin:0;
   font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
   background:
-    radial-gradient(1200px 600px at 10% 10%, rgba(124,92,255,.28), transparent 60%),
-    radial-gradient(900px 500px at 90% 20%, rgba(40,215,255,.20), transparent 55%),
-    radial-gradient(900px 520px at 50% 110%, rgba(255,255,255,.06), transparent 60%),
-    var(--bg);
+    radial-gradient(1100px 620px at 12% 8%, rgba(25,226,110,.22), transparent 62%),
+    radial-gradient(1000px 520px at 86% 18%, rgba(0,255,213,.14), transparent 60%),
+    radial-gradient(900px 520px at 50% 115%, rgba(255,255,255,.05), transparent 62%),
+    linear-gradient(180deg, rgba(7,12,10,.96), rgba(7,12,10,1));
   color:var(--text);
 }
 
@@ -68,8 +74,8 @@ button, input, select{
 }
 .loader-card{
   width:min(520px, 92vw);
-  background: linear-gradient(180deg, rgba(124,92,255,.20), rgba(18,27,44,.95));
-  border: 1px solid rgba(124,92,255,.25);
+  background: linear-gradient(180deg, rgba(25,226,110,.18), rgba(14,27,21,.92));
+  border: 1px solid rgba(25,226,110,.28);
   border-radius: 22px;
   padding: 22px;
   box-shadow: var(--shadow);
@@ -86,13 +92,13 @@ button, input, select{
 .pulse{
   height:10px; width:10px; border-radius:999px;
   background: var(--brand2);
-  box-shadow: 0 0 0 0 rgba(40,215,255,.8);
+  box-shadow: 0 0 0 0 rgba(0,255,213,.8);
   animation: pulse 1.2s infinite;
 }
 @keyframes pulse{
-  0%{ box-shadow:0 0 0 0 rgba(40,215,255,.65); }
-  70%{ box-shadow:0 0 0 16px rgba(40,215,255,0); }
-  100%{ box-shadow:0 0 0 0 rgba(40,215,255,0); }
+  0%{ box-shadow:0 0 0 0 rgba(0,255,213,.65); }
+  70%{ box-shadow:0 0 0 16px rgba(0,255,213,0); }
+  100%{ box-shadow:0 0 0 0 rgba(0,255,213,0); }
 }
 .loader-bar{
   margin-top:16px;
@@ -126,8 +132,8 @@ button, input, select{
 .sidebar{
   position:sticky; top:0; height:100vh;
   padding: 18px;
-  background: rgba(15,22,36,.75);
-  border-right: 1px solid rgba(255,255,255,.06);
+  background: rgba(8,16,12,.78);
+  border-right: 1px solid rgba(25,226,110,.12);
   backdrop-filter: blur(12px);
   display:flex;
   flex-direction:column;
@@ -152,7 +158,7 @@ button, input, select{
   padding: 12px 12px;
   border-radius: 14px;
   border: 1px solid rgba(255,255,255,.06);
-  background: rgba(18,27,44,.55);
+  background: rgba(14,27,21,.62);
   color: var(--text);
   text-align:left;
   cursor:pointer;
@@ -160,11 +166,11 @@ button, input, select{
 }
 .nav button:hover{
   transform: translateY(-1px);
-  border-color: rgba(124,92,255,.35);
+  border-color: rgba(25,226,110,.35);
 }
 .nav button.active{
-  background: linear-gradient(180deg, rgba(124,92,255,.22), rgba(18,27,44,.65));
-  border-color: rgba(124,92,255,.45);
+  background: linear-gradient(180deg, rgba(25,226,110,.18), rgba(14,27,21,.72));
+  border-color: rgba(25,226,110,.55);
 }
 .sidebar-bottom{
   margin-top:auto;
@@ -176,7 +182,7 @@ button, input, select{
 .pill{
   display:flex; gap:8px; align-items:center;
   border: 1px solid rgba(255,255,255,.06);
-  background: rgba(18,27,44,.55);
+  background: rgba(14,27,21,.62);
   border-radius: 999px;
   padding: 10px 12px;
   color: var(--muted);
@@ -186,13 +192,13 @@ button, input, select{
 .pill button{
   margin-left:auto;
   border:none;
-  background: rgba(124,92,255,.16);
+  background: rgba(25,226,110,.14);
   color: var(--text);
   padding: 7px 10px;
   border-radius: 999px;
   cursor:pointer;
 }
-.pill button:hover{ background: rgba(124,92,255,.26); }
+.pill button:hover{ background: rgba(25,226,110,.22); }
 
 .main{
   padding: 18px;
@@ -253,13 +259,13 @@ button, input, select{
   font-size: 12px;
   padding: 6px 10px;
   border-radius: 999px;
-  background: rgba(124,92,255,.16);
-  border: 1px solid rgba(124,92,255,.25);
+  background: rgba(25,226,110,.14);
+  border: 1px solid rgba(25,226,110,.28);
   color: var(--text);
 }
 
 .cat-accordion[open] > summary{
-  border-bottom-color: rgba(124,92,255,.18);
+  border-bottom-color: rgba(25,226,110,.18);
 }
 
 .cat-grid{
@@ -306,7 +312,7 @@ button, input, select{
   position:relative;
   aspect-ratio: 1 / 1;
   height: auto;
-  background: linear-gradient(135deg, rgba(124,92,255,.18), rgba(40,215,255,.10));
+  background: linear-gradient(135deg, rgba(25,226,110,.18), rgba(0,255,213,.10));
 }
 .hero img{
   width:100%; height:100%;
@@ -341,8 +347,8 @@ button, input, select{
   border-color: rgba(255,152,0,.35);
 }
 .badge.calendar{
-  background: rgba(40,215,255,.14);
-  border-color: rgba(40,215,255,.35);
+  background: rgba(0,255,213,.14);
+  border-color: rgba(0,255,213,.35);
 }
 
 .overlay-title{
@@ -350,8 +356,8 @@ button, input, select{
   left:12px; right:12px;
   bottom: 10px;
   display:flex; flex-direction:column; gap:3px;
-  background: rgba(11,15,23,.55);
-  border: 1px solid rgba(255,255,255,.10);
+  background: rgba(0,0,0,.54);
+  border: 1px solid rgba(25,226,110,.18);
   border-radius: 14px;
   padding: 10px 10px;
   backdrop-filter: blur(10px);
@@ -359,12 +365,12 @@ button, input, select{
 .overlay-title .name{
   font-weight: 900;
   letter-spacing: .2px;
-  font-size: 15px;
+  font-size: 16px;
   line-height: 1.1;
 }
 .overlay-title .flavor{
   color: var(--muted);
-  font-size: 16px;
+  font-size: 14px;
 }
 
 .card-body{
@@ -378,7 +384,7 @@ button, input, select{
 /* ✅ láthatóbb ár/készlet */
 .price{
   font-weight: 900;
-  font-size: 18px;
+  font-size: 19px;
   letter-spacing: .2px;
 }
 .stock{
@@ -414,11 +420,11 @@ button, input, select{
   border-radius: 16px;
   padding: 12px 12px;
   cursor:pointer;
-  background: rgba(124,92,255,.18);
+  background: rgba(25,226,110,.18);
   color: var(--text);
 }
 .modal .row button:hover{
-  background: rgba(124,92,255,.28);
+  background: rgba(25,226,110,.28);
 }
 
 .small-muted{ color: var(--muted); font-size: 13px; }
@@ -446,8 +452,8 @@ button, input, select{
   cursor:pointer;
 }
 .tabs button.active{
-  border-color: rgba(124,92,255,.45);
-  background: rgba(124,92,255,.18);
+  border-color: rgba(25,226,110,.55);
+  background: rgba(25,226,110,.18);
 }
 .panel{
   margin-top: 14px;
@@ -487,7 +493,7 @@ button, input, select{
   outline:none;
 }
 .table input:focus, .table select:focus{
-  border-color: rgba(124,92,255,.45);
+  border-color: rgba(25,226,110,.55);
 }
 
 /* Popup termékek csoportosítása */
@@ -578,7 +584,7 @@ button, input, select{
   background: rgba(146,160,191,.55);
 }
 .dot.ok{ background: rgba(52,211,153,.9); }
-.dot.busy{ background: rgba(40,215,255,.9); }
+.dot.busy{ background: rgba(0,255,213,.9); }
 .dot.bad{ background: rgba(255,77,109,.9); }
 
 /* Popup stílusok (app.js-hez) */
@@ -802,33 +808,79 @@ button, input, select{
 
 /* Expected badge (soon ETA) */
 .badge.eta{
-  background: rgba(40,215,255,.12);
-  border-color: rgba(40,215,255,.22);
-}
-
-/* Admin: low stock highlight */
-.rowline.low-stock{
-  border-color: rgba(255,193,7,.25);
-  background: linear-gradient(180deg, rgba(255,193,7,.07), rgba(11,15,23,.25));
-}
-.low-stock-badge{
-  display:inline-flex;
-  align-items:center;
-  gap:6px;
-  padding: 4px 8px;
-  border-radius: 999px;
-  border: 1px solid rgba(255,193,7,.28);
-  background: rgba(255,193,7,.10);
-  color: var(--text);
-  font-size: 12px;
-  font-weight: 900;
+  background: rgba(0,255,213,.12);
+  border-color: rgba(0,255,213,.22);
 }
 
 /* Admin: same premium skin */
 body.admin{
   background:
-    radial-gradient(1200px 600px at 10% 10%, rgba(124,92,255,.22), transparent 60%),
-    radial-gradient(900px 500px at 90% 20%, rgba(40,215,255,.16), transparent 55%),
-    radial-gradient(900px 520px at 50% 110%, rgba(255,255,255,.05), transparent 60%),
-    var(--bg);
+    radial-gradient(1100px 620px at 12% 8%, rgba(25,226,110,.20), transparent 62%),
+    radial-gradient(1000px 520px at 86% 18%, rgba(0,255,213,.12), transparent 60%),
+    radial-gradient(900px 520px at 50% 115%, rgba(255,255,255,.05), transparent 62%),
+    linear-gradient(180deg, rgba(7,12,10,.96), rgba(7,12,10,1));
 }
+
+
+/* Hot tab button */
+.nav button.hot-tab{
+  border-color: rgba(0,255,213,.18);
+  background: linear-gradient(180deg, rgba(0,255,213,.10), rgba(14,27,21,.55));
+}
+.nav button.hot-tab:hover{
+  border-color: rgba(0,255,213,.32);
+}
+
+/* Category badge shown on Hot tab cards */
+.badge.cat{
+  background: rgba(25,226,110,.10);
+  border-color: rgba(25,226,110,.22);
+  color: rgba(233,255,241,.92);
+}
+
+/* Admin order UI */
+.order-list{
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+}
+.order-row{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  padding: 12px 12px;
+  border-radius: 16px;
+  border: 1px solid rgba(255,255,255,.06);
+  background: rgba(14,27,21,.55);
+}
+.order-title{
+  font-weight: 900;
+  letter-spacing: .2px;
+}
+.order-actions{
+  display:flex;
+  gap:8px;
+  align-items:center;
+}
+button.small{
+  padding: 8px 10px !important;
+  border-radius: 12px !important;
+  font-size: 13px !important;
+}
+
+/* Tiny tags */
+.mini-tag{
+  display:inline-flex;
+  align-items:center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,.10);
+  background: rgba(255,255,255,.04);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: .2px;
+}
+.mini-tag.ok{ border-color: rgba(25,226,110,.25); background: rgba(25,226,110,.08); }
+.mini-tag.out{ border-color: rgba(255,77,109,.25); background: rgba(255,77,109,.08); }
+.mini-tag.soon{ border-color: rgba(255,209,102,.25); background: rgba(255,209,102,.08); }
