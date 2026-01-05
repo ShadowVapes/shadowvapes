@@ -96,8 +96,8 @@
     {
       "id": "p_bb90038d7199d8_19b4e1762ba",
       "categoryId": "elf30",
-      "status": "out",
-      "stock": 0,
+      "status": "ok",
+      "stock": 3,
       "visible": true,
       "price": null,
       "image": "https://i.ibb.co/FkvwxtSk/Elf-bull-no-bg.png",
@@ -405,7 +405,7 @@
   "popups": [],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1767528781548,
-    "updatedAt": "2026-01-04T12:13:01.548Z"
+    "rev": 1767636453012,
+    "updatedAt": "2026-01-05T18:07:33.012Z"
   }
 }
