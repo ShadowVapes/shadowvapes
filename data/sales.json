@@ -44,19 +44,6 @@
     ]
   },
   {
-    "id": "s_e42c5f45810f28_19b84f53c7d",
-    "date": "2026-01-03",
-    "name": "Laci",
-    "payment": "-",
-    "items": [
-      {
-        "productId": "p_bb90038d7199d8_19b4e1762ba",
-        "qty": 3,
-        "unitPrice": 0
-      }
-    ]
-  },
-  {
     "id": "s_097bca70d2a62_19b84f5e5d2",
     "date": "2026-01-03",
     "name": "E. Tamás és E. Viktor",
