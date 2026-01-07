@@ -54,8 +54,8 @@
     {
       "id": "p_c9b37b233bdb5_19b4dbb80eb",
       "categoryId": "elf30",
-      "status": "ok",
-      "stock": 3,
+      "status": "out",
+      "stock": 0,
       "visible": true,
       "price": null,
       "image": "https://i.ibb.co/C3yHFFd2/Blue-Razz-no-bg.png",
@@ -69,7 +69,7 @@
       "id": "p_cdf4d9a12f296_19b4e11ef4e",
       "categoryId": "elf30",
       "status": "ok",
-      "stock": 2,
+      "stock": 1,
       "visible": true,
       "price": null,
       "image": "https://i.ibb.co/d4wGkYQG/Pink-lemonade-no-bg.png",
@@ -111,7 +111,7 @@
       "id": "p_2ff9b502a78a2_19b4e18a6e7",
       "categoryId": "elf30",
       "status": "ok",
-      "stock": 2,
+      "stock": 1,
       "visible": true,
       "price": null,
       "image": "https://i.ibb.co/fYs9vfBq/Lime-cola-no-bg.png",
@@ -405,7 +405,7 @@
   "popups": [],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1767636563498,
-    "updatedAt": "2026-01-05T18:09:23.498Z"
+    "rev": 1767808993614,
+    "updatedAt": "2026-01-07T18:03:13.614Z"
   }
 }
