@@ -171,5 +171,18 @@
         "unitPrice": 6000
       }
     ]
+  },
+  {
+    "id": "s_b685daebd397a8_19ba415b771",
+    "date": "2026-01-09",
+    "name": "B. Zsolt Munktársa",
+    "payment": "Vásárláskor",
+    "items": [
+      {
+        "productId": "p_2ff9b502a78a2_19b4e18a6e7",
+        "qty": 1,
+        "unitPrice": 6000
+      }
+    ]
   }
 ]
