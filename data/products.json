@@ -83,7 +83,7 @@
       "id": "p_f93b7eb924ed1_19b4e156422",
       "categoryId": "elf30",
       "status": "ok",
-      "stock": 8,
+      "stock": 7,
       "visible": true,
       "price": null,
       "image": "https://i.ibb.co/JRHp6YcK/Polar-mint-no-bg.png",
@@ -405,7 +405,7 @@
   "popups": [],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1767817938677,
-    "updatedAt": "2026-01-07T20:32:18.677Z"
+    "rev": 1767925936120,
+    "updatedAt": "2026-01-09T02:32:16.120Z"
   }
 }
