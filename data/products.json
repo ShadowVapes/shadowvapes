@@ -110,8 +110,8 @@
     {
       "id": "p_2ff9b502a78a2_19b4e18a6e7",
       "categoryId": "elf30",
-      "status": "ok",
-      "stock": 1,
+      "status": "out",
+      "stock": 0,
       "visible": true,
       "price": null,
       "image": "https://i.ibb.co/fYs9vfBq/Lime-cola-no-bg.png",
@@ -405,7 +405,7 @@
   "popups": [],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1767977020651,
-    "updatedAt": "2026-01-09T16:43:40.651Z"
+    "rev": 1767984447239,
+    "updatedAt": "2026-01-09T18:47:27.239Z"
   }
 }
