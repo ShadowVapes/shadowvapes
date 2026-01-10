@@ -184,5 +184,18 @@
         "unitPrice": 6000
       }
     ]
+  },
+  {
+    "id": "s_699e760fd0ae98_19ba830ed27",
+    "date": "2026-01-10",
+    "name": "B. Roli Munkatársa",
+    "payment": "Vásárláskor",
+    "items": [
+      {
+        "productId": "p_f93b7eb924ed1_19b4e156422",
+        "qty": 2,
+        "unitPrice": 6000
+      }
+    ]
   }
 ]
