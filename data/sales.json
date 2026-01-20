@@ -98,19 +98,6 @@
     ]
   },
   {
-    "id": "s_eefdd27f475228_19b8f59723d",
-    "date": "2026-01-03",
-    "name": "Laci",
-    "payment": "2 árát fizette 3-án",
-    "items": [
-      {
-        "productId": "p_bb90038d7199d8_19b4e1762ba",
-        "qty": 3,
-        "unitPrice": 6000
-      }
-    ]
-  },
-  {
     "id": "s_40e97f01e2ed68_19b99a08560",
     "date": "2026-01-07",
     "name": "T. Dani",
