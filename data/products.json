@@ -335,7 +335,7 @@
       "id": "p_96e473e02863_19b6a6106ac",
       "categoryId": "elf30",
       "status": "soon",
-      "stock": 10,
+      "stock": 2,
       "visible": true,
       "price": null,
       "image": "https://i.ibb.co/60r2WcXw/Blackberry-cranberry-NOBG.png",
@@ -405,7 +405,7 @@
   "popups": [],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1768945277470,
-    "updatedAt": "2026-01-20T21:41:17.470Z"
+    "rev": 1769093983807,
+    "updatedAt": "2026-01-22T14:59:43.807Z"
   }
 }
