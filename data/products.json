@@ -334,7 +334,7 @@
     {
       "id": "p_96e473e02863_19b6a6106ac",
       "categoryId": "elf30",
-      "status": "soon",
+      "status": "ok",
       "stock": 2,
       "visible": true,
       "price": null,
@@ -390,7 +390,7 @@
     {
       "id": "p_4f4efd0510951_19b6ae36cba",
       "categoryId": "vapsolo80k",
-      "status": "soon",
+      "status": "ok",
       "stock": 10,
       "visible": true,
       "price": null,
@@ -405,7 +405,7 @@
   "popups": [],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1769093983807,
-    "updatedAt": "2026-01-22T14:59:43.807Z"
+    "rev": 1769094148408,
+    "updatedAt": "2026-01-22T15:02:28.408Z"
   }
 }
