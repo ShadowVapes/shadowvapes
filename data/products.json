@@ -414,6 +414,20 @@
       "flavor_hu": "Eper Mangó & Kék Málna Limonádé & Vanília Fagyi & Savanyú Tripla Bogyó",
       "flavor_en": "Strawberry Mango & Blue Razz Lemonade & Vanilla Ice Cream & Sour Triple Berry",
       "soonEta": ""
+    },
+    {
+      "id": "p_b862159bc3f608_19beb0c6380",
+      "categoryId": "vapsolo80k",
+      "status": "ok",
+      "stock": 9,
+      "visible": true,
+      "price": null,
+      "image": "https://i.ibb.co/tWJGc13/MIXED-BERRY-CHERRY-LEMON-STRAWBERRY-KIWI-STRAWBERRY-WATERMELON-BUBBLEGUM-NOBG.png",
+      "name_hu": "Vapsolo Quads 80k",
+      "name_en": "Vapsolo Quads 80k",
+      "flavor_hu": "Vegyes Bogyó & Cseresznye Citrom & Eper Dinnye Rágó & Eper Kivi",
+      "flavor_en": "Mixed Berry & Cherry Lemon & Strawberry Watermelon Bubblegum & Strawberry Kiwi",
+      "soonEta": ""
     }
   ],
   "popups": [
@@ -447,7 +461,7 @@
   ],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1769174823818,
-    "updatedAt": "2026-01-23T13:27:03.818Z"
+    "rev": 1769175944629,
+    "updatedAt": "2026-01-23T13:45:44.629Z"
   }
 }
