@@ -428,6 +428,20 @@
       "flavor_hu": "Vegyes Bogyó & Cseresznye Citrom & Eper Dinnye Rágó & Eper Kivi",
       "flavor_en": "Mixed Berry & Cherry Lemon & Strawberry Watermelon Bubblegum & Strawberry Kiwi",
       "soonEta": ""
+    },
+    {
+      "id": "p_8899c25f039f48_19beb1d7e76",
+      "categoryId": "vapsolo80k",
+      "status": "ok",
+      "stock": 9,
+      "visible": true,
+      "price": null,
+      "image": "https://i.ibb.co/wTJg8z9/LEMON-LIME-WATERMELON-ICE-BLACK-ICE-DRAGONFRUIT-STRAWBERRY-LOVE66-NOBG.png",
+      "name_hu": "Vapsolo Quads 80k",
+      "name_en": "Vapsolo Quads 80k",
+      "flavor_hu": "Citrom Lime & Dinnye Jég & Fekete Jég Sárkánygyümölcs Eper & Love 66",
+      "flavor_en": "Lemon Lime & Watermelon Ice & Black Ice Dragon Fruit Strawberry & Love 66",
+      "soonEta": ""
     }
   ],
   "popups": [
@@ -461,7 +475,7 @@
   ],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1769175944629,
-    "updatedAt": "2026-01-23T13:45:44.629Z"
+    "rev": 1769176652798,
+    "updatedAt": "2026-01-23T13:57:32.798Z"
   }
 }
