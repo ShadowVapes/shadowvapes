@@ -399,7 +399,7 @@
       "name_en": "Vapsolo Quads 80k",
       "flavor_hu": "Mojito & Mangós Monster & Lady Gyilkos & Pink Limonádé",
       "flavor_en": "Mojito & Monster Mango & Lady killer & Pink Lemonade",
-      "soonEta": "2026-01"
+      "soonEta": ""
     },
     {
       "id": "p_441538bc936fa_19be641e8b6",
@@ -474,7 +474,7 @@
   ],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1769194939449,
-    "updatedAt": "2026-01-23T19:02:19.449Z"
+    "rev": 1769194979139,
+    "updatedAt": "2026-01-23T19:02:59.139Z"
   }
 }
