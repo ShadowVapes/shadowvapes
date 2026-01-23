@@ -384,7 +384,7 @@
       "name_hu": "Vapsolo Quads 80k",
       "name_en": "Vapsolo Quads 80k",
       "flavor_hu": "Dinnye Jég & Eper Mangó & Áfonya Jég & Pezsgő Cseresznye",
-      "flavor_en": "aWatermelon Ice & Strawberry Mango & Blueberry Ice & Fizzy Cherry",
+      "flavor_en": "Watermelon Ice & Strawberry Mango & Blueberry Ice & Fizzy Cherry",
       "soonEta": ""
     },
     {
@@ -475,7 +475,7 @@
   ],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1769176652798,
-    "updatedAt": "2026-01-23T13:57:32.798Z"
+    "rev": 1769176756305,
+    "updatedAt": "2026-01-23T13:59:16.305Z"
   }
 }
