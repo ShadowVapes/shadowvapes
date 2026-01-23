@@ -376,16 +376,16 @@
     {
       "id": "p_7e90788f76589_19b6adc49b6",
       "categoryId": "vapsolo80k",
-      "status": "soon",
-      "stock": 10,
+      "status": "ok",
+      "stock": 9,
       "visible": true,
       "price": null,
       "image": "https://i.ibb.co/TCXqQSH/4-WATERMELON-ICE-STRAWBERRY-MANGO-BLUEBERRYICE-FIZZY-CHERRY-NOBG.png",
       "name_hu": "Vapsolo Quads 80k",
       "name_en": "Vapsolo Quads 80k",
       "flavor_hu": "Dinnye Jég & Eper Mangó & Áfonya Jég & Pezsgő Cseresznye",
-      "flavor_en": "Watermelon Ice & Strawberry Mango & Blueberry Ice & Fizzy Cherry",
-      "soonEta": "2026-01"
+      "flavor_en": "aWatermelon Ice & Strawberry Mango & Blueberry Ice & Fizzy Cherry",
+      "soonEta": ""
     },
     {
       "id": "p_4f4efd0510951_19b6ae36cba",
@@ -447,7 +447,7 @@
   ],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1769171908383,
-    "updatedAt": "2026-01-23T12:38:28.383Z"
+    "rev": 1769174657734,
+    "updatedAt": "2026-01-23T13:24:17.734Z"
   }
 }
