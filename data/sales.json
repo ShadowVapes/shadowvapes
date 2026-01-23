@@ -228,5 +228,23 @@
         "unitPrice": 6500
       }
     ]
+  },
+  {
+    "id": "s_0837e89cb9fe58_19beb60855c",
+    "date": "2026-01-23",
+    "name": "Márk (nem dc)",
+    "payment": "Vásárláskor",
+    "items": [
+      {
+        "productId": "p_4f4efd0510951_19b6ae36cba",
+        "qty": 1,
+        "unitPrice": 6500
+      },
+      {
+        "productId": "p_441538bc936fa_19be641e8b6",
+        "qty": 1,
+        "unitPrice": 6500
+      }
+    ]
   }
 ]
