@@ -391,7 +391,7 @@
       "id": "p_4f4efd0510951_19b6ae36cba",
       "categoryId": "vapsolo80k",
       "status": "ok",
-      "stock": 0,
+      "stock": 1,
       "visible": true,
       "price": null,
       "image": "https://i.ibb.co/fGx1X0GK/10-MOJITO-MONSTER-MANGO-LADY-KILLER-PINK-LEMONADE-NOBG.png",
@@ -405,7 +405,7 @@
       "id": "p_441538bc936fa_19be641e8b6",
       "categoryId": "vapsolo80k",
       "status": "ok",
-      "stock": 2,
+      "stock": 3,
       "visible": true,
       "price": null,
       "image": "https://i.ibb.co/hFbcxT68/STRAWBERRY-MANGO-BLUE-RAZZ-LEMONADE-VANILLA-ICE-CREAM-SOUR-TRIPLE-BERRY-NOBG.png",
@@ -475,7 +475,7 @@
   ],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1769180249974,
-    "updatedAt": "2026-01-23T14:57:29.974Z"
+    "rev": 1769180356407,
+    "updatedAt": "2026-01-23T14:59:16.407Z"
   }
 }
