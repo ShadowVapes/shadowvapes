@@ -230,24 +230,6 @@
     ]
   },
   {
-    "id": "s_f63473e1b11f48_19beadcf332",
-    "date": "2026-01-23",
-    "name": "Márk (nem dc)",
-    "payment": "Vásárláskor",
-    "items": [
-      {
-        "productId": "p_4f4efd0510951_19b6ae36cba",
-        "qty": 1,
-        "unitPrice": 6500
-      },
-      {
-        "productId": "p_441538bc936fa_19be641e8b6",
-        "qty": 1,
-        "unitPrice": 6500
-      }
-    ]
-  },
-  {
     "id": "s_8732b4cb74b878_19beb5c3b87",
     "date": "2026-01-23",
     "name": "E. Tamás",
