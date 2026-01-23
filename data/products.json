@@ -377,7 +377,7 @@
       "id": "p_7e90788f76589_19b6adc49b6",
       "categoryId": "vapsolo80k",
       "status": "ok",
-      "stock": 9,
+      "stock": 4,
       "visible": true,
       "price": null,
       "image": "https://i.ibb.co/TCXqQSH/4-WATERMELON-ICE-STRAWBERRY-MANGO-BLUEBERRYICE-FIZZY-CHERRY-NOBG.png",
@@ -390,8 +390,8 @@
     {
       "id": "p_4f4efd0510951_19b6ae36cba",
       "categoryId": "vapsolo80k",
-      "status": "ok",
-      "stock": 6,
+      "status": "out",
+      "stock": 0,
       "visible": true,
       "price": null,
       "image": "https://i.ibb.co/fGx1X0GK/10-MOJITO-MONSTER-MANGO-LADY-KILLER-PINK-LEMONADE-NOBG.png",
@@ -475,7 +475,7 @@
   ],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1769177253833,
-    "updatedAt": "2026-01-23T14:07:33.833Z"
+    "rev": 1769177256189,
+    "updatedAt": "2026-01-23T14:07:36.189Z"
   }
 }
