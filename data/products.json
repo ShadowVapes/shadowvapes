@@ -390,8 +390,8 @@
     {
       "id": "p_4f4efd0510951_19b6ae36cba",
       "categoryId": "vapsolo80k",
-      "status": "ok",
-      "stock": 1,
+      "status": "out",
+      "stock": 0,
       "visible": true,
       "price": null,
       "image": "https://i.ibb.co/fGx1X0GK/10-MOJITO-MONSTER-MANGO-LADY-KILLER-PINK-LEMONADE-NOBG.png",
@@ -474,7 +474,7 @@
   ],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1769194979139,
-    "updatedAt": "2026-01-23T19:02:59.139Z"
+    "rev": 1769241839451,
+    "updatedAt": "2026-01-24T08:03:59.451Z"
   }
 }
