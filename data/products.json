@@ -405,7 +405,7 @@
       "id": "p_441538bc936fa_19be641e8b6",
       "categoryId": "vapsolo80k",
       "status": "ok",
-      "stock": 2,
+      "stock": 1,
       "visible": true,
       "price": null,
       "image": "https://i.ibb.co/hFbcxT68/STRAWBERRY-MANGO-BLUE-RAZZ-LEMONADE-VANILLA-ICE-CREAM-SOUR-TRIPLE-BERRY-NOBG.png",
@@ -474,7 +474,7 @@
   ],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1769241839451,
-    "updatedAt": "2026-01-24T08:03:59.451Z"
+    "rev": 1769258411109,
+    "updatedAt": "2026-01-24T12:40:11.109Z"
   }
 }
