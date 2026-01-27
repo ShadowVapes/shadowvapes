@@ -280,7 +280,7 @@
       "categoryId": "elflush40",
       "status": "soon",
       "stock": 5,
-      "visible": true,
+      "visible": false,
       "price": null,
       "image": "https://i.ibb.co/k6wHq48p/Mountain-Mint-NOBG.png",
       "name_hu": "Elfbar Lush King Pro 40k",
@@ -474,7 +474,7 @@
   ],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1769522067845,
-    "updatedAt": "2026-01-27T13:54:27.845Z"
+    "rev": 1769522080330,
+    "updatedAt": "2026-01-27T13:54:40.330Z"
   }
 }
