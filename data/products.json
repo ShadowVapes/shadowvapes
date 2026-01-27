@@ -329,7 +329,7 @@
       "name_en": "Elfbar Lush King Pro 40k",
       "flavor_hu": "Kék Málna Jég",
       "flavor_en": "Blue Razz Ice",
-      "soonEta": "2026-01"
+      "soonEta": ""
     },
     {
       "id": "p_96e473e02863_19b6a6106ac",
@@ -514,7 +514,7 @@
   ],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1769522570902,
-    "updatedAt": "2026-01-27T14:02:50.902Z"
+    "rev": 1769522576769,
+    "updatedAt": "2026-01-27T14:02:56.769Z"
   }
 }
