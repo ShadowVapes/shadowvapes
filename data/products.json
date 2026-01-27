@@ -231,7 +231,7 @@
       "name_en": "Elfbar Lush King Pro 40k",
       "flavor_hu": "Tejes Oolong Tea",
       "flavor_en": "Milky Oolong",
-      "soonEta": "2026-01"
+      "soonEta": ""
     },
     {
       "id": "p_e46535c6ee57a_19b5bc4a0a9",
@@ -514,7 +514,7 @@
   ],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1769522538803,
-    "updatedAt": "2026-01-27T14:02:18.803Z"
+    "rev": 1769522543393,
+    "updatedAt": "2026-01-27T14:02:23.393Z"
   }
 }
