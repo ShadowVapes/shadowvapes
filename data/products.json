@@ -203,7 +203,7 @@
       "name_en": "Elfbar Raya D3 25K",
       "flavor_hu": "Kék Málna Jég",
       "flavor_en": "Blue Razz Ice",
-      "soonEta": "2026-01"
+      "soonEta": ""
     },
     {
       "id": "p_2594e99cbade6_19b5bbdfc7a",
@@ -514,7 +514,7 @@
   ],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1769522716753,
-    "updatedAt": "2026-01-27T14:05:16.753Z"
+    "rev": 1769522835617,
+    "updatedAt": "2026-01-27T14:07:15.617Z"
   }
 }
