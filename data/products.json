@@ -497,11 +497,24 @@
       "productIds": [],
       "createdAt": 1769522511362,
       "updatedAt": 1769522511362
+    },
+    {
+      "id": "popup_fe2469a6c5964_19bffc2c3f0",
+      "enabled": true,
+      "rev": 1769522515717,
+      "title_hu": "Új termékek elérhetőek",
+      "title_en": "Új termékek elérhetőek",
+      "categoryIds": [
+        "elfraya25"
+      ],
+      "productIds": [],
+      "createdAt": 1769522515717,
+      "updatedAt": 1769522515717
     }
   ],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1769522512372,
-    "updatedAt": "2026-01-27T14:01:52.372Z"
+    "rev": 1769522516731,
+    "updatedAt": "2026-01-27T14:01:56.731Z"
   }
 }
