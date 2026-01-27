@@ -259,7 +259,7 @@
       "name_en": "Elfbar Lush King Pro 40k",
       "flavor_hu": "Kaktusz Lime",
       "flavor_en": "Cactus Lime",
-      "soonEta": "2026-01"
+      "soonEta": ""
     },
     {
       "id": "p_57933baaefbb_19b5bc81e53",
@@ -514,7 +514,7 @@
   ],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1769522549572,
-    "updatedAt": "2026-01-27T14:02:29.572Z"
+    "rev": 1769522553937,
+    "updatedAt": "2026-01-27T14:02:33.937Z"
   }
 }
