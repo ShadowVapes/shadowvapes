@@ -161,7 +161,7 @@
       "name_en": "Elfbar Raya D3 25K",
       "flavor_hu": "Eper Szőlő",
       "flavor_en": "Strawberry Grape",
-      "soonEta": "2026-01"
+      "soonEta": ""
     },
     {
       "id": "p_f528825b171d1_19b5b6659bb",
@@ -514,7 +514,7 @@
   ],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1769522699280,
-    "updatedAt": "2026-01-27T14:04:59.280Z"
+    "rev": 1769522706189,
+    "updatedAt": "2026-01-27T14:05:06.189Z"
   }
 }
