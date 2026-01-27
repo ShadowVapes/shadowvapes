@@ -301,7 +301,7 @@
       "name_en": "Elfbar Lush King Pro 40k",
       "flavor_hu": "Savanyú Ananász Jég",
       "flavor_en": "Sour Pineapple Ice",
-      "soonEta": "2026-01"
+      "soonEta": ""
     },
     {
       "id": "p_6db677a6c8739_19b5bd13894",
@@ -514,7 +514,7 @@
   ],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1769522561196,
-    "updatedAt": "2026-01-27T14:02:41.196Z"
+    "rev": 1769522567866,
+    "updatedAt": "2026-01-27T14:02:47.866Z"
   }
 }
