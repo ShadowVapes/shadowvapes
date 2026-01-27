@@ -321,5 +321,18 @@
         "unitPrice": 0
       }
     ]
+  },
+  {
+    "id": "s_9cf1f70f8f4fa8_19c0079367d",
+    "date": "2026-01-27",
+    "name": "S. Krisz",
+    "payment": "Vásárláskor",
+    "items": [
+      {
+        "productId": "p_d44a935527ac98_19b5b68e535",
+        "qty": 2,
+        "unitPrice": 6000
+      }
+    ]
   }
 ]
