@@ -147,7 +147,7 @@
       "name_en": "Elfbar Raya D3 25K",
       "flavor_hu": "Dinnye Jég",
       "flavor_en": "Watermelon Ice",
-      "soonEta": "2026-01"
+      "soonEta": ""
     },
     {
       "id": "p_27f5bd691fa03_19b5b64ea4a",
@@ -514,7 +514,7 @@
   ],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1769522685156,
-    "updatedAt": "2026-01-27T14:04:45.156Z"
+    "rev": 1769522694598,
+    "updatedAt": "2026-01-27T14:04:54.598Z"
   }
 }
