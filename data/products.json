@@ -194,7 +194,7 @@
     {
       "id": "p_d44a935527ac98_19b5b68e535",
       "categoryId": "elfraya25",
-      "status": "soon",
+      "status": "ok",
       "stock": 10,
       "visible": true,
       "price": null,
@@ -474,7 +474,7 @@
   ],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1769521637224,
-    "updatedAt": "2026-01-27T13:47:17.224Z"
+    "rev": 1769521664055,
+    "updatedAt": "2026-01-27T13:47:44.055Z"
   }
 }
