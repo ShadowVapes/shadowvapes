@@ -133,7 +133,7 @@
       "name_en": "Elfbar Raya D3 25K",
       "flavor_hu": "Szőlő Jég",
       "flavor_en": "Grape Ice",
-      "soonEta": "2026-01"
+      "soonEta": ""
     },
     {
       "id": "p_9842bfea4d24c_19b5b637a59",
@@ -514,7 +514,7 @@
   ],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1769522609238,
-    "updatedAt": "2026-01-27T14:03:29.238Z"
+    "rev": 1769522668108,
+    "updatedAt": "2026-01-27T14:04:28.108Z"
   }
 }
