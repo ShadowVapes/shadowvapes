@@ -315,7 +315,7 @@
       "name_en": "Elfbar Lush King Pro 40k",
       "flavor_hu": "Fekete Szőlő Jég",
       "flavor_en": "Black Grape Ice",
-      "soonEta": "2026-01"
+      "soonEta": ""
     },
     {
       "id": "p_3eab9151a584a_19b5bd5a4a7",
@@ -514,7 +514,7 @@
   ],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1769522581559,
-    "updatedAt": "2026-01-27T14:03:01.559Z"
+    "rev": 1769522609238,
+    "updatedAt": "2026-01-27T14:03:29.238Z"
   }
 }
