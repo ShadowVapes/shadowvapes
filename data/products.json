@@ -175,7 +175,7 @@
       "name_en": "Elfbar Raya D3 25K",
       "flavor_hu": "Barack Jég",
       "flavor_en": "Peach Ice",
-      "soonEta": "2026-01"
+      "soonEta": ""
     },
     {
       "id": "p_91055a9de76e18_19b5b67c25f",
@@ -514,7 +514,7 @@
   ],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1769522706189,
-    "updatedAt": "2026-01-27T14:05:06.189Z"
+    "rev": 1769522709953,
+    "updatedAt": "2026-01-27T14:05:09.953Z"
   }
 }
