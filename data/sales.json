@@ -303,5 +303,23 @@
         "unitPrice": 6500
       }
     ]
+  },
+  {
+    "id": "s_bf6099d7dc4de_19bffd6c531",
+    "date": "2026-01-27",
+    "name": "Saját",
+    "payment": "-",
+    "items": [
+      {
+        "productId": "p_4b3ea070114908_19b5bc64622",
+        "qty": 1,
+        "unitPrice": 0
+      },
+      {
+        "productId": "p_9842bfea4d24c_19b5b637a59",
+        "qty": 1,
+        "unitPrice": 0
+      }
+    ]
   }
 ]
