@@ -217,7 +217,7 @@
       "name_en": "Elfbar Lush King Pro 40k",
       "flavor_hu": "Fekete Ribizli Ananász",
       "flavor_en": "Black Current Pineapple",
-      "soonEta": "2026-01"
+      "soonEta": ""
     },
     {
       "id": "p_cd734ed84b46d_19b5bc23e59",
@@ -514,7 +514,7 @@
   ],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1769522516731,
-    "updatedAt": "2026-01-27T14:01:56.731Z"
+    "rev": 1769522538803,
+    "updatedAt": "2026-01-27T14:02:18.803Z"
   }
 }
