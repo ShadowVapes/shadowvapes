@@ -367,5 +367,23 @@
         "unitPrice": 6500
       }
     ]
+  },
+  {
+    "id": "s_8f93b2be6a03f8_19c03a71833",
+    "date": "2026-01-28",
+    "name": "L. Árpi",
+    "payment": "-",
+    "items": [
+      {
+        "productId": "p_8a393a08657b48_19b6ad67348",
+        "qty": 1,
+        "unitPrice": 6500
+      },
+      {
+        "productId": "p_b862159bc3f608_19beb0c6380",
+        "qty": 1,
+        "unitPrice": 6500
+      }
+    ]
   }
 ]
