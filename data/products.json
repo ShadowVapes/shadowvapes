@@ -363,7 +363,7 @@
       "id": "p_8a393a08657b48_19b6ad67348",
       "categoryId": "vapsolo80k",
       "status": "ok",
-      "stock": 2,
+      "stock": 1,
       "visible": true,
       "price": null,
       "image": "https://i.ibb.co/JFyP5Ddg/2-VANILLA-COLA-LEMON-PEACH-STRAWBERRY-RASPBERRY-CHERRY-ICE-GRAPEICE-NOBG.png",
@@ -377,7 +377,7 @@
       "id": "p_7e90788f76589_19b6adc49b6",
       "categoryId": "vapsolo80k",
       "status": "ok",
-      "stock": 3,
+      "stock": 2,
       "visible": true,
       "price": null,
       "image": "https://i.ibb.co/TCXqQSH/4-WATERMELON-ICE-STRAWBERRY-MANGO-BLUEBERRYICE-FIZZY-CHERRY-NOBG.png",
@@ -404,8 +404,8 @@
     {
       "id": "p_441538bc936fa_19be641e8b6",
       "categoryId": "vapsolo80k",
-      "status": "ok",
-      "stock": 1,
+      "status": "out",
+      "stock": 0,
       "visible": true,
       "price": null,
       "image": "https://i.ibb.co/hFbcxT68/STRAWBERRY-MANGO-BLUE-RAZZ-LEMONADE-VANILLA-ICE-CREAM-SOUR-TRIPLE-BERRY-NOBG.png",
@@ -419,7 +419,7 @@
       "id": "p_b862159bc3f608_19beb0c6380",
       "categoryId": "vapsolo80k",
       "status": "ok",
-      "stock": 3,
+      "stock": 2,
       "visible": true,
       "price": null,
       "image": "https://i.ibb.co/tWJGc13/MIXED-BERRY-CHERRY-LEMON-STRAWBERRY-KIWI-STRAWBERRY-WATERMELON-BUBBLEGUM-NOBG.png",
@@ -433,7 +433,7 @@
       "id": "p_8899c25f039f48_19beb1d7e76",
       "categoryId": "vapsolo80k",
       "status": "ok",
-      "stock": 4,
+      "stock": 3,
       "visible": true,
       "price": null,
       "image": "https://i.ibb.co/wTJg8z9/LEMON-LIME-WATERMELON-ICE-BLACK-ICE-DRAGONFRUIT-STRAWBERRY-LOVE66-NOBG.png",
@@ -514,7 +514,7 @@
   ],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1769534470764,
-    "updatedAt": "2026-01-27T17:21:10.764Z"
+    "rev": 1769586880351,
+    "updatedAt": "2026-01-28T07:54:40.351Z"
   }
 }
