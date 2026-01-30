@@ -167,7 +167,7 @@
       "id": "p_f528825b171d1_19b5b6659bb",
       "categoryId": "elfraya25",
       "status": "ok",
-      "stock": 10,
+      "stock": 9,
       "visible": true,
       "price": null,
       "image": "https://i.ibb.co/4Zv76SyB/2-peach-ice-NOBGpng.png",
@@ -514,7 +514,7 @@
   ],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1769702486952,
-    "updatedAt": "2026-01-29T16:01:26.952Z"
+    "rev": 1769798676563,
+    "updatedAt": "2026-01-30T18:44:36.563Z"
   }
 }
