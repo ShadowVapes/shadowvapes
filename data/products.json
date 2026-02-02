@@ -376,8 +376,8 @@
     {
       "id": "p_7e90788f76589_19b6adc49b6",
       "categoryId": "vapsolo80k",
-      "status": "ok",
-      "stock": 1,
+      "status": "out",
+      "stock": 0,
       "visible": true,
       "price": null,
       "image": "https://i.ibb.co/TCXqQSH/4-WATERMELON-ICE-STRAWBERRY-MANGO-BLUEBERRYICE-FIZZY-CHERRY-NOBG.png",
@@ -432,8 +432,8 @@
     {
       "id": "p_8899c25f039f48_19beb1d7e76",
       "categoryId": "vapsolo80k",
-      "status": "ok",
-      "stock": 1,
+      "status": "out",
+      "stock": 0,
       "visible": true,
       "price": null,
       "image": "https://i.ibb.co/wTJg8z9/LEMON-LIME-WATERMELON-ICE-BLACK-ICE-DRAGONFRUIT-STRAWBERRY-LOVE66-NOBG.png",
@@ -514,7 +514,7 @@
   ],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1770054123898,
-    "updatedAt": "2026-02-02T17:42:03.898Z"
+    "rev": 1770054222728,
+    "updatedAt": "2026-02-02T17:43:42.728Z"
   }
 }
