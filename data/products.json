@@ -433,7 +433,7 @@
       "id": "p_8899c25f039f48_19beb1d7e76",
       "categoryId": "vapsolo80k",
       "status": "ok",
-      "stock": 2,
+      "stock": 1,
       "visible": true,
       "price": null,
       "image": "https://i.ibb.co/wTJg8z9/LEMON-LIME-WATERMELON-ICE-BLACK-ICE-DRAGONFRUIT-STRAWBERRY-LOVE66-NOBG.png",
@@ -514,7 +514,7 @@
   ],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1769952743495,
-    "updatedAt": "2026-02-01T13:32:23.495Z"
+    "rev": 1770054123898,
+    "updatedAt": "2026-02-02T17:42:03.898Z"
   }
 }
