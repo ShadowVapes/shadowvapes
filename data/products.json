@@ -362,8 +362,8 @@
     {
       "id": "p_8a393a08657b48_19b6ad67348",
       "categoryId": "vapsolo80k",
-      "status": "ok",
-      "stock": 1,
+      "status": "out",
+      "stock": 0,
       "visible": true,
       "price": null,
       "image": "https://i.ibb.co/JFyP5Ddg/2-VANILLA-COLA-LEMON-PEACH-STRAWBERRY-RASPBERRY-CHERRY-ICE-GRAPEICE-NOBG.png",
@@ -514,7 +514,7 @@
   ],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1770054222728,
-    "updatedAt": "2026-02-02T17:43:42.728Z"
+    "rev": 1770054251627,
+    "updatedAt": "2026-02-02T17:44:11.627Z"
   }
 }
