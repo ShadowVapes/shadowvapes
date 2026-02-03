@@ -460,18 +460,5 @@
         "unitPrice": 0
       }
     ]
-  },
-  {
-    "id": "s_4842a0a4c1ff58_19c1f74707a",
-    "date": "2026-02-02",
-    "name": "T. Dani",
-    "payment": "Foglalva",
-    "items": [
-      {
-        "productId": "p_8a393a08657b48_19b6ad67348",
-        "qty": 1,
-        "unitPrice": 0
-      }
-    ]
   }
 ]
