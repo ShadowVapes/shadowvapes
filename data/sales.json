@@ -527,5 +527,18 @@
         "unitPrice": 6000
       }
     ]
+  },
+  {
+    "id": "s_03214c6ae7b628_19c347ed854",
+    "date": "2026-02-06",
+    "name": "Niki",
+    "payment": "Ajándék",
+    "items": [
+      {
+        "productId": "p_6db677a6c8739_19b5bd13894",
+        "qty": 1,
+        "unitPrice": 0
+      }
+    ]
   }
 ]
