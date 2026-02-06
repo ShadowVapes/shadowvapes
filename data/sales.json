@@ -483,5 +483,18 @@
         "unitPrice": 7000
       }
     ]
+  },
+  {
+    "id": "s_c80d3f5ee2cc7_19c3414df4a",
+    "date": "2026-02-06",
+    "name": "Márk (B. zsolt munkat.)",
+    "payment": "Vásárláskor",
+    "items": [
+      {
+        "productId": "p_27f5bd691fa03_19b5b64ea4a",
+        "qty": 1,
+        "unitPrice": 6000
+      }
+    ]
   }
 ]
