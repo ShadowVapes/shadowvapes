@@ -139,7 +139,7 @@
       "id": "p_9842bfea4d24c_19b5b637a59",
       "categoryId": "elfraya25",
       "status": "ok",
-      "stock": 9,
+      "stock": 8,
       "visible": true,
       "price": null,
       "image": "https://i.ibb.co/yncZwdbP/2-watermelon-ice-NOBG.png",
@@ -195,7 +195,7 @@
       "id": "p_d44a935527ac98_19b5b68e535",
       "categoryId": "elfraya25",
       "status": "ok",
-      "stock": 8,
+      "stock": 7,
       "visible": true,
       "price": null,
       "image": "https://i.ibb.co/m5h7W97V/2-bue-razz-ice.png",
@@ -514,7 +514,7 @@
   ],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1770400344474,
-    "updatedAt": "2026-02-06T17:52:24.474Z"
+    "rev": 1770407153898,
+    "updatedAt": "2026-02-06T19:45:53.898Z"
   }
 }
