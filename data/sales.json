@@ -509,5 +509,23 @@
         "unitPrice": 6000
       }
     ]
+  },
+  {
+    "id": "s_5f486a574eec48_19c347d4cfa",
+    "date": "2026-02-06",
+    "name": "B. Geri",
+    "payment": "Vásárláskor",
+    "items": [
+      {
+        "productId": "p_9842bfea4d24c_19b5b637a59",
+        "qty": 1,
+        "unitPrice": 6000
+      },
+      {
+        "productId": "p_d44a935527ac98_19b5b68e535",
+        "qty": 1,
+        "unitPrice": 6000
+      }
+    ]
   }
 ]
