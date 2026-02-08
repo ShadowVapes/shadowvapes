@@ -307,7 +307,7 @@
       "id": "p_6db677a6c8739_19b5bd13894",
       "categoryId": "elflush40",
       "status": "ok",
-      "stock": 4,
+      "stock": 3,
       "visible": true,
       "price": null,
       "image": "https://i.ibb.co/xKKF4T7T/Black-Grape-Ice-NOBG.png",
@@ -514,7 +514,7 @@
   ],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1770407280332,
-    "updatedAt": "2026-02-06T19:48:00.332Z"
+    "rev": 1770571894364,
+    "updatedAt": "2026-02-08T17:31:34.364Z"
   }
 }
