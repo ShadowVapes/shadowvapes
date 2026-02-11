@@ -251,7 +251,7 @@
       "id": "p_4b3ea070114908_19b5bc64622",
       "categoryId": "elflush40",
       "status": "ok",
-      "stock": 8,
+      "stock": 7,
       "visible": true,
       "price": null,
       "image": "https://i.ibb.co/VcjFbc5R/Cactus-Lime-NOBG.png",
@@ -447,7 +447,7 @@
       "id": "p_8b084c694c4ac_19bffc068b4",
       "categoryId": "elflush40",
       "status": "ok",
-      "stock": 4,
+      "stock": 2,
       "visible": true,
       "price": null,
       "image": "https://i.ibb.co/dsKy4bFY/Watermelon-Ice-NOBG.png",
@@ -514,7 +514,7 @@
   ],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1770806646375,
-    "updatedAt": "2026-02-11T10:44:06.375Z"
+    "rev": 1770806803759,
+    "updatedAt": "2026-02-11T10:46:43.759Z"
   }
 }
