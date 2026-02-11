@@ -447,7 +447,7 @@
       "id": "p_8b084c694c4ac_19bffc068b4",
       "categoryId": "elflush40",
       "status": "ok",
-      "stock": 6,
+      "stock": 5,
       "visible": true,
       "price": null,
       "image": "https://i.ibb.co/dsKy4bFY/Watermelon-Ice-NOBG.png",
@@ -514,7 +514,7 @@
   ],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1770806611751,
-    "updatedAt": "2026-02-11T10:43:31.751Z"
+    "rev": 1770806630742,
+    "updatedAt": "2026-02-11T10:43:50.742Z"
   }
 }
