@@ -566,5 +566,23 @@
         "unitPrice": 7000
       }
     ]
+  },
+  {
+    "id": "s_2cfeb82c21c7b8_19c4c4f793f",
+    "date": "2026-02-10",
+    "name": "Szebi(dc)",
+    "payment": "Garancia",
+    "items": [
+      {
+        "productId": "p_8b084c694c4ac_19bffc068b4",
+        "qty": 2,
+        "unitPrice": 7000
+      },
+      {
+        "productId": "p_4b3ea070114908_19b5bc64622",
+        "qty": 1,
+        "unitPrice": 7000
+      }
+    ]
   }
 ]
