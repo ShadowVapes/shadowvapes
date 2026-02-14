@@ -625,5 +625,23 @@
         "unitPrice": 7000
       }
     ]
+  },
+  {
+    "id": "s_850fc60f64e7c8_19c5e19ca18",
+    "date": "2026-02-11",
+    "name": "Zoli B. munktarása",
+    "payment": "Vásárláskor",
+    "items": [
+      {
+        "productId": "p_9842bfea4d24c_19b5b637a59",
+        "qty": 1,
+        "unitPrice": 6000
+      },
+      {
+        "productId": "p_27f5bd691fa03_19b5b64ea4a",
+        "qty": 1,
+        "unitPrice": 6000
+      }
+    ]
   }
 ]
