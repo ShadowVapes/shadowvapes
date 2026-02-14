@@ -153,7 +153,7 @@
       "id": "p_27f5bd691fa03_19b5b64ea4a",
       "categoryId": "elfraya25",
       "status": "ok",
-      "stock": 8,
+      "stock": 7,
       "visible": true,
       "price": null,
       "image": "https://i.ibb.co/C3VncrYz/2-strawberry-grape-NOBG.png",
@@ -514,7 +514,7 @@
   ],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1770806803759,
-    "updatedAt": "2026-02-11T10:46:43.759Z"
+    "rev": 1771104015151,
+    "updatedAt": "2026-02-14T21:20:15.151Z"
   }
 }
