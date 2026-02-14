@@ -125,7 +125,7 @@
       "id": "p_ffc645ec0ef398_19b5b5ed5eb",
       "categoryId": "elfraya25",
       "status": "ok",
-      "stock": 10,
+      "stock": 9,
       "visible": true,
       "price": null,
       "image": "https://i.ibb.co/1GVHr6XM/2-grape-ice-NOBG.png",
@@ -139,7 +139,7 @@
       "id": "p_9842bfea4d24c_19b5b637a59",
       "categoryId": "elfraya25",
       "status": "ok",
-      "stock": 8,
+      "stock": 6,
       "visible": true,
       "price": null,
       "image": "https://i.ibb.co/yncZwdbP/2-watermelon-ice-NOBG.png",
@@ -195,7 +195,7 @@
       "id": "p_d44a935527ac98_19b5b68e535",
       "categoryId": "elfraya25",
       "status": "ok",
-      "stock": 7,
+      "stock": 6,
       "visible": true,
       "price": null,
       "image": "https://i.ibb.co/m5h7W97V/2-bue-razz-ice.png",
@@ -251,7 +251,7 @@
       "id": "p_4b3ea070114908_19b5bc64622",
       "categoryId": "elflush40",
       "status": "ok",
-      "stock": 7,
+      "stock": 6,
       "visible": true,
       "price": null,
       "image": "https://i.ibb.co/VcjFbc5R/Cactus-Lime-NOBG.png",
@@ -514,7 +514,7 @@
   ],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1771104015151,
-    "updatedAt": "2026-02-14T21:20:15.151Z"
+    "rev": 1771105056123,
+    "updatedAt": "2026-02-14T21:37:36.123Z"
   }
 }
