@@ -590,7 +590,7 @@ function markDirty(flags){
       $("#panelPopups").style.display = tab === "popups" ? "block" : "none";
       $("#panelSettings").style.display = tab === "settings" ? "block" : "none";
 
-      if(tab === "chart") drawChart();
+      if(tab === "chart"){ if(!state._chartInited){ renderChartPanel(); state._chartInited=true; } drawChart(); }
       if(tab === "popups") renderPopups();
     };
   }
