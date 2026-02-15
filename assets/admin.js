@@ -371,7 +371,7 @@ try{
 
 
 
-async async function tryLoadLocal(){
+async function tryLoadLocal(){
   // ✅ Token nélkül is működjön az admin megtekintés/diagramm (read-only)
   try{
     const [doc, sales, reservations] = await Promise.all([

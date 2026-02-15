@@ -176,7 +176,7 @@
         </div>
       `;
       document.body.appendChild(bg);
-      bg.addEventListener("click",(e)=>{ if(e.target===bg) closeCart(); });
+      bg.addEventListener("click",(e)=>{ /* csak X-szel lehessen bezárni */ });
       bg.querySelector("#cartClose").onclick = () => closeCart();
     }
 
@@ -258,11 +258,16 @@
       body.innerHTML = `
         <div class="notice">
           <div style="font-weight:900;margin-bottom:6px;">Összegzés</div>
-          ${items.map(it=>{
+          ${items.map(it=>{ 
             const name=getName(it.p); const flavor=getFlavor(it.p);
-            return `<div style="display:flex;justify-content:space-between;gap:10px;margin-top:6px;">
-              <div><b>${escapeHtml(name)}${flavor?`, ${escapeHtml(flavor)}`:""}</b> <span class="small-muted">× ${it.qty}</span></div>
-              <div><b>${fmtFt(effectivePrice(it.p)*it.qty)}</b></div>
+            const img = (it.p && it.p.image) ? String(it.p.image) : "";
+            return `<div class="sum-item">
+              <img src="${escapeHtml(img)}" alt="">
+              <div class="sum-info">
+                <div class="sum-name">${escapeHtml(name)}${flavor?`, ${escapeHtml(flavor)}`:""}</div>
+                <div class="sum-sub">× ${it.qty}</div>
+              </div>
+              <div class="sum-price">${fmtFt(effectivePrice(it.p)*it.qty)}</div>
             </div>`;
           }).join("")}
           <div style="display:flex;justify-content:space-between;gap:10px;margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,.08);">
@@ -305,11 +310,33 @@
         <div class="notice">
           <div style="font-weight:900;">Foglalás létrehozva ✅</div>
           <div class="small-muted" style="margin-top:6px;">Rendelésazonosító:</div>
-          <div style="margin-top:10px;"><span class="code3">${escapeHtml(state.lastReservationPublicCode || "000")}</span></div>
-          <div class="small-muted" style="margin-top:10px;">Ezt az azonosítót add meg a pultnál.</div>
+          <div class="code-wrap"><span class="code3" id="resCode">${escapeHtml(state.lastReservationPublicCode || "000")}</span><button class="copy-btn" id="copyResCode">Kimásol</button></div>
+          <div class="small-muted" style="margin-top:10px;">Ezzel a kóddal tudod azonosítani a foglalást. A foglalás 2 nap múlva automatikusan lejár.</div>
         </div>
       `;
       foot.innerHTML = `<button class="cart-primary" id="doneOk">Oké</button>`;
+      const copyBtn = body.querySelector("#copyResCode");
+      if(copyBtn){
+        copyBtn.onclick = async () => {
+          const code = String(state.lastReservationPublicCode || "000");
+          try{ await navigator.clipboard.writeText(code); copyBtn.textContent = "Kimásolva"; setTimeout(()=>{ copyBtn.textContent = "Kimásol"; }, 1200); }
+          catch(e){
+            try{
+              const el = body.querySelector("#resCode");
+              const range = document.createRange();
+              range.selectNodeContents(el);
+              const sel = window.getSelection();
+              sel.removeAllRanges();
+              sel.addRange(range);
+              document.execCommand("copy");
+              sel.removeAllRanges();
+              copyBtn.textContent = "Kimásolva";
+              setTimeout(()=>{ copyBtn.textContent = "Kimásol"; }, 1200);
+            }catch{}
+          }
+        };
+      }
+
       foot.querySelector("#doneOk").onclick = ()=>{ closeCart(); };
       return;
     }
@@ -1122,27 +1149,31 @@ async function fetchProducts({ forceBust=false } = {}){
       const body = document.createElement("div");
       body.className = "card-body";
 
-      const meta = document.createElement("div");
-      meta.className = "meta-row";
+      const metaTop = document.createElement("div");
+      metaTop.className = "meta-top";
 
       const priceEl = document.createElement("div");
       priceEl.className = "price";
-      priceEl.textContent = fmtFt(price);const stockEl = document.createElement("div");
-stockEl.className = "stock";
-stockEl.innerHTML = `${t("stock")}: <b>${soon ? "—" : stockShown} ${soon ? "" : t("pcs")}</b>`;
+      priceEl.textContent = fmtFt(price);
 
-const reservedEl = document.createElement("div");
-reservedEl.className = "reserved";
-reservedEl.innerHTML = `${t("reserved")}: <b>${soon ? "—" : reserved} ${soon ? "" : t("pcs")}</b>`;
+      metaTop.appendChild(priceEl);
 
-const metaRight = document.createElement("div");
-metaRight.className = "meta-right";
-metaRight.appendChild(stockEl);
-metaRight.appendChild(reservedEl);
+      const metaBottom = document.createElement("div");
+      metaBottom.className = "meta-bottom";
 
-meta.appendChild(priceEl);
-meta.appendChild(metaRight);
-      body.appendChild(meta);
+      const reservedEl = document.createElement("div");
+      reservedEl.className = "reserved";
+      reservedEl.innerHTML = `${t("reserved")}: <b>${soon ? "—" : reserved} ${soon ? "" : t("pcs")}</b>`;
+
+      const stockEl = document.createElement("div");
+      stockEl.className = "stock";
+      stockEl.innerHTML = `${t("stock")}: <b>${soon ? "—" : stockShown} ${soon ? "" : t("pcs")}</b>`;
+
+      metaBottom.appendChild(reservedEl);
+      metaBottom.appendChild(stockEl);
+
+      body.appendChild(metaTop);
+      body.appendChild(metaBottom);
 
       card.appendChild(hero);
       card.appendChild(body);
