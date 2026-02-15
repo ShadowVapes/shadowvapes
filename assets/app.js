@@ -662,30 +662,30 @@
 
     const mkUrl = (base) => forceBust ? `${base}${base.includes("?") ? "&" : "?"}_=${Date.now()}` : base;
 
-    const headers = {
-      "Cache-Control": "no-cache, no-store, must-revalidate",
-      Pragma: "no-cache",
-    };
+    // 1) Első körben mindig ugyanarról az originről próbáljuk (GitHub Pages / custom domain)
+    try{
+      const url = mkUrl(relBase);
+      const r = await fetch(url, { cache: "no-store" });
+      if (r.status === 304) return null;
+      if (r.ok) return await r.json();
+    }catch{}
 
-    if (rawBase) {
-      try {
+    // 2) Fallback: RAW (ha valamiért a domain nem szolgálja ki a data/ mappát)
+    if(rawBase){
+      try{
         const url = mkUrl(rawBase);
-        const r = await fetch(url, { cache: "no-store", headers });
+        const r = await fetch(url, { cache: "no-store" });
         if (r.status === 304) return null;
         if (r.ok) return await r.json();
         try { localStorage.removeItem("sv_source"); } catch {}
         source = null;
-      } catch {
+      }catch{
         try { localStorage.removeItem("sv_source"); } catch {}
         source = null;
       }
     }
 
-    const url = mkUrl(relBase);
-    const r = await fetch(url, { cache: "no-store", headers });
-    if (r.status === 304) return null;
-    if (!r.ok) throw new Error(`Nem tudtam betölteni: ${relPath} (${r.status})`);
-    return await r.json();
+    throw new Error("fetchJson failed: " + relPath);
   }
 
   async function fetchProducts({ forceBust=false } = {}){

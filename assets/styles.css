@@ -876,3 +876,118 @@ button, input, select{
   border-color: rgba(255,42,85,.25) !important;
   background: rgba(255,42,85,.09) !important;
 }
+
+
+/* --- Admin POS layout (Sales tab) --- */
+.pos-admin{
+  display:grid;
+  grid-template-columns: 280px 1fr 360px;
+  gap:14px;
+  align-items:start;
+}
+.pos-side{
+  position:sticky;
+  top:12px;
+  align-self:start;
+  background:rgba(15,22,36,.55);
+  border:1px solid rgba(255,255,255,.06);
+  border-radius:18px;
+  padding:14px;
+  backdrop-filter: blur(10px);
+}
+.pos-side .nav{
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  margin-top:12px;
+}
+.pos-side .nav button{
+  text-align:left;
+}
+.pos-side-bottom{
+  margin-top:14px;
+  padding-top:12px;
+  border-top:1px solid rgba(255,255,255,.06);
+}
+.pos-main{
+  min-width:0;
+}
+.pos-grid{
+  display:grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap:12px;
+}
+@media (max-width: 1400px){
+  .pos-grid{ grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-width: 1180px){
+  .pos-admin{ grid-template-columns: 260px 1fr; }
+  .pos-cart{ grid-column: 1 / -1; }
+  .pos-grid{ grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-width: 860px){
+  .pos-admin{ grid-template-columns: 1fr; }
+  .pos-side{ position:relative; top:auto; }
+  .pos-grid{ grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+.pos-cart{
+  position:sticky;
+  top:12px;
+  align-self:start;
+  background:rgba(15,22,36,.55);
+  border:1px solid rgba(255,255,255,.06);
+  border-radius:18px;
+  padding:14px;
+  backdrop-filter: blur(10px);
+}
+.pos-cart-head{
+  display:flex;
+  justify-content:space-between;
+  align-items:baseline;
+  margin-bottom:10px;
+}
+.pos-cart-list{
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+  max-height: calc(100vh - 220px);
+  overflow:auto;
+  padding-right:6px;
+}
+.pos-cart-item{
+  border:1px solid rgba(255,255,255,.06);
+  border-radius:16px;
+  padding:10px;
+  background:rgba(11,15,23,.35);
+  display:grid;
+  grid-template-columns: 1fr auto;
+  gap:10px;
+}
+.pos-cart-item .ci-ctrl{
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+.pos-cart-item .ci-qty{
+  min-width:26px;
+  text-align:center;
+  font-weight:900;
+}
+.pos-cart-item .ci-sum{
+  grid-column: 1 / -1;
+  text-align:right;
+  font-weight:900;
+  opacity:.95;
+}
+.pos-cart-foot{
+  margin-top:12px;
+  padding-top:12px;
+  border-top:1px solid rgba(255,255,255,.06);
+}
+.pos-cart-foot .primary{
+  width:100%;
+}
+.reserved{
+  opacity:.92;
+}

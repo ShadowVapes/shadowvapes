@@ -994,798 +994,235 @@ function markDirty(flags){
   }
 
   function renderSalesPOS(){
-    // POS = user felület stílusú eladás rögzítés
-    const cats = [{id:"all", label:"Mind"}, ...state.doc.categories.map(c=>({id:c.id,label:c.label_hu||c.id}))];
-    const filterCat = state.filters.salesCat;
-    const q = (state.filters.salesSearch || "").toLowerCase();
+    const panel = $("#panelSales");
+
+    // build reservedMap from ACTIVE reservations (48h)
+    const reservedMap = new Map();
+    for(const r of (state.reservations||[])){
+      if(String(r.status||"active") !== "active") continue;
+      const exp = r.expiresAt ? Date.parse(r.expiresAt) : 0;
+      if(exp && exp <= Date.now()) continue;
+      for(const it of (r.items||[])){
+        const pid = String(it.productId||"");
+        if(!pid) continue;
+        const q = Math.max(0, Number(it.qty||0) || 0);
+        if(!q) continue;
+        reservedMap.set(pid, (reservedMap.get(pid)||0) + q);
+      }
+    }
+
+    // filters
+    const cats = [{id:"all", label:"Összes termék"}, ...state.doc.categories.map(c=>({id:String(c.id), label:(c.label_hu||c.id)}))];
+    const activeCat = state.filters.salesCat || "all";
+    const q = (state.filters.salesSearch || "").trim().toLowerCase();
 
     // products list filter
-    let list = [...(state.doc.products||[])].filter(p=>p && (p.visible !== false));
-    if(filterCat !== "all") list = list.filter(p => String(p.category)===String(filterCat));
-    if(q) list = list.filter(p => (`${p.name_hu||""} ${p.flavor_hu||""} ${p.name_en||""} ${p.flavor_en||""}`).toLowerCase().includes(q));
+    let list = [...(state.doc.products||[])].filter(p => p && (p.visible !== false));
+    if(activeCat !== "all") list = list.filter(p => String(p.categoryId) === String(activeCat));
+    if(q){
+      list = list.filter(p => (`${p.name_hu||""} ${p.flavor_hu||""} ${p.name_en||""} ${p.flavor_en||""}`).toLowerCase().includes(q));
+    }
 
-    // simple stock helper
-    const reservedMap = (()=>{
-      const m=new Map();
-      for(const r of (state.reservations||[])){
-        if(String(r.status)!=="active") continue;
-        const exp = r.expiresAt ? Date.parse(r.expiresAt) : 0;
-        if(exp && exp<=Date.now()) continue;
-        for(const it of (r.items||[])) m.set(String(it.productId),(m.get(String(it.productId))||0)+Number(it.qty||0));
-      }
-      return m;
-    })();
-
+    // cart
     const cart = state.posCart || (state.posCart = {});
     const cartCount = Object.values(cart).reduce((a,b)=>a+Number(b||0),0);
 
-    const prodCards = list.map(p=>{
-      const pid=String(p.id);
-      const reserved=Number(reservedMap.get(pid)||0);
-      const baseStock=Math.max(0, Number(p.stock||0));
-      const avail = ((p.status||"ok")==="out" || (p.status||"ok")==="soon") ? 0 : Math.max(0, baseStock - reserved);
-      const cur = Number(cart[pid]||0);
-      const disabled = avail<=0;
-      return `
-        <div class="rowline" style="align-items:center;gap:12px;">
-          <div style="display:flex;gap:12px;align-items:center;flex:1;min-width:0;">
-            <img src="${escapeHtml(p.image||"")}" style="width:46px;height:46px;border-radius:14px;object-fit:cover;border:1px solid rgba(255,255,255,.08);" />
-            <div style="min-width:0;">
-              <div style="font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(p.name_hu||"")}${p.flavor_hu?`, ${escapeHtml(p.flavor_hu)}`:""}</div>
-              <div class="small-muted">Készlet: <b>${avail}</b> • Foglalt: <b>${reserved}</b></div>
-            </div>
-          </div>
-          <div style="display:flex;gap:8px;align-items:center;">
-            <button class="ghost" data-posminus="${escapeHtml(pid)}" ${cur<=0?"disabled":""}>−</button>
-            <div style="width:28px;text-align:center;font-weight:900;">${cur||0}</div>
-            <button class="primary" data-posplus="${escapeHtml(pid)}" ${disabled?"disabled":""}>+</button>
-          </div>
-        </div>
-      `;
-    }).join("");
-
-    const cartItems = Object.entries(cart).map(([pid,qty])=>{
-      const p = (state.doc.products||[]).find(x=>String(x.id)===String(pid));
-      if(!p) return "";
-      const name=`${p.name_hu||""}${p.flavor_hu?`, ${p.flavor_hu}`:""}`;
-      const price = Number(p.price||0);
-      return `<div class="rowline" style="align-items:center;">
-        <div class="left">
-          <div style="font-weight:900;">${escapeHtml(name)}</div>
-          <div class="small-muted">${qty} db • ${ (price*qty).toLocaleString("hu-HU") } Ft</div>
-        </div>
-        <div style="display:flex;gap:8px;align-items:center;">
-          <button class="ghost" data-posminus="${escapeHtml(pid)}">−</button>
-          <div style="width:28px;text-align:center;font-weight:900;">${qty}</div>
-          <button class="primary" data-posplus="${escapeHtml(pid)}">+</button>
-        </div>
-      </div>`;
-    }).join("");
-
-    $("#panelSales").innerHTML = `
-      <div class="actions table" style="align-items:center;">
-        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
-          <button class="ghost" id="salesModePos" ${state.filters.salesMode==="pos"?"style=\"border-color:rgba(255,42,85,.45)\"":""}>Eladás rögzítése</button>
-          <button class="ghost" id="salesModeList" ${state.filters.salesMode==="list"?"style=\"border-color:rgba(255,42,85,.45)\"":""}>Eladások</button>
-        </div>
-        <select id="salesCat">
-          ${cats.map(c => `<option value="${escapeHtml(c.id)}"${c.id===filterCat?" selected":""}>${escapeHtml(c.label)}</option>`).join("")}
-        </select>
-        <input id="salesSearch" placeholder="Keresés..." value="${escapeHtml(state.filters.salesSearch)}" style="flex:1;min-width:220px;">
-        <div class="small-muted">Kosár: <b>${cartCount}</b> tétel</div>
-      </div>
-      <div style="display:grid;grid-template-columns: 1.35fr .65fr; gap:12px; margin-top:10px;">
-        <div>
-          <div style="font-weight:900;margin-bottom:8px;">Termékek</div>
-          ${prodCards || `<div class="small-muted">Nincs találat.</div>`}
-        </div>
-        <div>
-          <div style="font-weight:900;margin-bottom:8px;">Kosár</div>
-          ${cartItems || `<div class="small-muted">Üres.</div>`}
-          <div style="margin-top:12px;display:flex;justify-content:flex-end;">
-            <button class="primary" id="btnFinalizeSale" ${cartCount?"":"disabled"}>Eladás rögzítése</button>
-          </div>
-        </div>
-      </div>
-    `;
-
-    $("#salesCat").onchange = () => { state.filters.salesCat = $("#salesCat").value; renderSales(); drawChart(); };
-    $("#salesSearch").oninput = () => { state.filters.salesSearch = $("#salesSearch").value; renderSales(); };
-    $("#salesModePos").onclick = ()=>{ state.filters.salesMode="pos"; renderSales(); };
-    $("#salesModeList").onclick = ()=>{ state.filters.salesMode="list"; renderSales(); };
-
-    $("#panelSales").querySelectorAll("button[data-posplus]").forEach(b=>{
-      b.onclick=()=>{
-        const pid=b.getAttribute("data-posplus");
-        cart[pid]=Number(cart[pid]||0)+1;
-        state.posCart=cart;
-        renderSales();
-      };
-    });
-    $("#panelSales").querySelectorAll("button[data-posminus]").forEach(b=>{
-      b.onclick=()=>{
-        const pid=b.getAttribute("data-posminus");
-        const cur=Number(cart[pid]||0);
-        if(cur<=1) delete cart[pid]; else cart[pid]=cur-1;
-        state.posCart=cart;
-        renderSales();
-      };
-    });
-
-    const fin = $("#btnFinalizeSale");
-    if(fin) fin.onclick = () => openSaleModal({
-      presetItems: Object.entries(cart).map(([pid,qty])=>({ productId:String(pid), qty:Number(qty), unitPrice: Number(((state.doc.products||[]).find(x=>String(x.id)===String(pid))||{}).price||0) })),
-      presetDate: new Date().toISOString().slice(0,10)
-    });
-  }
-
-  function renderSalesList(){
-
-    const cats = [{id:"all", label:"Mind"}, ...state.doc.categories.map(c=>({id:c.id,label:c.label_hu||c.id}))];
-
-    const filterCat = state.filters.salesCat;
-    const q = (state.filters.salesSearch || "").toLowerCase();
-
-    let list = [...state.sales].sort((a,b)=> String(b.date).localeCompare(String(a.date)));
-
-    const activeRes = (state.reservations||[]).filter(r=>{
-      if(!r) return false;
-      if(String(r.status)!=="active") return false;
-      const exp=r.expiresAt?Date.parse(r.expiresAt):0;
-      if(exp && exp<=Date.now()) return false;
-      return true;
-    }).sort((a,b)=> String(b.createdAt||"").localeCompare(String(a.createdAt||"")));
-
-    if(q){
-      list = list.filter(s => (`${s.name} ${s.payment}`).toLowerCase().includes(q));
-    }
-    if(filterCat !== "all"){
-      list = list.filter(s => saleTotals(s, filterCat).hit);
-    }
-
-    const resRows = activeRes.map(r => {
-      const itemsCount = (r.items||[]).reduce((a,it)=>a+Number(it.qty||0),0);
-      const tot = (r.items||[]).reduce((a,it)=>a + (Number(it.price||0)*Number(it.qty||0)),0);
-      const expTxt = r.expiresAt ? new Date(r.expiresAt).toLocaleString("hu-HU") : "—";
-      const mod = r.modified && !r.modifiedAck;
-      return `
-        <div class="rowline reservation">
-          <div class="left">
-            <div style="font-weight:900;">
-              🧾 Foglalás • ${escapeHtml(r.publicCode || "000")}
-              <span class="small-muted">• ID: <b>${escapeHtml(r.id)}</b></span>
-              ${mod ? `<span class="excl-badge" title="Módosítva">!</span>` : ``}
-            </div>
-            <div class="small-muted">Tételek: <b>${itemsCount}</b> • Összeg: <b>${tot.toLocaleString("hu-HU")} Ft</b> • Lejár: <b>${escapeHtml(expTxt)}</b></div>
-          </div>
-          <div style="display:flex;gap:10px;align-items:center;">
-            ${mod ? `<button class="ghost" data-ackres="${escapeHtml(r.id)}">Megnéztem</button>` : ``}
-            <button class="primary" data-convert="${escapeHtml(r.id)}">Eladás rögzítése</button>
-          </div>
-        </div>
-      `;
-    }).join("");
-
-    const salesRows = list.map(s => { 
-      const tot = saleTotals(s, filterCat);
-      const itemsCount = s.items.reduce((acc,it)=> acc + Number(it.qty||0), 0);
-
-      return `
-        <div class="rowline">
-          <div class="left">
-            <div style="font-weight:900;">
-              ${escapeHtml(s.date)} • ${escapeHtml(s.name || "—")}
-              <span class="small-muted">• ${escapeHtml(s.payment || "")}</span>
-            </div>
-            <div class="small-muted">Tételek: <b>${itemsCount}</b> • Bevétel: <b>${tot.revenue.toLocaleString("hu-HU")} Ft</b></div>
-          </div>
-          <div style="display:flex;gap:10px;align-items:center;">
-            <button class="ghost" data-view="${escapeHtml(s.id)}">Megnéz</button>
-            <button class="danger" data-delsale="${escapeHtml(s.id)}">Töröl (rollback)</button>
-          </div>
-        </div>
-      `;
-     }).join("");
-
-    const rows = `${resRows}${salesRows}`;
-
-    $("#panelSales").innerHTML = `
-      <div class="actions table" style="align-items:center;">
-        <button class="primary" id="btnAddSale">+ Eladás</button>
-        <select id="salesCat">
-          ${cats.map(c => `<option value="${escapeHtml(c.id)}"${c.id===filterCat?" selected":""}>${escapeHtml(c.label)}</option>`).join("")}
-        </select>
-        <input id="salesSearch" placeholder="Keresés név / mód szerint..." value="${escapeHtml(state.filters.salesSearch)}" style="flex:1;min-width:220px;">
-        <div class="small-muted">Szűrés kategóriára: csak az adott kategória tételeit számolja.</div>
-      </div>
-      <div style="margin-top:10px;">${rows || `<div class="small-muted">Nincs eladás.</div>`}</div>
-    `;
-
-    $("#salesCat").onchange = () => { state.filters.salesCat = $("#salesCat").value; renderSales(); drawChart(); };
-    $("#salesSearch").oninput = () => { state.filters.salesSearch = $("#salesSearch").value; renderSales(); };
-
-    $("#btnAddSale").onclick = () => openSaleModal();
-
-    $("#panelSales").querySelectorAll("button[data-delsale]").forEach(b => {
-      b.onclick = () => deleteSale(b.dataset.delsale);
-    });
-    $("#panelSales").querySelectorAll("button[data-view]").forEach(b => {
-      b.onclick = () => viewSale(b.dataset.view);
-    });
-
-    // reservation actions
-    $("#panelSales").querySelectorAll("button[data-convert]").forEach(b => {
-      b.onclick = () => {
-        const rid = b.getAttribute("data-convert");
-        const r = (state.reservations||[]).find(x=>String(x.id)===String(rid));
-        if(!r) return;
-        const presetItems = (r.items||[]).map(it=>({ productId:String(it.productId), qty:Number(it.qty||0), unitPrice:Number(it.price||0) }));
-        openSaleModal({ presetDate: todayISO(), presetItems, reservationId: String(r.id) });
-      };
-    });
-    $("#panelSales").querySelectorAll("button[data-ackres]").forEach(b => {
-      b.onclick = () => {
-        const rid = b.getAttribute("data-ackres");
-        state.reservations = (state.reservations||[]).map(r => String(r.id)===String(rid) ? ({...r, modifiedAck:true}) : r);
-        state.dirtyReservations = true;
-        queueAutoSave();
-        renderSales();
-      };
-    });
-  }
-
-  function openSaleModal(opts={}){
-    const body = document.createElement("div");
-    body.innerHTML = `
-      <div class="form-grid">
-        <div class="field third"><label>Dátum (YYYY-MM-DD)</label><input id="s_date" value="${escapeHtml(opts.presetDate || todayISO())}"></div
-        <div class="field third"><label>Név</label><input id="s_name" placeholder="pl. Tesó"></div>
-        <div class="field third"><label>Vásárlás módja</label><input id="s_pay" placeholder="pl. készpénz / utalás / bármi"></div>
-        <div class="field full"><label>Tételek</label><div id="s_items"></div></div>
-      </div>
-      <div class="actions">
-        <button class="ghost" id="btnAddItem">+ Tétel</button>
-      </div>
-      <div class="small-muted">Mentéskor levonja a stockot, törléskor visszaadja (rollback).</div>
-    `;
-
-    const itemsRoot = body.querySelector("#s_items");
-
-    const presetItems = Array.isArray(opts.presetItems) ? opts.presetItems : null;
-
-    const addItemRow = (init=null) => {
-      const row = document.createElement("div");
-      // a CSS input/select stílus a .table alatt él, ezért kap pluszban table osztályt
-      row.className = "rowline table";
-      row.innerHTML = `
-        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;width:100%;">
-          <select class="it_prod" style="min-width:280px;">
-            <option value="">Válassz terméket…</option>
-            ${state.doc.products.filter(p=>p.status!=="soon").map(p=>{
-              const n = p.name_hu || p.name_en || "—";
-              const f = p.flavor_hu || p.flavor_en || "";
-              const stock = p.stock;
-              return `<option value="${escapeHtml(p.id)}">${escapeHtml(n + (f? " • "+f:"") + ` (stock:${stock})`)}</option>`;
-            }).join("")}
-          </select>
-          <input class="it_qty" type="number" min="1" value="1" style="width:110px;">
-          <input class="it_price" type="number" min="0" value="0" style="width:150px;">
-          <button class="danger it_del" type="button">Töröl</button>
-        </div>
-      `;
-
-      const sel = row.querySelector(".it_prod");
-      const price = row.querySelector(".it_price");
-
-      sel.onchange = () => {
-        const p = prodById(sel.value);
-        price.value = String(p ? effectivePrice(p) : 0);
-      };
-      row.querySelector(".it_del").onclick = () => row.remove();
-
-      itemsRoot.appendChild(row);
-
-      if(init){
-        try{
-          const sel = row.querySelector('.it_prod');
-          const qty = row.querySelector('.it_qty');
-          const pr = row.querySelector('.it_price');
-          if(sel && init.productId) sel.value = String(init.productId);
-          if(qty && init.qty!=null) qty.value = String(init.qty);
-          if(pr && init.unitPrice!=null) pr.value = String(init.unitPrice);
-        }catch{}
-      }
-    };
-
-    if(presetItems && presetItems.length){
-      presetItems.forEach(it=> addItemRow(it));
-    }else{
-      addItemRow();
-    }
-    body.querySelector("#btnAddItem").onclick = () => addItemRow();
-
-    openModal("Új eladás", "Név + dátum + mód + több termék", body, [
-      { label:"Mégse", kind:"ghost", onClick: closeModal },
-      { label:"Mentés", kind:"primary", onClick: () => {
-        const date = ($("#s_date").value||"").trim();
-        const name = ($("#s_name").value||"").trim();
-        const payment = ($("#s_pay").value||"").trim();
-
-        if(!/^\d{4}-\d{2}-\d{2}$/.test(date)) return;
-
-        const rows = [...itemsRoot.querySelectorAll(".rowline")];
-        const items = [];
-        for(const r of rows){
-          const pid = r.querySelector(".it_prod").value;
-          if(!pid) continue;
-          const qty = Math.max(1, Number(r.querySelector(".it_qty").value||1));
-          const unitPrice = Math.max(0, Number(r.querySelector(".it_price").value||0));
-          items.push({ productId: pid, qty, unitPrice });
-        }
-        if(!items.length) return;
-
-        // stock check
-        for(const it of items){
-          const p = prodById(it.productId);
-          if(!p) return;
-          if(p.status === "soon") return;
-          if(p.stock < it.qty) return;
-        }
-
-        // apply stock
-        for(const it of items){
-          const p = prodById(it.productId);
-          p.stock = Math.max(0, p.stock - it.qty);
-          if(p.stock <= 0) p.status = "out";
-        }
-
-        state.sales.push({
-          id: "s_" + Math.random().toString(16).slice(2) + "_" + Date.now().toString(16),
-          date,
-          name,
-          payment,
-          items
-        });
-
-        if(opts && opts.reservationId){
-          const rid = String(opts.reservationId);
-          state.reservations = (state.reservations||[]).map(r => String(r.id)===rid ? ({...r, status:"converted"}) : r);
-          state.dirtyReservations = true;
-        }
-
-        closeModal();
-        renderAll();
-        markDirty({ products:true, sales:true, reservations: (opts && opts.reservationId) ? true : false });
-      }}
-    ]);
-  }
-
-  function viewSale(id){
-    const s = state.sales.find(x => x.id === id);
-    if(!s) return;
-
-    const body = document.createElement("div");
-    const lines = s.items.map(it => {
-      const p = prodById(it.productId);
-      const n = p ? (p.name_hu||p.name_en||"—") : "—";
-      const f = p ? (p.flavor_hu||p.flavor_en||"") : "";
-      const sum = Number(it.qty||0) * Number(it.unitPrice||0);
-      return `<tr>
-        <td>${escapeHtml(n)} <span class="small-muted">${escapeHtml(f? "• "+f:"")}</span></td>
-        <td><b>${it.qty}</b></td>
-        <td>${Number(it.unitPrice||0).toLocaleString("hu-HU")} Ft</td>
-        <td><b>${sum.toLocaleString("hu-HU")} Ft</b></td>
-      </tr>`;
-    }).join("");
-
-    const tot = saleTotals(s, "all").revenue;
-
-    body.innerHTML = `
-      <div class="small-muted">${escapeHtml(s.date)} • ${escapeHtml(s.name)} • ${escapeHtml(s.payment)}</div>
-      <div style="margin-top:6px;font-weight:900;">Összesen: ${tot.toLocaleString("hu-HU")} Ft</div>
-      <table class="table" style="margin-top:10px;">
-        <thead><tr><th>Termék</th><th>Db</th><th>Egységár</th><th>Összeg</th></tr></thead>
-        <tbody>${lines}</tbody>
-      </table>
-    `;
-
-    openModal("Eladás", "", body, [
-      { label:"Bezár", kind:"primary", onClick: closeModal }
-    ]);
-  }
-
-  function deleteSale(id){
-    const idx = state.sales.findIndex(x => x.id === id);
-    if(idx < 0) return;
-    const s = state.sales[idx];
-
-    // rollback stock
-    for(const it of s.items){
-      const p = prodById(it.productId);
-      if(!p) continue;
-      p.stock = Math.max(0, Number(p.stock||0) + Number(it.qty||0));
-      if(p.stock > 0 && p.status === "out") p.status = "ok";
-    }
-
-    state.sales.splice(idx, 1);
-    renderAll();
-    markDirty({ products:true, sales:true, reservations: (opts && opts.reservationId) ? true : false });
-  }
-
-  function updateSalesBadge(){
-    const btn = document.querySelector('#tabs button[data-tab="sales"]');
-    if(!btn) return;
-    // remove existing badge
-    const ex = btn.querySelector(".excl-badge");
-    if(ex) ex.remove();
-    const has = (state.reservations||[]).some(r => r && r.modified && !r.modifiedAck);
-    if(has){
-      const b = document.createElement("span");
-      b.className = "excl-badge";
-      b.textContent = "!";
-      btn.appendChild(b);
-    }
-  }
-
-  function renderSales(){
-    if(state.filters.salesMode === "list") renderSalesList();
-    else renderSalesPOS();
-    updateSalesBadge();
-  }
-
-
-
-  function renderChartPanel(){
-    const cats = [{id:"all", label:"Mind"}, ...state.doc.categories.map(c=>({id:c.id,label:c.label_hu||c.id}))];
-
-    $("#panelChart").innerHTML = `
-      <div class="actions table" style="align-items:center;">
-        <select id="chartCat">
-          ${cats.map(c => `<option value="${escapeHtml(c.id)}"${c.id===state.filters.chartCat?" selected":""}>${escapeHtml(c.label)}</option>`).join("")}
-        </select>
-        <div class="small-muted">Csak bevétel (Ft), napra bontva. Kategória szűrésnél csak az adott kategória tételeit számolja.</div>
-      </div>
-
-      <div class="kpi" style="margin-top:12px;" id="chartKpi"></div>
-
-      <div style="margin-top:12px;">
-        <canvas id="revCanvas" width="1100" height="360" style="width:100%;height:360px;display:block;border-radius:16px;border:1px solid rgba(255,255,255,.06);background:rgba(11,15,23,.25);"></canvas>
-      </div>
-    `;
-
-    $("#chartCat").onchange = () => { state.filters.chartCat = $("#chartCat").value; drawChart(); };
-  }
-
-
-
-  /* ---------- Popups (Új termékek) ---------- */
-  function renderPopups(){
-    const panel = $("#panelPopups");
-    if(!panel) return;
-
-    const popups = [...(state.doc.popups||[])].sort((a,b)=> (b.createdAt||0)-(a.createdAt||0));
-
-    const rows = popups.map(pp => {
-      const cats = (pp.categoryIds||[]).map(id => (catById(id)?.label_hu || id)).join(", ");
-      const prods = (pp.productIds||[]).length;
-      return `
-        <div class="rowline table">
-          <div class="left">
-            <div style="font-weight:900;">${escapeHtml(pp.title_hu || "Új termékek")} <span class="small-muted">• ID: <b>${escapeHtml(pp.id)}</b></span></div>
-            <div class="small-muted">Kategóriák: <b>${escapeHtml(cats || "—")}</b> • Kézi termékek: <b>${prods}</b> • Rev: <b>${Number(pp.rev||0)}</b></div>
-          </div>
-          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
-            <label class="chk"><input type="checkbox" data-pp="${escapeHtml(pp.id)}" data-k="enabled"${pp.enabled===false?"":" checked"}> Aktív</label>
-            <button class="ghost" data-editpp="${escapeHtml(pp.id)}">Szerkeszt</button>
-            <button class="danger" data-delpp="${escapeHtml(pp.id)}">Töröl</button>
-          </div>
-        </div>
-      `;
-    }).join("");
-
     panel.innerHTML = `
-      <div class="actions">
-        <button class="primary" id="btnAddPopup">+ Új pop-up</button>
-        <div class="small-muted">Pop-up-ok: sorrend = létrehozás szerint (legújabb elöl). "Ne mutasd többször" a public oldalon popup ID + rev alapján működik.</div>
+      <div class="pos-admin">
+        <aside class="pos-side">
+          <div class="brand" style="margin-bottom:10px;">Shadow<span>Vapes</span></div>
+
+          <div class="field">
+            <input id="posSearch" class="input" placeholder="Keresés..." value="${escapeHtml(state.filters.salesSearch||"")}" />
+          </div>
+
+          <div class="nav" id="posCats"></div>
+
+          <div class="pos-side-bottom">
+            <button class="ghost" id="posShowSales">
+              Eladások ${state.badges?.sales ? `<span class="badge-dot">${state.badges.sales}</span>` : ``}
+            </button>
+          </div>
+        </aside>
+
+        <main class="pos-main">
+          <div class="pos-grid" id="posGrid"></div>
+          <div class="empty" id="posEmpty" style="display:none;">Nincs találat.</div>
+        </main>
+
+        <aside class="pos-cart">
+          <div class="pos-cart-head">
+            <div style="font-weight:900;">Kosár</div>
+            <div class="small-muted">${cartCount} tétel</div>
+          </div>
+
+          <div class="pos-cart-list" id="posCartList"></div>
+
+          <div class="pos-cart-foot">
+            <button class="primary" id="posRecord" ${cartCount?"" : "disabled"}>Eladás rögzítése</button>
+          </div>
+        </aside>
       </div>
-      <div style="margin-top:10px;">${rows || `<div class="small-muted">Nincs pop-up.</div>`}</div>
     `;
 
-    $("#btnAddPopup").onclick = () => openPopupModal(null);
+    // categories
+    const catsEl = $("#posCats");
+    catsEl.innerHTML = cats.map(c => `
+      <button class="${String(c.id)===String(activeCat) ? "active" : ""}" data-cid="${escapeHtml(c.id)}">${escapeHtml(c.label)}</button>
+    `).join("");
 
-    panel.querySelectorAll('input[data-pp][data-k="enabled"]').forEach(ch => {
-      ch.addEventListener("change", () => {
-        const id = ch.dataset.pp;
-        const pp = (state.doc.popups||[]).find(x=>x.id===id);
-        if(!pp) return;
-        pp.enabled = !!ch.checked;
-        pp.updatedAt = Date.now();
-        pp.rev = Date.now();
-        markDirty({ products:true });
-      });
+    catsEl.querySelectorAll("button[data-cid]").forEach(btn=>{
+      btn.onclick = () => {
+        state.filters.salesCat = btn.getAttribute("data-cid") || "all";
+        renderSales();
+      };
     });
 
-    panel.querySelectorAll("button[data-editpp]").forEach(b => b.onclick = () => openPopupModal(b.dataset.editpp));
-    panel.querySelectorAll("button[data-delpp]").forEach(b => b.onclick = () => {
-      const id = b.dataset.delpp;
-      const pp = (state.doc.popups||[]).find(x=>x.id===id);
-      if(!pp) return;
-      const body = document.createElement("div");
-      body.innerHTML = `<div class="small-muted">Biztos törlöd ezt a pop-upot? ID: <b>${escapeHtml(id)}</b></div>`;
-      openModal("Pop-up törlése", "", body, [
-        {label:"Mégse", kind:"ghost", onClick: closeModal},
-        {label:"Törlés", kind:"danger", onClick: () => {
-          state.doc.popups = (state.doc.popups||[]).filter(x=>x.id!==id);
-          closeModal();
-          renderPopups();
-          markDirty({ products:true });
-        }}
-      ]);
-    });
-  }
-
-  function openPopupModal(id){
-    const editing = id ? (state.doc.popups||[]).find(x=>x.id===id) : null;
-    const pp = editing ? {...editing} : {
-      id: "popup_" + Math.random().toString(16).slice(2) + "_" + Date.now().toString(16),
-      enabled: true,
-      rev: Date.now(),
-      title_hu: "Új termékek elérhetőek",
-      title_en: "Új termékek elérhetőek",
-      categoryIds: [],
-      productIds: [],
-      createdAt: Date.now(),
-      updatedAt: Date.now()
+    $("#posSearch").oninput = (e) => {
+      state.filters.salesSearch = e.target.value || "";
+      renderSales();
     };
 
-    // ✅ EN nem kell külön – legyen ugyanaz
-    pp.title_en = pp.title_en || pp.title_hu || "";
-
-    const body = document.createElement("div");
-    const cats = [...state.doc.categories].sort((a,b)=>(a.label_hu||a.id).localeCompare((b.label_hu||b.id),"hu"));
-    const catMap = new Map(cats.map(c => [String(c.id), c]));
-
-    // ✅ POPUP TERMÉKEK RENDEZETTEN: kategória > név > íz
-    const prods = [...state.doc.products].sort((a,b) => {
-      // Kategória szerint
-      const catA = catMap.get(String(a.categoryId||""))?.label_hu || "";
-      const catB = catMap.get(String(b.categoryId||""))?.label_hu || "";
-      if (catA !== catB) return catA.localeCompare(catB, "hu");
-      
-      // Név szerint
-      const nameA = a.name_hu || a.name_en || "";
-      const nameB = b.name_hu || b.name_en || "";
-      if (nameA !== nameB) return nameA.localeCompare(nameB, "hu");
-      
-      // Íz szerint
-      const flavorA = a.flavor_hu || a.flavor_en || "";
-      const flavorB = b.flavor_hu || b.flavor_en || "";
-      return flavorA.localeCompare(flavorB, "hu");
-    });
-
-    body.innerHTML = `
-      <div class="form-grid">
-        <div class="field third"><label>ID</label><input id="pp_id" value="${escapeHtml(pp.id)}" ${editing?"disabled":""}></div>
-        <div class="field third"><label>Aktív</label><label class="chk"><input type="checkbox" id="pp_enabled" ${pp.enabled===false?"":"checked"}> Bekapcsolva</label></div>
-        <div class="field third"><label>Rev (auto)</label><input id="pp_rev" value="${Number(pp.rev||0)}" disabled></div>
-
-        <div class="field third"><label>Cím</label><input id="pp_thu" value="${escapeHtml(pp.title_hu||"")}"></div>
-        <div class="field third"><label></label><div class="small-muted">Mentéskor rev frissül → újra feldobható.</div></div>
-        <div class="field third"><label></label></div>
-
-        <div class="field full"><label>Kategóriák (ha bejelölöd: az összes termék abból a kategóriából)</label>
-          <div class="check-grid">
-            ${cats.map(c => `
-              <label class="chk"><input type="checkbox" class="pp_cat" value="${escapeHtml(c.id)}"${(pp.categoryIds||[]).includes(c.id)?" checked":""}> ${escapeHtml(c.label_hu||c.id)}</label>
-            `).join("")}
-          </div>
-        </div>
-
-        <div class="field full"><label>Kézi termékek (opcionális)</label>
-          <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
-            <input id="pp_search" placeholder="Keresés..." style="flex:1;min-width:240px;">
-            <select id="pp_catfilter" style="width:240px;">
-              <option value="all">Összes kategória</option>
-              ${cats.map(c => `<option value="${escapeHtml(c.id)}">${escapeHtml(c.label_hu||c.id)}</option>`).join("")}
-            </select>
-          </div>
-
-          <div class="check-grid" id="pp_prod_list">
-            ${prods.map(p => {
-              const cid = String(p.categoryId||"");
-              const c = catMap.get(cid);
-              const cname = c ? (c.label_hu||c.id) : cid;
-              return `
-                <label class="chk" data-cat="${escapeHtml(cid)}" style="display:flex;flex-direction:column;gap:2px;padding:10px;border-radius:8px;background:rgba(255,255,255,0.05);">
-                  <div style="display:flex;align-items:center;gap:8px;">
-                    <input type="checkbox" class="pp_prod" value="${escapeHtml(p.id)}"${(pp.productIds||[]).includes(p.id)?" checked":""}>
-                    <div>
-                      <div style="font-weight:bold;">${escapeHtml(p.name_hu||p.name_en||"—")}</div>
-                      <div style="font-size:12px;color:var(--muted);">${escapeHtml(p.flavor_hu||p.flavor_en||"")}</div>
-                    </div>
-                  </div>
-                  <div style="font-size:11px;color:var(--brand2);margin-top:4px;">[${escapeHtml(cname||"—")}]</div>
-                </label>
-              `;
-            }).join("")}
-          </div>
-        </div>
-      </div>
-    `;
-
-    // filter (search + category)
-    setTimeout(() => {
-      const inp = $("#pp_search");
-      const sel = $("#pp_catfilter");
-      const list = $("#pp_prod_list");
-      if(!inp || !sel || !list) return;
-
-      const apply = () => {
-        const q = (inp.value||"").toLowerCase().trim();
-        const cf = String(sel.value||"all");
-        list.querySelectorAll("label.chk").forEach(lab => {
-          const txt = (lab.textContent||"").toLowerCase();
-          const cat = String(lab.getAttribute("data-cat")||"");
-          const ok = (!q || txt.includes(q)) && (cf==="all" || cat===cf);
-          lab.style.display = ok ? "" : "none";
-        });
-      };
-
-      inp.oninput = apply;
-      sel.onchange = apply;
-      apply();
-    }, 0);
-
-    openModal(editing ? "Popup szerkesztése" : "Új popup", "", body, [
-      { label:"Mégse", kind:"ghost", onClick: closeModal },
-      { label:"Mentés", kind:"primary", onClick: () => {
-        const nid = ($("#pp_id").value||"").trim();
-        if(!nid) return;
-
-        const title = ($("#pp_thu").value||"").trim() || "Új termékek elérhetőek";
-
-        const next = {
-          id: nid,
-          enabled: !!$("#pp_enabled").checked,
-          title_hu: title,
-          title_en: title, // ✅ EN nem kell külön
-          categoryIds: Array.from(document.querySelectorAll(".pp_cat:checked")).map(x=>String(x.value)),
-          productIds: Array.from(document.querySelectorAll(".pp_prod:checked")).map(x=>String(x.value)),
-          createdAt: editing ? Number(editing.createdAt||Date.now()) : Date.now(),
-          updatedAt: Date.now(),
-          rev: Date.now()
-        };
-
-        if(editing){
-          state.doc.popups = (state.doc.popups||[]).map(x => x.id===editing.id ? next : x);
-        }else{
-          state.doc.popups = [...(state.doc.popups||[]), next];
-        }
-
-        closeModal();
-        renderAll();
-        markDirty({ products:true });
-      }}
-    ]);
-  }
-
-function drawChart(){
-  const canvas = $("#revCanvas");
-  const kpi = $("#chartKpi");
-  if(!canvas) return;
-
-  try{
-    const rect = canvas.getBoundingClientRect();
-    const cssW = Math.max(520, Math.floor(rect.width || 1100));
-    const cssH = Math.max(260, Math.floor(rect.height || 360));
-    const dpr = window.devicePixelRatio || 1;
-
-    canvas.width = Math.floor(cssW * dpr);
-    canvas.height = Math.floor(cssH * dpr);
-
-    const ctx = canvas.getContext("2d");
-    ctx.setTransform(dpr,0,0,dpr,0,0);
-    ctx.font = "12px system-ui, -apple-system, Segoe UI, Roboto, Arial";
-    ctx.clearRect(0,0,cssW,cssH);
-
-    const cat = state.filters.chartCat;
-
-    // group by date => revenue
-    const map = new Map();
-    let total = 0;
-    for(const s of state.sales){
-      const st = saleTotals(s, cat);
-      if(cat !== "all" && !st.hit) continue;
-
-      let d = String(s.date || "");
-      if(!d) continue;
-      // ha véletlen idő is van benne: "YYYY-MM-DDTHH:MM" -> "YYYY-MM-DD"
-      d = d.split("T")[0].split(" ")[0];
-
-      const rev = Number(st.revenue || 0);
-      if(!Number.isFinite(rev)) continue;
-
-      map.set(d, (map.get(d) || 0) + rev);
-      total += rev;
-    }
-
-    const days = [...map.keys()].sort();
-    const revs = days.map(d => Number(map.get(d) || 0));
-    const labels = days.map(d => d); // teljes dátum
-
-    if(kpi){
-      kpi.innerHTML = `<div class="small-muted">Összes bevétel: <b>${total.toLocaleString("hu-HU")} Ft</b> • Napok: <b>${days.length}</b></div>`;
-    }
+    // show sales list
+    $("#posShowSales").onclick = () => {
+      state.filters.salesMode = "list";
+      renderSales();
+    };
 
     // grid
-    ctx.strokeStyle = "rgba(255,255,255,.10)";
-    ctx.lineWidth = 1;
-
-    const left = 96, right = cssW - 18, top = 18, bottom = cssH - 46;
-    const w = right - left;
-    const h = bottom - top;
-
-    for(let i=0;i<=5;i++){
-      const y = top + (i/5)*h;
-      ctx.beginPath(); ctx.moveTo(left,y); ctx.lineTo(right,y); ctx.stroke();
+    const grid = $("#posGrid");
+    grid.innerHTML = "";
+    if(!list.length){
+      $("#posEmpty").style.display = "block";
+    }else{
+      $("#posEmpty").style.display = "none";
     }
 
-    if(!days.length){
-      ctx.fillStyle = "rgba(255,255,255,.65)";
-      ctx.font = "16px ui-sans-serif, system-ui";
-      ctx.fillText("Nincs adat a diagrammhoz.", left, top + 28);
-      return;
+    const catById = (id) => state.doc.categories.find(c=>String(c.id)===String(id));
+
+    for(const p of list){
+      const pid = String(p.id);
+      const c = catById(p.categoryId);
+      const name = (p.name_hu||p.name_en||"—");
+      const flavor = (p.flavor_hu||p.flavor_en||"");
+      const price = effectivePrice(p);
+      const baseStock = Math.max(0, Number(p.stock||0));
+      const reserved = Number(reservedMap.get(pid) || 0);
+      const status = String(p.status||"ok");
+      const soon = status==="soon";
+      const out = status==="out";
+      const avail = (soon || out) ? 0 : Math.max(0, baseStock - reserved);
+
+      const card = document.createElement("div");
+      card.className = "card";
+      card.innerHTML = `
+        <div class="hero">
+          <img src="${escapeHtml(p.image||"")}" alt="${escapeHtml(name)}" loading="lazy" />
+          <div class="badges">
+            ${soon ? `<div class="badge soon">Hamarosan</div>` : ``}
+            ${out ? `<div class="badge out">Elfogyott</div>` : ``}
+          </div>
+          <div class="overlay-title">
+            <div class="name">${escapeHtml(name)}</div>
+            <div class="flavor">${escapeHtml(flavor)}</div>
+          </div>
+          <button class="addcart" title="Kosárba" ${avail<=0 ? "disabled" : ""}>
+            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M6 6h15l-1.5 9h-12z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M6 6l-2-2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M9 21a1 1 0 100-2 1 1 0 000 2z" fill="currentColor"/><path d="M18 21a1 1 0 100-2 1 1 0 000 2z" fill="currentColor"/></svg>
+          </button>
+        </div>
+        <div class="card-body">
+          <div class="meta-row">
+            <div class="price">${Number(price||0).toLocaleString("hu-HU")} Ft</div>
+            <div class="stock">Készlet: <b>${soon ? "—" : avail} db</b></div>
+            <div class="reserved">Foglalt: <b>${soon ? "—" : reserved} db</b></div>
+          </div>
+        </div>
+      `;
+
+      const addBtn = card.querySelector(".addcart");
+      addBtn.onclick = (e) => {
+        e.stopPropagation();
+        if(avail<=0) return;
+        cart[pid] = Math.min(avail, (Number(cart[pid]||0)+1));
+        renderSales(); // rerender for simplicity
+      };
+
+      grid.appendChild(card);
     }
 
-    const maxRev = Math.max(...revs, 1);
+    // cart list
+    function renderCartList(){
+      const el = $("#posCartList");
+      const items = Object.entries(cart).filter(([,q])=>Number(q||0)>0).map(([pid,qty])=>{
+        const p = state.doc.products.find(x=>String(x.id)===String(pid));
+        if(!p) return null;
+        const name = (p.name_hu||p.name_en||"—");
+        const flavor = (p.flavor_hu||p.flavor_en||"");
+        const price = effectivePrice(p);
+        // max per product: available now
+        const baseStock = Math.max(0, Number(p.stock||0));
+        const reserved = Number(reservedMap.get(String(pid)) || 0);
+        const status = String(p.status||"ok");
+        const soon = status==="soon";
+        const out = status==="out";
+        const avail = (soon || out) ? 0 : Math.max(0, baseStock - reserved);
+        const q = Math.min(avail, Math.max(0, Number(qty||0)));
 
-    // y labels
-    ctx.font = "13px ui-sans-serif, system-ui";
-    ctx.textAlign = "right";
-    ctx.textBaseline = "middle";
-    for(let i=0;i<=4;i++){
-      const t = i/4;
-      const v = Math.round(maxRev * (1 - t));
-      const y = top + t*h;
-      ctx.fillStyle = "rgba(255,255,255,.72)";
-      ctx.fillText(`${v.toLocaleString("hu-HU")} Ft`, left - 10, y);
+        return { pid:String(pid), q, avail, name, flavor, price };
+      }).filter(Boolean);
+
+      if(!items.length){
+        el.innerHTML = `<div class="small-muted" style="padding:10px 2px;">A kosár üres.</div>`;
+        return;
+      }
+
+      el.innerHTML = items.map(it=>`
+        <div class="pos-cart-item" data-pid="${escapeHtml(it.pid)}">
+          <div class="ci-title">
+            <div style="font-weight:900;">${escapeHtml(it.name)}</div>
+            <div class="small-muted">${escapeHtml(it.flavor)}</div>
+          </div>
+          <div class="ci-ctrl">
+            <button class="ghost" data-act="minus">−</button>
+            <div class="ci-qty">${it.q}</div>
+            <button class="ghost" data-act="plus" ${it.q>=it.avail ? "disabled":""}>+</button>
+          </div>
+          <div class="ci-sum">${(it.q*Number(it.price||0)).toLocaleString("hu-HU")} Ft</div>
+        </div>
+      `).join("");
+
+      el.querySelectorAll(".pos-cart-item button[data-act]").forEach(b=>{
+        b.onclick = () => {
+          const row = b.closest(".pos-cart-item");
+          const pid = row.getAttribute("data-pid");
+          const act = b.getAttribute("data-act");
+          const cur = Number(cart[pid]||0);
+          if(act==="plus"){
+            // find max
+            const p = state.doc.products.find(x=>String(x.id)===String(pid));
+            if(!p) return;
+            const baseStock = Math.max(0, Number(p.stock||0));
+            const reserved = Number(reservedMap.get(String(pid)) || 0);
+            const status = String(p.status||"ok");
+            const avail = (status==="soon" || status==="out") ? 0 : Math.max(0, baseStock - reserved);
+            cart[pid] = Math.min(avail, cur+1);
+          }else{
+            const next = cur-1;
+            if(next<=0) delete cart[pid];
+            else cart[pid]=next;
+          }
+          renderSales();
+        };
+      });
     }
 
-    // x labels (ritkítva)
-    const step = Math.ceil(days.length / 6);
-    ctx.textAlign = "center";
-    ctx.textBaseline = "top";
-    ctx.fillStyle = "rgba(255,255,255,.70)";
-    for(let i=0;i<days.length;i+=step){
-      const x = left + (days.length===1 ? w/2 : (i/(days.length-1))*w);
-      ctx.fillText(labels[i], x, bottom + 10);
-    }
+    renderCartList();
 
-    const xAt = (i) => left + (days.length===1 ? w/2 : (i/(days.length-1))*w);
-    const yAt = (v) => bottom - (v/maxRev)*h;
-
-    // revenue line (crypto-style)
-    ctx.strokeStyle = "rgba(124,92,255,.95)";
-    ctx.lineWidth = 2.8;
-    ctx.beginPath();
-    for(let i=0;i<days.length;i++){
-      const x = xAt(i);
-      const y = yAt(revs[i]);
-      if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
-    }
-    ctx.stroke();
-
-    // last point highlight
-    const lx = xAt(days.length-1);
-    const ly = yAt(revs[revs.length-1]);
-    ctx.fillStyle = "rgba(124,92,255,.95)";
-    ctx.beginPath(); ctx.arc(lx, ly, 3.8, 0, Math.PI*2); ctx.fill();
-
-  }catch(e){
-    console.error(e);
-    if(kpi){
-      kpi.innerHTML = `<div class="small-muted">Diagramm hiba: <b>${escapeHtml(String(e?.message || e))}</b></div>`;
-    }
+    // record sale
+    $("#posRecord").onclick = () => {
+      // modal uses state.posCart to auto-fill items
+      openSaleModal({ fromPOS:true });
+    };
   }
 }
 
