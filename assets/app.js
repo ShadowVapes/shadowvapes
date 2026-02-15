@@ -1,108 +1,6 @@
 (() => {
   const $ = (s) => document.querySelector(s);
-
-  // GitHub helper (public oldalon is, ha van token)
-  if(!window.ShadowGH){
-    const API = "https://api.github.com";
-    const shaCache = new Map();
-    const cacheKey = ({ owner, repo, branch, path }) => `${owner}/${repo}@${branch}:${String(path || "")}`;
-    const encodePath = (path) => String(path||"").split("/").map(encodeURIComponent).join("/");
-
-    const toBase64Unicode = (str) => {
-      const bytes = new TextEncoder().encode(str);
-      let bin = "";
-      for(const b of bytes) bin += String.fromCharCode(b);
-      return btoa(bin);
-    };
-    const fromBase64Unicode = (b64) => {
-      if(!b64) return "";
-      const bin = atob(b64);
-      const bytes = new Uint8Array([...bin].map(ch => ch.charCodeAt(0)));
-      return new TextDecoder().decode(bytes);
-    };
-
-    async function ghRequest(token, method, url, body){
-      const headers = { "Accept":"application/vnd.github+json", "Content-Type":"application/json" };
-      if(token) headers["Authorization"] = `token ${token}`;
-      const res = await fetch(url, { method, headers, cache:"no-store", body: body ? JSON.stringify(body) : undefined });
-      const text = await res.text();
-      let data = null;
-      try{ data = text ? JSON.parse(text) : null; }catch{ data = text; }
-      if(!res.ok){
-        const msg = (data && data.message) ? data.message : `HTTP ${res.status}`;
-        const err = new Error(msg);
-        err.status = res.status;
-        err.data = data;
-        err.url = url;
-        throw err;
-      }
-      return data;
-    }
-
-    async function getFile({token, owner, repo, path, branch}){
-      const url = `${API}/repos/${owner}/${repo}/contents/${encodePath(path)}?ref=${encodeURIComponent(branch)}`;
-      const data = await ghRequest(token, "GET", url);
-      const content = fromBase64Unicode(data.content || "");
-      const sha = data.sha || null;
-      try{ shaCache.set(cacheKey({owner, repo, branch, path}), sha); }catch{}
-      return { sha, content };
-    }
-
-    async function putFile({token, owner, repo, path, branch, message, content, sha}){
-      const url = `${API}/repos/${owner}/${repo}/contents/${encodePath(path)}`;
-      const body = { message: message || `Update ${path}`, content: toBase64Unicode(content || ""), branch };
-      if(sha) body.sha = sha;
-      const res = await ghRequest(token, "PUT", url, body);
-      const newSha = res?.content?.sha || null;
-      if(newSha){
-        try{ shaCache.set(cacheKey({owner, repo, branch, path}), newSha); }catch{}
-      }
-      return res;
-    }
-
-    async function putFileSafe({token, owner, repo, path, branch, message, content, sha, retries=3}){
-      let curSha = sha || null;
-      if(!curSha){
-        try{
-          const cached = shaCache.get(cacheKey({owner, repo, branch, path}));
-          if(cached) curSha = cached;
-        }catch{}
-      }
-
-      let lastErr = null;
-      for(let i=0;i<=retries;i++){
-        try{
-          return await putFile({token, owner, repo, path, branch, message, content, sha: curSha});
-        }catch(e){
-          lastErr = e;
-          const msg = String(e?.message || "");
-          const status = Number(e?.status || 0);
-          const shaMissing = status === 422 && /sha/i.test(msg);
-          const retryable = shaMissing || status === 409 || msg.includes("does not match") || msg.includes("expected");
-          if(i < retries && retryable){
-            await new Promise(r => setTimeout(r, 200 + Math.random()*200));
-            try{
-              const latest = await getFile({token, owner, repo, path, branch});
-              curSha = latest.sha || null;
-              continue;
-            }catch(fetchErr){
-              if(Number(fetchErr?.status || 0) === 404){
-                curSha = null;
-                continue;
-              }
-              throw e;
-            }
-          }
-          throw e;
-        }
-      }
-      throw lastErr || new Error("Mentés hiba");
-    }
-
-    window.ShadowGH = { getFile, putFileSafe };
-  }
-
-
+  const escapeHtml = (str) => String(str ?? "").replace(/[&<>"']/g, (c)=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));
 
   const state = {
     lang: localStorage.getItem("sv_lang") || "hu",
@@ -120,21 +18,24 @@
     docHash: "",
     salesHash: "",
     lastLiveTs: 0,
-
+  
     // reservations + cart
     reservations: [],
-    reservationsHash: "",
-    reservedByProduct: new Map(), // productId -> reserved qty (active)
+    reservationsFresh: false,
     cart: {}, // productId -> qty
-    cartMode: "new", // "new" | "modify"
-    cartReservationId: null,
-    cartView: "edit", // "edit" | "summary" | "done"
-    cartConfirmDel: null, // productId
-    cartUnlockAt: 0,
-    cartPublicCode: null,
+    cartOpen: false,
+    cartStep: "items", // items | confirm | done
+    editingReservationId: null,
+    lastReservationPublicCode: null,
   };
 
   const UI = {
+    myRes: { hu: "Foglalásaim", en: "My reservations" },
+    cart: { hu: "Kosár", en: "Cart" },
+    reserve: { hu: "Foglalás", en: "Reserve" },
+    reserveEdit: { hu: "Foglalás módosítása", en: "Update reservation" },
+    confirm: { hu: "Megerősítés", en: "Confirm" },
+    reserved: { hu: "Foglalt", en: "Reserved" },
     all: { hu: "Összes termék", en: "All products" },
     soon: { hu: "Hamarosan", en: "Coming soon" },
     stock: { hu: "Készlet", en: "Stock" },
@@ -210,6 +111,450 @@
     return ((p && p.status) || "ok") === "soon";
   }
 
+
+  /* ----------------- CART + RESERVATIONS ----------------- */
+  function cartCount(){
+    return Object.values(state.cart||{}).reduce((a,b)=>a+Number(b||0),0);
+  }
+
+  function persistCart(){
+    try{ localStorage.setItem("sv_cart", JSON.stringify(state.cart||{})); }catch{}
+  }
+  function loadCart(){
+    try{
+      const raw = localStorage.getItem("sv_cart");
+      if(raw) state.cart = JSON.parse(raw) || {};
+    }catch{ state.cart = {}; }
+  }
+
+  function ensureCartUI(){
+    loadCart();
+
+    // topbar actions wrapper
+    const topbar = document.querySelector(".topbar");
+    if(!topbar) return;
+    if(!topbar.querySelector(".topbar-actions")){
+      const actions = document.createElement("div");
+      actions.className = "topbar-actions";
+      // move search into actions? keep existing layout: title + search, we add button after search
+      // We'll just append button next to search by wrapping search + button in a flex container.
+      const search = $("#search");
+      if(search){
+        // create wrapper for search+actions
+        const rightWrap = document.createElement("div");
+        rightWrap.className = "topbar-actions";
+        // replace search position
+        search.parentNode.insertBefore(rightWrap, search);
+        rightWrap.appendChild(search);
+
+        const btn = document.createElement("button");
+        btn.className = "cart-btn";
+        btn.id = "cartBtn";
+        btn.innerHTML = `🛒 <span id="cartBtnLabel">${t("cart")}</span><span class="cart-badge" id="cartBadge" style="display:none">0</span>`;
+        rightWrap.appendChild(btn);
+
+        btn.onclick = () => openCart();
+      }
+    }
+
+    // modal
+    if(!document.querySelector("#cartBg")){
+      const bg = document.createElement("div");
+      bg.className = "cart-backdrop";
+      bg.id = "cartBg";
+      bg.innerHTML = `
+        <div class="cart-modal">
+          <div class="cart-head">
+            <div class="cart-title" id="cartTitle">${t("cart")}</div>
+            <button class="cart-close" id="cartClose">✕</button>
+          </div>
+          <div id="cartBody"></div>
+          <div class="cart-foot" id="cartFoot"></div>
+        </div>
+      `;
+      document.body.appendChild(bg);
+      bg.addEventListener("click",(e)=>{ if(e.target===bg) closeCart(); });
+      bg.querySelector("#cartClose").onclick = () => closeCart();
+    }
+
+    refreshCartBadge();
+  }
+
+  function refreshCartBadge(){
+    const b = document.querySelector("#cartBadge");
+    if(!b) return;
+    const c = cartCount();
+    b.textContent = String(c);
+    b.style.display = c ? "flex" : "none";
+  }
+
+  function availableForProduct(p){
+    const pid=String(p.id);
+    const reservedMap = computeReservedByProduct();
+    const reserved = Number(reservedMap.get(pid)||0);
+    const stock = Math.max(0, Number(p.stock||0));
+    const out = isOut(p);
+    const soon = isSoon(p);
+    if(out || soon) return 0;
+    return Math.max(0, stock - reserved);
+  }
+
+  function addToCart(pid, delta=1){
+    pid=String(pid);
+    const p = (state.productsDoc.products||[]).find(x=>String(x.id)===pid);
+    if(!p) return;
+    const avail = availableForProduct(p);
+    const cur = Number(state.cart[pid]||0);
+    const next = cur + Number(delta||0);
+    if(next <= 0){
+      delete state.cart[pid];
+    }else{
+      if(next > avail) return; // no over
+      state.cart[pid]=next;
+    }
+    persistCart();
+    refreshCartBadge();
+    renderGrid(); // update reserved/available button states and qty hint
+    if(state.cartOpen) renderCart();
+  }
+
+  function openCart(){
+    state.cartOpen = true;
+    state.cartStep = "items";
+    const bg = document.querySelector("#cartBg");
+    if(bg){ bg.style.display="flex"; }
+    renderCart();
+  }
+  function closeCart(){
+    state.cartOpen = false;
+    const bg = document.querySelector("#cartBg");
+    if(bg){ bg.style.display="none"; }
+  }
+
+  function cartItemsResolved(){
+    const items=[];
+    for(const [pid,qty] of Object.entries(state.cart||{})){
+      const p = (state.productsDoc.products||[]).find(x=>String(x.id)===String(pid));
+      if(!p) continue;
+      items.push({ pid:String(pid), qty:Number(qty||0), p });
+    }
+    return items;
+  }
+
+  function renderCart(){
+    const body = document.querySelector("#cartBody");
+    const foot = document.querySelector("#cartFoot");
+    const title = document.querySelector("#cartTitle");
+    if(!body || !foot || !title) return;
+
+    const items = cartItemsResolved();
+
+    if(state.cartStep === "confirm"){
+      title.textContent = t("reserve");
+      const total = items.reduce((a,it)=> a + effectivePrice(it.p)*it.qty, 0);
+      body.innerHTML = `
+        <div class="notice">
+          <div style="font-weight:900;margin-bottom:6px;">Összegzés</div>
+          ${items.map(it=>{
+            const name=getName(it.p); const flavor=getFlavor(it.p);
+            return `<div style="display:flex;justify-content:space-between;gap:10px;margin-top:6px;">
+              <div><b>${escapeHtml(name)}${flavor?`, ${escapeHtml(flavor)}`:""}</b> <span class="small-muted">× ${it.qty}</span></div>
+              <div><b>${fmtFt(effectivePrice(it.p)*it.qty)}</b></div>
+            </div>`;
+          }).join("")}
+          <div style="display:flex;justify-content:space-between;gap:10px;margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,.08);">
+            <div class="small-muted">Végösszeg</div>
+            <div style="font-weight:1000;">${fmtFt(total)}</div>
+          </div>
+        </div>
+        <div class="small-muted" style="margin-top:10px;">A megerősítés gomb 3 másodperc múlva lesz kattintható.</div>
+        <div id="confirmMsg" class="small-muted" style="margin-top:6px;"></div>
+      `;
+      foot.innerHTML = `
+        <button class="cart-ghost" id="backToCart">Vissza</button>
+        <button class="cart-primary" id="confirmBtn" disabled>${t("confirm")}</button>
+      `;
+      foot.querySelector("#backToCart").onclick = ()=>{ state.cartStep="items"; renderCart(); };
+      const confirmBtn = foot.querySelector("#confirmBtn");
+      const msg = body.querySelector("#confirmMsg");
+      let left=3;
+      msg.textContent = `Még ${left} mp...`;
+      const timer = setInterval(()=>{
+        left--;
+        if(left<=0){
+          clearInterval(timer);
+          msg.textContent = "Mehet!";
+          confirmBtn.disabled = false;
+        }else{
+          msg.textContent = `Még ${left} mp...`;
+        }
+      },1000);
+      confirmBtn.onclick = async ()=> {
+        confirmBtn.disabled=true;
+        await submitReservation();
+      };
+      return;
+    }
+
+    if(state.cartStep === "done"){
+      title.textContent = t("reserve");
+      body.innerHTML = `
+        <div class="notice">
+          <div style="font-weight:900;">Foglalás létrehozva ✅</div>
+          <div class="small-muted" style="margin-top:6px;">Rendelésazonosító:</div>
+          <div style="margin-top:10px;"><span class="code3">${escapeHtml(state.lastReservationPublicCode || "000")}</span></div>
+          <div class="small-muted" style="margin-top:10px;">Ezt az azonosítót add meg a pultnál.</div>
+        </div>
+      `;
+      foot.innerHTML = `<button class="cart-primary" id="doneOk">Oké</button>`;
+      foot.querySelector("#doneOk").onclick = ()=>{ closeCart(); };
+      return;
+    }
+
+    // items
+    title.textContent = t("cart");
+    if(!items.length){
+      body.innerHTML = `<div class="small-muted" style="margin-top:12px;">A kosár üres.</div>`;
+      foot.innerHTML = `<button class="cart-primary" disabled>${t("reserve")}</button>`;
+      return;
+    }
+
+    body.innerHTML = items.map(it=>{
+      const name=getName(it.p); const flavor=getFlavor(it.p);
+      return `
+        <div class="cart-item">
+          <img src="${escapeHtml(it.p.image||"")}" alt="">
+          <div>
+            <div class="ci-name">${escapeHtml(name)}</div>
+            <div class="ci-sub">${escapeHtml(flavor||"")}</div>
+            <div class="small-muted" style="margin-top:6px;">${fmtFt(effectivePrice(it.p))} / db</div>
+          </div>
+          <div class="ci-right">
+            <button class="qty-btn" data-minus="${escapeHtml(it.pid)}">−</button>
+            <div class="qty-val">${it.qty}</div>
+            <button class="qty-btn" data-plus="${escapeHtml(it.pid)}">+</button>
+          </div>
+        </div>
+      `;
+    }).join("");
+
+    foot.innerHTML = `
+      <button class="cart-ghost" id="clearCart">Ürítés</button>
+      <button class="cart-primary" id="reserveBtn">${state.editingReservationId ? t("reserveEdit") : t("reserve")}</button>
+    `;
+
+    body.querySelectorAll("button[data-plus]").forEach(b=>{
+      b.onclick=()=>addToCart(b.getAttribute("data-plus"), +1);
+    });
+    body.querySelectorAll("button[data-minus]").forEach(b=>{
+      b.onclick=()=>{
+        const pid=b.getAttribute("data-minus");
+        const cur=Number(state.cart[pid]||0);
+        if(cur===1){
+          const p=(state.productsDoc.products||[]).find(x=>String(x.id)===String(pid));
+          const nm=p?`${getName(p)}${getFlavor(p)?`, ${getFlavor(p)}`:""}`:"terméket";
+          // inline confirm
+          const bg=document.querySelector("#cartBg");
+          const modal=bg.querySelector(".cart-modal");
+          const ask=document.createElement("div");
+          ask.className="notice";
+          ask.innerHTML=`<div style="font-weight:900;">Biztos szeretnéd törölni a "${escapeHtml(nm)}" terméket?</div>
+            <div style="display:flex;gap:10px;margin-top:10px;justify-content:flex-end;">
+              <button class="cart-ghost" id="noDel">Mégse</button>
+              <button class="cart-primary" id="yesDel">Igen</button>
+            </div>`;
+          // remove old ask if exists
+          modal.querySelectorAll(".notice.__ask").forEach(x=>x.remove());
+          ask.classList.add("__ask");
+          modal.appendChild(ask);
+          ask.querySelector("#noDel").onclick=()=>ask.remove();
+          ask.querySelector("#yesDel").onclick=()=>{ ask.remove(); addToCart(pid,-1); };
+        }else{
+          addToCart(pid,-1);
+        }
+      };
+    });
+
+    foot.querySelector("#clearCart").onclick=()=>{ state.cart={}; state.editingReservationId=null; persistCart(); refreshCartBadge(); renderCart(); renderGrid(); };
+    foot.querySelector("#reserveBtn").onclick=()=>{
+      state.cartStep="confirm";
+      renderCart();
+    };
+  }
+
+  function genPublicCode(){
+    return String(Math.floor(Math.random()*1000)).padStart(3,"0");
+  }
+
+  async function loadReservationsDocForWrite(){
+    // Try GH write if configured
+    const token = localStorage.getItem("sv_token") || "";
+    const owner = localStorage.getItem("sv_owner") || "";
+    const repo = localStorage.getItem("sv_repo") || "";
+    const branch = localStorage.getItem("sv_branch") || "main";
+    if(token && owner && repo && window.ShadowGH){
+      try{
+        const r = await ShadowGH.getFile({ token, owner, repo, branch, path:"data/reservations.json" });
+        return { mode:"gh", token, owner, repo, branch, sha:r.sha, list: normalizeReservations(JSON.parse(r.content||"[]")) };
+      }catch(e){
+        if(Number(e?.status||0)===404){
+          return { mode:"gh", token, owner, repo, branch, sha:null, list: [] };
+        }
+        throw e;
+      }
+    }
+    // fallback local
+    let list=[];
+    try{ list = normalizeReservations(JSON.parse(localStorage.getItem("sv_reservations_local")||"[]")); }catch{}
+    return { mode:"local", list };
+  }
+
+  async function saveReservationsDoc(ctx){
+    if(ctx.mode==="gh"){
+      const text = JSON.stringify(ctx.list||[], null, 2);
+      const res = await ShadowGH.putFileSafe({
+        token: ctx.token, owner: ctx.owner, repo: ctx.repo, branch: ctx.branch,
+        path:"data/reservations.json",
+        message:"Update reservations.json",
+        content: text,
+        sha: ctx.sha
+      });
+      ctx.sha = res?.content?.sha || ctx.sha;
+      return true;
+    }else{
+      try{ localStorage.setItem("sv_reservations_local", JSON.stringify(ctx.list||[])); }catch{}
+      return true;
+    }
+  }
+
+  async function submitReservation(){
+    const items = cartItemsResolved();
+    if(!items.length){ state.cartStep="items"; renderCart(); return; }
+
+    // build reservation object
+    const now = new Date();
+    const exp = new Date(Date.now() + 48*60*60*1000);
+    const resId = (crypto.randomUUID ? crypto.randomUUID() : (Date.now().toString(36)+Math.random().toString(36).slice(2)));
+    const code = genPublicCode();
+
+    const resObj = {
+      id: resId,
+      publicCode: code,
+      createdAt: now.toISOString(),
+      expiresAt: exp.toISOString(),
+      status: "active",
+      modified: false,
+      modifiedAck: false,
+      replacedBy: null,
+      previousId: state.editingReservationId || null,
+      items: items.map(it=>({
+        productId: String(it.pid),
+        qty: Number(it.qty),
+        price: Number(effectivePrice(it.p)),
+        name: getName(it.p),
+        flavor: getFlavor(it.p),
+        image: it.p.image || ""
+      }))
+    };
+
+    const ctx = await loadReservationsDocForWrite();
+    ctx.list = normalizeReservations(ctx.list||[]);
+    // clean expired
+    ctx.list = ctx.list.map(r=>{
+      if(r.status==="active" && r.expiresAt && Date.parse(r.expiresAt) <= Date.now()){
+        return { ...r, status:"expired" };
+      }
+      return r;
+    });
+
+    if(state.editingReservationId){
+      const oldId=String(state.editingReservationId);
+      ctx.list = ctx.list.map(r=>{
+        if(String(r.id)===oldId){
+          return { ...r, status:"superseded", modified:true, modifiedAck:false, replacedBy: resId };
+        }
+        return r;
+      });
+    }
+
+    ctx.list.unshift(resObj);
+    await saveReservationsDoc(ctx);
+
+    // update local state (for stock calc)
+    state.reservations = ctx.list;
+    state.lastReservationPublicCode = code;
+    state.cartStep="done";
+    state.cart={};
+    state.editingReservationId=null;
+    persistCart();
+    refreshCartBadge();
+    renderGrid();
+    renderCart();
+  }
+
+  function injectMyReservationsNav(){
+    // after nav built
+    const nav = document.querySelector("#nav");
+    if(!nav) return;
+    if(nav.querySelector('[data-special="myres"]')) return;
+
+    const btn = document.createElement("button");
+    btn.className = "nav-btn";
+    btn.setAttribute("data-special","myres");
+    btn.innerHTML = `🧾 <span>${t("myRes")}</span>`;
+    btn.onclick = () => openMyReservationPrompt();
+    // insert after first button (all)
+    const first = nav.querySelector("button");
+    if(first && first.nextSibling) nav.insertBefore(btn, first.nextSibling);
+    else nav.appendChild(btn);
+  }
+
+  function openMyReservationPrompt(){
+    const bg = document.querySelector("#cartBg");
+    if(!bg) { ensureCartUI(); }
+    openCart();
+    const body = document.querySelector("#cartBody");
+    const foot = document.querySelector("#cartFoot");
+    const title = document.querySelector("#cartTitle");
+    title.textContent = t("myRes");
+    body.innerHTML = `
+      <div class="small-muted" style="margin-top:10px;">Írd be a foglalás belső ID-jét (ezt csak az admin látja).</div>
+      <input id="resLookup" placeholder="Foglalás ID..." style="margin-top:10px;width:100%;border-radius:14px;border:1px solid rgba(255,255,255,.10);background:rgba(11,15,23,.35);color:var(--text);padding:12px;outline:none;">
+      <div id="resLookupMsg" class="small-muted" style="margin-top:10px;"></div>
+    `;
+    foot.innerHTML = `
+      <button class="cart-ghost" id="backCart">Vissza</button>
+      <button class="cart-primary" id="loadResBtn">Betöltés</button>
+    `;
+    foot.querySelector("#backCart").onclick=()=>{ state.cartStep="items"; renderCart(); };
+    foot.querySelector("#loadResBtn").onclick=async ()=>{
+      const id = (body.querySelector("#resLookup").value||"").trim();
+      const msg = body.querySelector("#resLookupMsg");
+      msg.textContent = "Keresés...";
+      try{
+        const raw = await fetchReservations({ forceBust:true });
+        const list = normalizeReservations(raw||[]);
+        const r = list.find(x=>String(x.id)===String(id));
+        if(!r || !isReservationActive(r)){
+          msg.textContent = "Nincs ilyen aktív foglalás.";
+          return;
+        }
+        // load into cart
+        state.cart = {};
+        for(const it of (r.items||[])){
+          state.cart[String(it.productId)] = Number(it.qty||0);
+        }
+        state.editingReservationId = String(r.id);
+        persistCart();
+        refreshCartBadge();
+        renderGrid();
+        msg.textContent = "Betöltve a kosárba ✅";
+        setTimeout(()=>{ state.cartStep="items"; renderCart(); }, 650);
+      }catch(e){
+        msg.textContent = "Nem sikerült betölteni.";
+      }
+    };
+  }
   /* ----------------- Source resolving (RAW preferált, custom domainen is) ----------------- */
   let source = null; // {owner, repo, branch}
 
@@ -349,6 +694,9 @@
   async function fetchSales({ forceBust=false } = {}){
     return await fetchJson("data/sales.json", { forceBust });
   }
+  async function fetchReservations({ forceBust=false } = {}){
+    return await fetchJson("data/reservations.json", { forceBust });
+  }
 
   function normalizeDoc(data) {
     if (Array.isArray(data)) return { categories: [], products: data, popups: [], _meta: null };
@@ -386,6 +734,50 @@
         items
       };
     }).filter(s => s.id);
+  }
+
+  function normalizeReservations(arr){
+    const now = Date.now();
+    const list = Array.isArray(arr) ? arr : [];
+    return list.map(r => ({
+      id: String(r.id || ""),
+      publicCode: String(r.publicCode || ""),
+      createdAt: r.createdAt || null,
+      expiresAt: r.expiresAt || null,
+      status: String(r.status || "active"), // active | converted | expired | superseded
+      modified: !!r.modified,
+      modifiedAck: !!r.modifiedAck,
+      replacedBy: r.replacedBy ? String(r.replacedBy) : null,
+      previousId: r.previousId ? String(r.previousId) : null,
+      items: Array.isArray(r.items) ? r.items.map(it => ({
+        productId: String(it.productId || ""),
+        qty: Number(it.qty || 0),
+        price: Number(it.price || 0),
+        name: String(it.name || ""),
+        flavor: String(it.flavor || ""),
+        image: String(it.image || "")
+      })).filter(x => x.productId && x.qty>0) : []
+    })).filter(r => r.id);
+  }
+
+  function isReservationActive(r){
+    if(!r) return false;
+    if(String(r.status) !== "active") return false;
+    const exp = r.expiresAt ? Date.parse(r.expiresAt) : 0;
+    if(exp && exp <= Date.now()) return false;
+    return true;
+  }
+
+  function computeReservedByProduct(){
+    const map = new Map();
+    for(const r of (state.reservations||[])){
+      if(!isReservationActive(r)) continue;
+      for(const it of (r.items||[])){
+        const k=String(it.productId);
+        map.set(k, (map.get(k)||0) + Number(it.qty||0));
+      }
+    }
+    return map;
   }
 
   /* ----------------- Featured (Felkapott) ----------------- */
@@ -472,93 +864,6 @@
   function salesSig(sales){
     try{ return hashStr(JSON.stringify(sales || [])); }catch{ return ""; }
   }
-function normalizeReservations(data){
-  if(!Array.isArray(data)) return [];
-  const now = Date.now();
-  const out = [];
-  for(const r of data){
-    if(!r || !r.id) continue;
-    const createdAt = String(r.createdAt || r.created || "");
-    const expiresAt = String(r.expiresAt || r.expires || "");
-    const status = String(r.status || "active");
-    const createdMs = createdAt ? Date.parse(createdAt) : NaN;
-    const expMs = expiresAt ? Date.parse(expiresAt) : (Number.isFinite(createdMs) ? createdMs + 48*3600*1000 : NaN);
-
-    // lejárt → dobjuk (tűnjön el)
-    if(status === "active" && Number.isFinite(expMs) && expMs <= now) continue;
-
-    const items = Array.isArray(r.items) ? r.items.map(it => ({
-      productId: String(it.productId || it.pid || ""),
-      qty: Math.max(1, Number(it.qty || 1) || 1),
-      unitPrice: Math.max(0, Number(it.unitPrice || it.price || 0) || 0),
-    })).filter(it => it.productId) : [];
-
-    out.push({
-      id: String(r.id),
-      publicCode: String(r.publicCode || r.code || ""),
-      createdAt: createdAt || (Number.isFinite(createdMs) ? new Date(createdMs).toISOString() : new Date().toISOString()),
-      expiresAt: expiresAt || (Number.isFinite(expMs) ? new Date(expMs).toISOString() : new Date(Date.now()+48*3600*1000).toISOString()),
-      status,
-      supersededBy: r.supersededBy ? String(r.supersededBy) : null,
-      modifiedFlag: !!r.modifiedFlag,
-      modifiedAck: !!r.modifiedAck,
-      modifiedFrom: r.modifiedFrom ? String(r.modifiedFrom) : null,
-      items,
-    });
-  }
-  return out;
-}
-
-function hashObj(obj){
-  try{
-    return String(JSON.stringify(obj)).length + ":" + btoa(unescape(encodeURIComponent(JSON.stringify(obj)))).slice(0,64);
-  }catch{
-    try{ return String(JSON.stringify(obj)).length + ":" + Date.now(); }catch{ return String(Date.now()); }
-  }
-}
-
-function computeReservedByProduct(){
-  const m = new Map();
-  for(const r of state.reservations){
-    if(!r || r.status !== "active") continue;
-    const exp = Date.parse(r.expiresAt || "");
-    if(Number.isFinite(exp) && exp <= Date.now()) continue;
-    for(const it of (r.items||[])){
-      const pid = String(it.productId||"");
-      const q = Math.max(0, Number(it.qty||0) || 0);
-      if(!pid || !q) continue;
-      m.set(pid, (m.get(pid)||0) + q);
-    }
-  }
-  state.reservedByProduct = m;
-}
-
-function reservedQty(pid){
-  return Math.max(0, Number(state.reservedByProduct.get(String(pid)) || 0) || 0);
-}
-
-function cartQty(pid){
-  return Math.max(0, Number(state.cart[String(pid)] || 0) || 0);
-}
-
-function availQtyForProduct(p){
-  if(!p) return 0;
-  if(isSoon(p)) return 0;
-  const base = Math.max(0, Number(p.stock||0) || 0);
-  const res = reservedQty(p.id);
-  return Math.max(0, base - res);
-}
-
-function applyReservationsIfChanged(list){
-  const norm = normalizeReservations(list||[]);
-  const h = hashObj(norm);
-  if(h === state.reservationsHash) return false;
-  state.reservationsHash = h;
-  state.reservations = norm;
-  computeReservedByProduct();
-  return true;
-}
-
 
   function applyDocIfNewer(nextDoc, { source="net" } = {}){
     const next = normalizeDoc(nextDoc);
@@ -597,6 +902,18 @@ function applyReservationsIfChanged(list){
     state.sales = arr;
     state.salesHash = sig;
     state.salesFresh = !!fresh;
+    return true;
+  }
+
+  function applyReservationsIfChanged(list, { fresh=false } = {}){
+    const h = JSON.stringify(list || []);
+    if(h === state.resHash) {
+      if(fresh) state.reservationsFresh = true;
+      return false;
+    }
+    state.reservations = list || [];
+    state.resHash = h;
+    if(fresh) state.reservationsFresh = true;
     return true;
   }
 
@@ -672,468 +989,6 @@ function applyReservationsIfChanged(list){
     return v.toLocaleString("hu-HU") + " Ft";
   }
 
-/* ----------------- Cart + reservation UI ----------------- */
-function ensureTopbarCart(){
-  const topbar = document.querySelector(".topbar");
-  if(!topbar) return;
-  if(document.querySelector("#svCartBtn")) return;
-
-  const btn = document.createElement("button");
-  btn.id = "svCartBtn";
-  btn.className = "cart-btn";
-  btn.type = "button";
-  btn.innerHTML = `<span class="cart-ic">🛒</span><span class="cart-txt">Kosár</span><span class="cart-badge" id="svCartBadge" style="display:none">0</span>`;
-  btn.onclick = () => openCart();
-
-  topbar.appendChild(btn);
-  updateCartBadge();
-}
-
-function ensureCartModal(){
-  if(document.querySelector("#svCartBg")) return;
-  const bg = document.createElement("div");
-  bg.id = "svCartBg";
-  bg.className = "cart-bg";
-  bg.innerHTML = `<div class="cart-modal">
-    <div class="cart-head">
-      <div class="cart-title" id="svCartTitle">Kosár</div>
-      <button class="ghost cart-close" id="svCartClose" type="button">✕</button>
-    </div>
-    <div class="cart-body" id="svCartBody"></div>
-    <div class="cart-foot" id="svCartFoot"></div>
-  </div>`;
-  document.body.appendChild(bg);
-  bg.addEventListener("click", (e) => { if(e.target === bg) closeCart(); });
-  bg.querySelector("#svCartClose").onclick = closeCart;
-}
-
-function updateCartBadge(){
-  const n = Object.values(state.cart||{}).reduce((a,b)=>a+(Number(b)||0),0);
-  const badge = document.querySelector("#svCartBadge");
-  if(!badge) return;
-  if(n>0){
-    badge.style.display = "inline-flex";
-    badge.textContent = String(n);
-  }else{
-    badge.style.display = "none";
-    badge.textContent = "0";
-  }
-}
-
-function openCart(){
-  ensureCartModal();
-  state.cartView = "edit";
-  state.cartConfirmDel = null;
-  state.cartUnlockAt = 0;
-  state.cartPublicCode = null;
-  renderCart();
-  document.querySelector("#svCartBg").style.display = "flex";
-}
-
-function closeCart(){
-  const bg = document.querySelector("#svCartBg");
-  if(bg) bg.style.display = "none";
-}
-
-function setCartModeNew(){
-  state.cartMode = "new";
-  state.cartReservationId = null;
-}
-
-function setCartModeModify(resId){
-  state.cartMode = "modify";
-  state.cartReservationId = String(resId||"");
-}
-
-function cartItemList(){
-  const out = [];
-  for(const [pid, qtyRaw] of Object.entries(state.cart||{})){
-    const qty = Math.max(0, Number(qtyRaw||0) || 0);
-    if(!qty) continue;
-    const p = (state.productsDoc.products||[]).find(x=>String(x.id)===String(pid));
-    if(!p) continue;
-    out.push({ p, qty, unitPrice: effectivePrice(p) });
-  }
-  out.sort((a,b)=> (getName(a.p)+" "+getFlavor(a.p)).localeCompare(getName(b.p)+" "+getFlavor(b.p), locale()));
-  return out;
-}
-
-function addToCart(pid, delta=1){
-  pid = String(pid||"");
-  if(!pid) return;
-  const p = (state.productsDoc.products||[]).find(x=>String(x.id)===pid);
-  if(!p) return;
-  if(isSoon(p)) return;
-
-  const avail = availQtyForProduct(p);
-  const cur = cartQty(pid);
-  const next = Math.max(0, cur + delta);
-  if(next > avail) return;
-
-  state.cart[pid] = next;
-  if(!state.cart[pid]) delete state.cart[pid];
-  updateCartBadge();
-}
-
-function renderCart(){
-  ensureCartModal();
-  const body = document.querySelector("#svCartBody");
-  const foot = document.querySelector("#svCartFoot");
-  const title = document.querySelector("#svCartTitle");
-  if(!body || !foot || !title) return;
-
-  const items = cartItemList();
-  const total = items.reduce((a,it)=>a + it.qty*it.unitPrice, 0);
-
-  title.textContent = state.cartMode === "modify" ? "Foglalás módosítása" : "Kosár";
-
-  if(state.cartView === "done"){
-    body.innerHTML = `
-      <div class="small-muted">Kész ✅</div>
-      <div style="margin-top:10px;font-size:34px;font-weight:900;letter-spacing:1px;">${escapeHtml(state.cartPublicCode || "—")}</div>
-      <div class="small-muted">Rendelésazonosító</div>
-    `;
-    foot.innerHTML = `<button class="primary" type="button" id="svCartDone">Oké</button>`;
-    document.querySelector("#svCartDone").onclick = () => {
-      closeCart();
-      // ürítés
-      state.cart = {};
-      updateCartBadge();
-      setCartModeNew();
-    };
-    return;
-  }
-
-  if(!items.length){
-    body.innerHTML = `<div class="small-muted">A kosár üres.</div>`;
-    foot.innerHTML = `<button class="ghost" type="button" id="svCartClose2">Bezár</button>`;
-    document.querySelector("#svCartClose2").onclick = closeCart;
-    return;
-  }
-
-  if(state.cartView === "summary"){
-    const now = Date.now();
-    const locked = now < state.cartUnlockAt;
-    const left = Math.max(0, Math.ceil((state.cartUnlockAt - now)/1000));
-
-    body.innerHTML = `
-      <div class="small-muted">Összegzés</div>
-      <div class="cart-sum">
-        ${items.map(it => {
-          const name = (getName(it.p) + (getFlavor(it.p) ? " • "+getFlavor(it.p) : "")).trim();
-          return `<div class="cart-line">
-            <div class="cart-line-name">${escapeHtml(name)}</div>
-            <div class="cart-line-qty">× <b>${it.qty}</b></div>
-            <div class="cart-line-price"><b>${fmtFt(it.qty*it.unitPrice)}</b></div>
-          </div>`;
-        }).join("")}
-      </div>
-      <div class="cart-total">Összesen: <b>${fmtFt(total)}</b></div>
-      <div class="small-muted" style="margin-top:8px;">A "Megerősítés" gomb <b>3 másodperc</b> múlva lesz kattintható.</div>
-    `;
-
-    foot.innerHTML = `
-      <button class="ghost" type="button" id="svBackEdit">Vissza</button>
-      <button class="primary" type="button" id="svConfirmBtn" ${locked ? "disabled":""}>Megerősítés${locked ? ` (${left})`:""}</button>
-    `;
-    document.querySelector("#svBackEdit").onclick = () => { state.cartView="edit"; renderCart(); };
-    const btn = document.querySelector("#svConfirmBtn");
-    btn.onclick = async () => {
-      if(Date.now() < state.cartUnlockAt) return;
-      await commitReservation();
-    };
-
-    if(locked){
-      setTimeout(() => { if(state.cartView==="summary") renderCart(); }, 250);
-    }
-    return;
-  }
-
-  // edit view
-  body.innerHTML = `
-    <div class="cart-list">
-      ${items.map(it => {
-        const pid = String(it.p.id);
-        const name = (getName(it.p) + (getFlavor(it.p) ? " • "+getFlavor(it.p) : "")).trim();
-        const avail = availQtyForProduct(it.p);
-        const resv = reservedQty(pid);
-        const stock = Math.max(0, Number(it.p.stock||0)||0);
-        const remaining = Math.max(0, avail - it.qty);
-
-        const confirm = state.cartConfirmDel === pid;
-
-        return `<div class="cart-item">
-          <div class="cart-item-top">
-            <div>
-              <div class="cart-item-name">${escapeHtml(name)}</div>
-              <div class="small-muted">Készlet: <b>${stock}</b> • Foglalt: <b>${resv}</b> • Elérhető: <b>${avail}</b></div>
-            </div>
-            <div class="cart-ctrl">
-              <button class="ghost" type="button" data-minus="${escapeHtml(pid)}">−</button>
-              <div class="cart-qty">${it.qty}</div>
-              <button class="ghost" type="button" data-plus="${escapeHtml(pid)}" ${remaining<=0 ? "disabled":""}>+</button>
-            </div>
-          </div>
-          ${confirm ? `<div class="cart-confirm">
-            <div style="font-weight:800;">Biztos szeretnéd törölni a "${escapeHtml(name)}" terméket?</div>
-            <div style="display:flex;gap:10px;margin-top:10px;">
-              <button class="danger" type="button" data-yesdel="${escapeHtml(pid)}">Igen</button>
-              <button class="ghost" type="button" data-nodel="${escapeHtml(pid)}">Mégse</button>
-            </div>
-          </div>` : ``}
-        </div>`;
-      }).join("")}
-    </div>
-    <div class="cart-total">Összesen: <b>${fmtFt(total)}</b></div>
-  `;
-
-  foot.innerHTML = `
-    <button class="ghost" type="button" id="svCloseEdit">Bezár</button>
-    <button class="primary" type="button" id="svReserveBtn">${state.cartMode==="modify" ? "Foglalás módosítása" : "Foglalás"}</button>
-  `;
-
-  document.querySelector("#svCloseEdit").onclick = closeCart;
-  document.querySelector("#svReserveBtn").onclick = () => {
-    state.cartView = "summary";
-    state.cartUnlockAt = Date.now() + 3000;
-    renderCart();
-  };
-
-  body.querySelectorAll("button[data-plus]").forEach(b => {
-    b.onclick = () => { addToCart(b.dataset.plus, +1); renderCart(); };
-  });
-  body.querySelectorAll("button[data-minus]").forEach(b => {
-    b.onclick = () => {
-      const pid = b.dataset.minus;
-      const cur = cartQty(pid);
-      if(cur <= 1){
-        state.cartConfirmDel = pid;
-        renderCart();
-      }else{
-        addToCart(pid, -1);
-        renderCart();
-      }
-    };
-  });
-  body.querySelectorAll("button[data-yesdel]").forEach(b => {
-    b.onclick = () => {
-      const pid = b.dataset.yesdel;
-      delete state.cart[pid];
-      state.cartConfirmDel = null;
-      updateCartBadge();
-      renderCart();
-    };
-  });
-  body.querySelectorAll("button[data-nodel]").forEach(b => {
-    b.onclick = () => {
-      state.cartConfirmDel = null;
-      renderCart();
-    };
-  });
-}
-
-function genId(prefix){
-  return `${prefix}_${Math.random().toString(16).slice(2)}_${Date.now().toString(16)}`;
-}
-
-function genPublicCode(reservations){
-  // 3 számjegy, próbáljon nem ütközni aktívval
-  const activeCodes = new Set((reservations||[]).filter(r=>r && r.status==="active").map(r=>String(r.publicCode||"")));
-  for(let i=0;i<50;i++){
-    const code = String(Math.floor(100 + Math.random()*900));
-    if(!activeCodes.has(code)) return code;
-  }
-  return String(Math.floor(100 + Math.random()*900));
-}
-
-function getWriteCfg(){
-  const token = (localStorage.getItem("sv_token") || "").trim();
-  const owner = (localStorage.getItem("sv_owner") || "").trim();
-  const repo = (localStorage.getItem("sv_repo") || "").trim();
-  const branch = (localStorage.getItem("sv_branch") || "").trim() || "main";
-  if(!token || !owner || !repo) return null;
-  return { token, owner, repo, branch };
-}
-
-async function loadReservationsForWrite(cfg){
-  try{
-    const f = await ShadowGH.getFile({ token: cfg.token, owner: cfg.owner, repo: cfg.repo, branch: cfg.branch, path: "data/reservations.json" });
-    const list = normalizeReservations(JSON.parse(f.content || "[]"));
-    return { sha: f.sha || null, list };
-  }catch(e){
-    if(Number(e?.status || 0) === 404){
-      return { sha: null, list: [] };
-    }
-    throw e;
-  }
-}
-
-async function saveReservationsForWrite(cfg, list, sha){
-  const text = JSON.stringify(list, null, 2);
-  const res = await ShadowGH.putFileSafe({
-    token: cfg.token, owner: cfg.owner, repo: cfg.repo, branch: cfg.branch,
-    path: "data/reservations.json",
-    message: "Update reservations.json",
-    content: text,
-    sha
-  });
-  return res?.content?.sha || sha || null;
-}
-
-async function commitReservation(){
-  const items = cartItemList();
-  if(!items.length) return;
-
-  // final stock check against current view
-  for(const it of items){
-    const avail = availQtyForProduct(it.p);
-    if(it.qty > avail) return;
-  }
-
-  const cfg = getWriteCfg();
-  // fallback local-only
-  if(!cfg){
-    const raw = localStorage.getItem("sv_reservations_local") || "[]";
-    let list = [];
-    try{ list = normalizeReservations(JSON.parse(raw)); }catch{ list = []; }
-
-    const createdAt = new Date().toISOString();
-    const expiresAt = new Date(Date.now() + 48*3600*1000).toISOString();
-    const publicCode = genPublicCode(list);
-
-    let oldId = null;
-    if(state.cartMode === "modify" && state.cartReservationId){
-      oldId = String(state.cartReservationId);
-      const old = list.find(r => r.id === oldId);
-      if(old && old.status === "active"){
-        old.status = "superseded";
-        old.supersededBy = "pending";
-      }
-    }
-
-    const newId = genId("r");
-    const r = {
-      id: newId,
-      publicCode,
-      createdAt,
-      expiresAt,
-      status: "active",
-      modifiedFlag: (state.cartMode === "modify"),
-      modifiedAck: false,
-      modifiedFrom: oldId,
-      items: items.map(it => ({ productId: String(it.p.id), qty: it.qty, unitPrice: it.unitPrice }))
-    };
-
-    if(oldId){
-      const old = list.find(x=>x.id===oldId);
-      if(old){
-        old.supersededBy = newId;
-      }
-    }
-
-    list.unshift(r);
-    try{ localStorage.setItem("sv_reservations_local", JSON.stringify(list)); }catch{}
-
-    applyReservationsIfChanged(list);
-    state.cartPublicCode = publicCode;
-    state.cartView = "done";
-    renderCart();
-    return;
-  }
-
-  // GH save
-  const pack = await loadReservationsForWrite(cfg);
-  let list = pack.list;
-  let sha = pack.sha;
-
-  const createdAt = new Date().toISOString();
-  const expiresAt = new Date(Date.now() + 48*3600*1000).toISOString();
-  const publicCode = genPublicCode(list);
-
-  let oldId = null;
-  if(state.cartMode === "modify" && state.cartReservationId){
-    oldId = String(state.cartReservationId);
-    const old = list.find(r => r.id === oldId);
-    if(!old || old.status !== "active"){
-      setCartModeNew();
-      return;
-    }
-    old.status = "superseded";
-    old.supersededBy = "pending";
-  }
-
-  const newId = genId("r");
-  const r = {
-    id: newId,
-    publicCode,
-    createdAt,
-    expiresAt,
-    status: "active",
-    modifiedFlag: (state.cartMode === "modify"),
-    modifiedAck: false,
-    modifiedFrom: oldId,
-    items: items.map(it => ({ productId: String(it.p.id), qty: it.qty, unitPrice: it.unitPrice }))
-  };
-
-  if(oldId){
-    const old = list.find(x=>x.id===oldId);
-    if(old) old.supersededBy = newId;
-  }
-
-  list.unshift(r);
-  sha = await saveReservationsForWrite(cfg, list, sha);
-
-  applyReservationsIfChanged(list);
-  state.cartPublicCode = publicCode;
-  state.cartView = "done";
-  renderCart();
-}
-
-function openReservationLookup(){
-  ensureCartModal();
-  const body = document.querySelector("#svCartBody");
-  const foot = document.querySelector("#svCartFoot");
-  const title = document.querySelector("#svCartTitle");
-  if(!body || !foot || !title) return;
-
-  title.textContent = "Foglalásaim";
-  body.innerHTML = `
-    <div class="small-muted">Add meg a foglalás ID-t (amit adminon látsz).</div>
-    <input id="svResIdInp" placeholder="pl. r_..." class="cart-input" />
-    <div class="small-muted" id="svResErr" style="margin-top:10px;display:none;color:var(--danger);">Nem találom ezt a foglalást.</div>
-  `;
-  foot.innerHTML = `
-    <button class="ghost" type="button" id="svResCancel">Mégse</button>
-    <button class="primary" type="button" id="svResLoad">Betöltés</button>
-  `;
-  document.querySelector("#svCartBg").style.display = "flex";
-  document.querySelector("#svResCancel").onclick = () => { closeCart(); };
-  document.querySelector("#svResLoad").onclick = async () => {
-    const rid = (document.querySelector("#svResIdInp").value||"").trim();
-    if(!rid) return;
-
-    try{ await loadAll({ forceBust:true }); }catch{}
-
-    const r = (state.reservations||[]).find(x=>String(x.id)===rid && x.status==="active");
-    if(!r){
-      const err = document.querySelector("#svResErr");
-      if(err) err.style.display = "block";
-      return;
-    }
-
-    state.cart = {};
-    for(const it of (r.items||[])){
-      state.cart[String(it.productId)] = Math.max(1, Number(it.qty||1)||1);
-    }
-    setCartModeModify(rid);
-    updateCartBadge();
-    state.cartView = "edit";
-    state.cartConfirmDel = null;
-    renderCart();
-  };
-}
-
-
   function renderNav() {
     const nav = $("#nav");
     nav.innerHTML = "";
@@ -1150,15 +1005,6 @@ function openReservationLookup(){
         renderGrid();
       };
       nav.appendChild(btn);
-
-      // Foglalásaim gomb közvetlenül az Összes termék alatt
-      if(c.id === "all"){
-        const rbtn = document.createElement("button");
-        rbtn.className = "nav-res-btn";
-        rbtn.textContent = "Foglalásaim";
-        rbtn.onclick = () => openReservationLookup();
-        nav.appendChild(rbtn);
-      }
     }
   }
 
@@ -1217,10 +1063,9 @@ function openReservationLookup(){
       const out = isOut(p);
       const soon = isSoon(p);
       const featured = featuredIds.has(String(p.id));
+      const reserved = Number(reservedMap.get(String(p.id)) || 0);
       const baseStock = Math.max(0, Number(p.stock || 0));
-      const reserved = reservedQty(p.id);
-      const available = soon ? 0 : Math.max(0, baseStock - reserved);
-      const stockShown = out ? 0 : (soon ? baseStock : available);
+      const stockShown = out ? 0 : (soon ? baseStock : Math.max(0, baseStock - reserved));
       const price = effectivePrice(p);
 
       // Determine card classes based on status
@@ -1291,6 +1136,15 @@ function openReservationLookup(){
       hero.appendChild(badges);
       hero.appendChild(overlay);
 
+      const addBtn = document.createElement('button');
+      addBtn.className = 'addcart';
+      addBtn.title = 'Kosárba';
+      const avail = soon || out ? 0 : Math.max(0, baseStock - reserved);
+      addBtn.disabled = avail <= 0;
+      addBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M6 6h15l-1.5 9h-12z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M6 6l-2-2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M9 21a1 1 0 100-2 1 1 0 000 2z" fill="currentColor"/><path d="M18 21a1 1 0 100-2 1 1 0 000 2z" fill="currentColor"/></svg>`;
+      addBtn.onclick = (e) => { e.stopPropagation(); addToCart(p.id, 1); };
+      hero.appendChild(addBtn);
+
       const body = document.createElement("div");
       body.className = "card-body";
 
@@ -1315,8 +1169,6 @@ function openReservationLookup(){
       grid.appendChild(card);
     }
   }
-
-    updateCartBadge();
 
   /* ----------------- Popups (New products) ----------------- */
   function popupHideKey(pp){
@@ -1717,12 +1569,11 @@ function openReservationLookup(){
 
       // sales: csak akkor frissnek tekintjük, ha a payload ténylegesen tartalmaz sales adatot
       const salesChanged = applySalesIfChanged(normalizeSales(payload.sales || []), { fresh: true });
-      const resChanged = ("reservations" in payload) ? applyReservationsIfChanged(payload.reservations || []) : false;
 
-      if(docChanged || salesChanged || resChanged){
+      if(docChanged || salesChanged){
         computeFeaturedByCategory();
       }
-      return (docChanged || salesChanged || resChanged);
+      return (docChanged || salesChanged);
     }catch{ return false; }
   }
 
@@ -1748,17 +1599,15 @@ function openReservationLookup(){
       // ha nem tudjuk biztosan betölteni, ne jelenítsünk meg felkapottat
       state.salesFresh = false;
     }
-
-
-    // reservations (foglalások)
+    // reservations
     try{
       const resRaw = await fetchReservations({ forceBust });
-      const rChanged = applyReservationsIfChanged(resRaw || []);
+      const rChanged = applyReservationsIfChanged(normalizeReservations(resRaw || []), { fresh:true });
       if(rChanged) changed = true;
     }catch{
-      const rChanged = applyReservationsIfChanged([]);
-      if(rChanged) changed = true;
+      state.reservationsFresh = false;
     }
+
 
     // featured depends on BOTH products+sales; csak ha változott valami (vagy ha salesFresh változott)
     if(changed || !state.salesFresh){
@@ -1782,9 +1631,6 @@ function openReservationLookup(){
     renderNav();
     renderGrid();
 
-    ensureTopbarCart();
-    ensureCartModal();
-
     // show app
     $("#loader").style.display = "none";
     $("#app").style.display = "grid";
@@ -1807,15 +1653,12 @@ function openReservationLookup(){
             // admin mentés után ez friss
             changed = applySalesIfChanged(normalizeSales(e.data.sales || []), { fresh:true }) || changed;
           }
-          if("reservations" in e.data){
-            changed = applyReservationsIfChanged(e.data.reservations || []) || changed;
-          }
           if(changed){
             computeFeaturedByCategory();
             renderNav();
+            injectMyReservationsNav();
+            ensureCartUI();
             renderGrid();
-            ensureTopbarCart();
-            updateCartBadge();
             setTimeout(() => showPopupsIfNeeded(), 100);
           }
         }catch{}
@@ -1829,8 +1672,6 @@ function openReservationLookup(){
         if(changed){
           renderNav();
           renderGrid();
-          ensureTopbarCart();
-          updateCartBadge();
           setTimeout(() => showPopupsIfNeeded(), 100);
         }
       }catch{}
