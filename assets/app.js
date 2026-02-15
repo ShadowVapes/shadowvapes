@@ -656,39 +656,14 @@
   }
 
   async function fetchJson(relPath, { forceBust=false } = {}){
-    const src = await resolveSource();
-    const relBase = relPath;
-    const rawBase = src ? `https://raw.githubusercontent.com/${src.owner}/${src.repo}/${src.branch}/${relPath}` : null;
+  // ✅ CORS-fix: csak ugyanarról az originről töltünk (GitHub Pages / custom domain)
+  const url = forceBust ? `${relPath}${relPath.includes("?") ? "&" : "?"}_=${Date.now()}` : relPath;
+  const r = await fetch(url, { cache: "no-store" });
+  if(!r.ok) throw new Error(`fetchJson failed (${r.status}): ${relPath}`);
+  return await r.json();
+}
 
-    const mkUrl = (base) => forceBust ? `${base}${base.includes("?") ? "&" : "?"}_=${Date.now()}` : base;
-
-    // 1) Első körben mindig ugyanarról az originről próbáljuk (GitHub Pages / custom domain)
-    try{
-      const url = mkUrl(relBase);
-      const r = await fetch(url, { cache: "no-store" });
-      if (r.status === 304) return null;
-      if (r.ok) return await r.json();
-    }catch{}
-
-    // 2) Fallback: RAW (ha valamiért a domain nem szolgálja ki a data/ mappát)
-    if(rawBase){
-      try{
-        const url = mkUrl(rawBase);
-        const r = await fetch(url, { cache: "no-store" });
-        if (r.status === 304) return null;
-        if (r.ok) return await r.json();
-        try { localStorage.removeItem("sv_source"); } catch {}
-        source = null;
-      }catch{
-        try { localStorage.removeItem("sv_source"); } catch {}
-        source = null;
-      }
-    }
-
-    throw new Error("fetchJson failed: " + relPath);
-  }
-
-  async function fetchProducts({ forceBust=false } = {}){
+async function fetchProducts({ forceBust=false } = {}){
     return await fetchJson("data/products.json", { forceBust });
   }
   async function fetchSales({ forceBust=false } = {}){
@@ -1027,6 +1002,7 @@
     grid.innerHTML = "";
 
     let list = filterList();
+    const reservedMap = computeReservedByProduct();
 
     // ✅ Featured: kategóriánként 1-1 (ha van eladás) + kategória toggle (admin)
     const featuredIds = new Set();
@@ -1153,14 +1129,21 @@
 
       const priceEl = document.createElement("div");
       priceEl.className = "price";
-      priceEl.textContent = fmtFt(price);
+      priceEl.textContent = fmtFt(price);const stockEl = document.createElement("div");
+stockEl.className = "stock";
+stockEl.innerHTML = `${t("stock")}: <b>${soon ? "—" : stockShown} ${soon ? "" : t("pcs")}</b>`;
 
-      const stockEl = document.createElement("div");
-      stockEl.className = "stock";
-      stockEl.innerHTML = `${t("stock")}: <b>${soon ? "—" : stockShown} ${soon ? "" : t("pcs")}</b>`;
+const reservedEl = document.createElement("div");
+reservedEl.className = "reserved";
+reservedEl.innerHTML = `${t("reserved")}: <b>${soon ? "—" : reserved} ${soon ? "" : t("pcs")}</b>`;
 
-      meta.appendChild(priceEl);
-      meta.appendChild(stockEl);
+const metaRight = document.createElement("div");
+metaRight.className = "meta-right";
+metaRight.appendChild(stockEl);
+metaRight.appendChild(reservedEl);
+
+meta.appendChild(priceEl);
+meta.appendChild(metaRight);
       body.appendChild(meta);
 
       card.appendChild(hero);
