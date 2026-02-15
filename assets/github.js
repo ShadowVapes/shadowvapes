@@ -135,11 +135,5 @@
     throw lastErr || new Error("Mentés hiba");
   }
 
-  
-  async function getRepoInfo({token, owner, repo}){
-    const url = `${API}/repos/${owner}/${repo}`;
-    return await ghRequest(token, "GET", url);
-  }
-
-window.ShadowGH = { getFile, putFile, putFileSafe, getRepoInfo };
+  window.ShadowGH = { getFile, putFile, putFileSafe };
 })();
