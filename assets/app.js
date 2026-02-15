@@ -29,6 +29,9 @@
     lastReservationPublicCode: null,
   };
 
+  // Global reserved map to avoid any render-time ReferenceError
+  let reservedMap = new Map();
+
   const UI = {
     myRes: { hu: "Foglalásaim", en: "My reservations" },
     cart: { hu: "Kosár", en: "Cart" },
@@ -150,7 +153,7 @@
         const btn = document.createElement("button");
         btn.className = "cart-btn";
         btn.id = "cartBtn";
-        btn.innerHTML = `🛒 <span id="cartBtnLabel">${t("cart")}</span><span class="cart-badge" id="cartBadge" style="display:none">0</span>`;
+        btn.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6h15l-1.5 9h-12z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M6 6l-2-2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M9 21a1 1 0 100-2 1 1 0 000 2z" fill="currentColor"/><path d="M18 21a1 1 0 100-2 1 1 0 000 2z" fill="currentColor"/></svg> <span id="cartBtnLabel">${t("cart")}</span><span class="cart-badge" id="cartBadge" style="display:none">0</span>`;
         rightWrap.appendChild(btn);
 
         btn.onclick = () => openCart();
@@ -752,6 +755,7 @@ async function fetchProducts({ forceBust=false } = {}){
         map.set(k, (map.get(k)||0) + Number(it.qty||0));
       }
     }
+    reservedMap = map;
     return map;
   }
 
@@ -961,7 +965,7 @@ async function fetchProducts({ forceBust=false } = {}){
 
   function fmtFt(n) {
     const v = Number(n || 0);
-    return v.toLocaleString("hu-HU") + " Ft";
+    return v.toLocaleString("hu-HU") + " Ft";
   }
 
   function renderNav() {
@@ -981,6 +985,8 @@ async function fetchProducts({ forceBust=false } = {}){
       };
       nav.appendChild(btn);
     }
+
+    injectMyReservationsNav();
   }
 
   function getFeaturedListForAll(){
@@ -1042,6 +1048,7 @@ async function fetchProducts({ forceBust=false } = {}){
       const reserved = Number(reservedMap.get(String(p.id)) || 0);
       const baseStock = Math.max(0, Number(p.stock || 0));
       const stockShown = out ? 0 : (soon ? baseStock : Math.max(0, baseStock - reserved));
+      const avail = (soon || out) ? 0 : Math.max(0, baseStock - reserved);
       const price = effectivePrice(p);
 
       // Determine card classes based on status
@@ -1112,15 +1119,6 @@ async function fetchProducts({ forceBust=false } = {}){
       hero.appendChild(badges);
       hero.appendChild(overlay);
 
-      const addBtn = document.createElement('button');
-      addBtn.className = 'addcart';
-      addBtn.title = 'Kosárba';
-      const avail = soon || out ? 0 : Math.max(0, baseStock - reserved);
-      addBtn.disabled = avail <= 0;
-      addBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M6 6h15l-1.5 9h-12z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M6 6l-2-2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M9 21a1 1 0 100-2 1 1 0 000 2z" fill="currentColor"/><path d="M18 21a1 1 0 100-2 1 1 0 000 2z" fill="currentColor"/></svg>`;
-      addBtn.onclick = (e) => { e.stopPropagation(); addToCart(p.id, 1); };
-      hero.appendChild(addBtn);
-
       const body = document.createElement("div");
       body.className = "card-body";
 
@@ -1148,6 +1146,13 @@ meta.appendChild(metaRight);
 
       card.appendChild(hero);
       card.appendChild(body);
+
+      const cta = document.createElement("button");
+      cta.className = "card-cta";
+      cta.disabled = avail <= 0;
+      cta.innerHTML = `<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M6 6h15l-1.5 9h-12z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M6 6l-2-2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M9 21a1 1 0 100-2 1 1 0 000 2z" fill="currentColor"/><path d="M18 21a1 1 0 100-2 1 1 0 000 2z" fill="currentColor"/></svg> Kosárba`;
+      cta.onclick = (e) => { e.stopPropagation(); addToCart(p.id, 1); };
+      card.appendChild(cta);
 
       grid.appendChild(card);
     }
@@ -1612,6 +1617,8 @@ meta.appendChild(metaRight);
     await loadAll({ forceBust:true });
 
     renderNav();
+    injectMyReservationsNav();
+    ensureCartUI();
     renderGrid();
 
     // show app

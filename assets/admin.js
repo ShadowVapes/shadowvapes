@@ -371,7 +371,7 @@ try{
 
 
 
-async function tryLoadLocal(){
+async async function tryLoadLocal(){
   // ✅ Token nélkül is működjön az admin megtekintés/diagramm (read-only)
   try{
     const [doc, sales, reservations] = await Promise.all([
@@ -874,7 +874,7 @@ function markDirty(flags){
             <div style="font-weight:900;">${escapeHtml(p.name_hu||p.name_en||"—")} <span class="small-muted">• ${escapeHtml(p.flavor_hu||p.flavor_en||"")}</span></div>
             <div class="small-muted">
               Kategória: <b>${escapeHtml(c ? (c.label_hu||c.id) : "—")}</b>
-              • Ár: <b>${eff.toLocaleString("hu-HU")} Ft</b>
+              • Ár: <b>${eff.toLocaleString("hu-HU")} Ft</b>
               • Készlet: <b>${p.status==="soon" ? "—" : p.stock}</b>
               ${p.status==="soon" && p.soonEta ? `• Várható: <b>${escapeHtml(p.soonEta)}</b>` : ""}
             </div>
@@ -1063,7 +1063,7 @@ function markDirty(flags){
 
   
 function renderSales(){
-  if(state.filters.salesMode === "list") return renderSales();
+  if(state.filters.salesMode === "list") return renderSalesList();
   return renderSalesPOS();
 }
 
@@ -1201,6 +1201,7 @@ function renderSalesPOS(){
     const reserved = Number(reservedMap.get(String(p.id)) || 0);
     const baseStock = Math.max(0, Number(p.stock||0));
     const availShown = out ? 0 : (soon ? baseStock : Math.max(0, baseStock - reserved));
+    const avail = (soon || out) ? 0 : Math.max(0, baseStock - reserved);
     const price = effectivePrice(p);
 
     let cardClass = "card fade-in";
@@ -1243,21 +1244,6 @@ function renderSalesPOS(){
     hero.appendChild(badges);
     hero.appendChild(overlay);
 
-    const addBtn = document.createElement("button");
-    addBtn.className = "addcart";
-    addBtn.title = "Kosárba";
-    const avail = soon || out ? 0 : Math.max(0, baseStock - reserved);
-    addBtn.disabled = avail <= 0;
-    addBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M6 6h15l-1.5 9h-12z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M6 6l-2-2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M9 21a1 1 0 100-2 1 1 0 000 2z" fill="currentColor"/><path d="M18 21a1 1 0 100-2 1 1 0 000 2z" fill="currentColor"/></svg>`;
-    addBtn.onclick = (e) => {
-      e.stopPropagation();
-      if(posAdd(p.id, 1)){
-        const badge = $("#posCartBadge");
-        if(badge) badge.textContent = String(posCartCount());
-      }
-    };
-    hero.appendChild(addBtn);
-
     const body = document.createElement("div");
     body.className = "card-body";
     const meta = document.createElement("div");
@@ -1265,7 +1251,7 @@ function renderSalesPOS(){
 
     const priceEl = document.createElement("div");
     priceEl.className = "price";
-    priceEl.textContent = `${Number(price||0).toLocaleString("hu-HU")} Ft`;
+    priceEl.textContent = `${Number(price||0).toLocaleString("hu-HU")} Ft`;
 
     const stockEl = document.createElement("div");
     stockEl.className = "stock";
@@ -1327,21 +1313,21 @@ function openPosCartModal(){
       row.innerHTML = `
         <div class="left" style="min-width:260px;">
           <div style="font-weight:900;">${escapeHtml(it.title)}</div>
-          <div class="small-muted">${Number(it.unitPrice||0).toLocaleString("hu-HU")} Ft / db</div>
+          <div class="small-muted">${Number(it.unitPrice||0).toLocaleString("hu-HU")} Ft / db</div>
         </div>
         <div style="display:flex;gap:8px;align-items:center;">
           <button class="ghost" data-minus="${escapeHtml(it.productId)}">−</button>
           <div style="min-width:40px;text-align:center;font-weight:900;">${it.qty}</div>
           <button class="ghost" data-plus="${escapeHtml(it.productId)}">+</button>
         </div>
-        <div style="min-width:120px;text-align:right;font-weight:900;">${(Number(it.unitPrice||0)*Number(it.qty||0)).toLocaleString("hu-HU")} Ft</div>
+        <div style="min-width:120px;text-align:right;font-weight:900;">${(Number(it.unitPrice||0)*Number(it.qty||0)).toLocaleString("hu-HU")} Ft</div>
       `;
       list.appendChild(row);
     }
 
     const sum = document.createElement("div");
     sum.className = "rowline";
-    sum.innerHTML = `<div class="left"><b>Összesen</b></div><div style="font-weight:900;">${total.toLocaleString("hu-HU")} Ft</div>`;
+    sum.innerHTML = `<div class="left"><b>Összesen</b></div><div style="font-weight:900;">${total.toLocaleString("hu-HU")} Ft</div>`;
     list.appendChild(sum);
 
     list.querySelectorAll("button[data-plus]").forEach(b=>{
@@ -1459,7 +1445,7 @@ function renderSalesList(){
             <span class="small-muted">• id:</span> <span style="opacity:.85">${escapeHtml(r.id)}</span>
             ${mod}
           </div>
-          <div class="small-muted">Tételek: <b>${itemsCount}</b> • Érték: <b>${total.toLocaleString("hu-HU")} Ft</b> • Lejár: <b>${r.expiresAt ? String(r.expiresAt).slice(0,16).replace("T"," ") : "—"}</b></div>
+          <div class="small-muted">Tételek: <b>${itemsCount}</b> • Érték: <b>${total.toLocaleString("hu-HU")} Ft</b> • Lejár: <b>${r.expiresAt ? String(r.expiresAt).slice(0,16).replace("T"," ") : "—"}</b></div>
         </div>
         <div style="display:flex;gap:10px;align-items:center;">
           ${r.modified && !r.modifiedAck ? `<button class="ghost" data-ackmod="${escapeHtml(r.id)}" title="Jelzés törlése">!</button>` : ``}
@@ -1480,7 +1466,7 @@ function renderSalesList(){
             ${escapeHtml(s.date)} • ${escapeHtml(s.name || "—")}
             <span class="small-muted">• ${escapeHtml(s.payment || "")}</span>
           </div>
-          <div class="small-muted">Tételek: <b>${itemsCount}</b> • Bevétel: <b>${tot.revenue.toLocaleString("hu-HU")} Ft</b></div>
+          <div class="small-muted">Tételek: <b>${itemsCount}</b> • Bevétel: <b>${tot.revenue.toLocaleString("hu-HU")} Ft</b></div>
         </div>
         <div style="display:flex;gap:10px;align-items:center;">
           <button class="ghost" data-view="${escapeHtml(s.id)}">Megnéz</button>
@@ -1726,8 +1712,8 @@ if(preset && preset.fromPos){
       return `<tr>
         <td>${escapeHtml(n)} <span class="small-muted">${escapeHtml(f? "• "+f:"")}</span></td>
         <td><b>${it.qty}</b></td>
-        <td>${Number(it.unitPrice||0).toLocaleString("hu-HU")} Ft</td>
-        <td><b>${sum.toLocaleString("hu-HU")} Ft</b></td>
+        <td>${Number(it.unitPrice||0).toLocaleString("hu-HU")} Ft</td>
+        <td><b>${sum.toLocaleString("hu-HU")} Ft</b></td>
       </tr>`;
     }).join("");
 
@@ -1735,7 +1721,7 @@ if(preset && preset.fromPos){
 
     body.innerHTML = `
       <div class="small-muted">${escapeHtml(s.date)} • ${escapeHtml(s.name)} • ${escapeHtml(s.payment)}</div>
-      <div style="margin-top:6px;font-weight:900;">Összesen: ${tot.toLocaleString("hu-HU")} Ft</div>
+      <div style="margin-top:6px;font-weight:900;">Összesen: ${tot.toLocaleString("hu-HU")} Ft</div>
       <table class="table" style="margin-top:10px;">
         <thead><tr><th>Termék</th><th>Db</th><th>Egységár</th><th>Összeg</th></tr></thead>
         <tbody>${lines}</tbody>
@@ -2044,7 +2030,7 @@ function drawChart(){
     const labels = days.map(d => d); // teljes dátum
 
     if(kpi){
-      kpi.innerHTML = `<div class="small-muted">Összes bevétel: <b>${total.toLocaleString("hu-HU")} Ft</b> • Napok: <b>${days.length}</b></div>`;
+      kpi.innerHTML = `<div class="small-muted">Összes bevétel: <b>${total.toLocaleString("hu-HU")} Ft</b> • Napok: <b>${days.length}</b></div>`;
     }
 
     // grid
@@ -2078,7 +2064,7 @@ function drawChart(){
       const v = Math.round(maxRev * (1 - t));
       const y = top + t*h;
       ctx.fillStyle = "rgba(255,255,255,.72)";
-      ctx.fillText(`${v.toLocaleString("hu-HU")} Ft`, left - 10, y);
+      ctx.fillText(`${v.toLocaleString("hu-HU")} Ft`, left - 10, y);
     }
 
     // x labels (ritkítva)
