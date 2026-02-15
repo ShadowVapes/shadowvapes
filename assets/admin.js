@@ -11,14 +11,16 @@
   const state = {
     doc: { categories: [], products: [] },
     sales: [],
+    reservations: [],
     loaded: false,
     saving: false,
     saveQueued: false,
     dirty: false,
     dirtyProducts: false,
     dirtySales: false,
+    dirtyReservations: false,
     saveTimer: null,
-    shas: { products: null, sales: null },
+    shas: { products: null, sales: null, reservations: null },
     // hogy a public oldal biztosan megtalálja a RAW forrást (telefonon is)
     forceSourceSync: false,
     clientId: (globalThis.crypto && crypto.randomUUID) ? crypto.randomUUID() : (Date.now().toString(36) + Math.random().toString(36).slice(2)),
@@ -27,7 +29,10 @@
       salesCat: "all",
       chartCat: "all",
       productsSearch: "",
-      salesSearch: ""
+      salesSearch: "",
+      salesMode: "pos",
+      posCat: "all",
+      posSearch: ""
     }
   };
 
@@ -205,6 +210,67 @@ state.sales = state.sales.map(s => {
 }).filter(s => s.id);
   }
 
+
+
+/* ---------- Reservations ---------- */
+function normalizeReservations(){
+  if(!Array.isArray(state.reservations)) state.reservations = [];
+  state.reservations = state.reservations.map(r => ({
+    id: String(r.id || ""),
+    publicCode: String(r.publicCode || ""),
+    createdAt: r.createdAt || null,
+    expiresAt: r.expiresAt || null,
+    status: String(r.status || "active"), // active | converted | expired | superseded
+    modified: !!r.modified,
+    modifiedAck: !!r.modifiedAck,
+    replacedBy: r.replacedBy ? String(r.replacedBy) : null,
+    previousId: r.previousId ? String(r.previousId) : null,
+    saleId: r.saleId ? String(r.saleId) : null,
+    items: Array.isArray(r.items) ? r.items.map(it => ({
+      productId: String(it.productId || ""),
+      qty: Math.max(1, Number(it.qty || 0) || 1),
+      price: Math.max(0, Number(it.price || it.unitPrice || 0) || 0),
+      name: String(it.name || ""),
+      flavor: String(it.flavor || ""),
+      image: String(it.image || "")
+    })).filter(it => it.productId) : []
+  })).filter(r => r.id);
+
+  // 48h expiry: automatikus lejárat
+  const now = Date.now();
+  for(const r of state.reservations){
+    if(r.status !== "active") continue;
+    const exp = r.expiresAt ? Date.parse(r.expiresAt) : 0;
+    if(exp && exp <= now){
+      r.status = "expired";
+    }
+  }
+}
+
+function isReservationActive(r){
+  if(!r) return false;
+  if(String(r.status) !== "active") return false;
+  const exp = r.expiresAt ? Date.parse(r.expiresAt) : 0;
+  if(exp && exp <= Date.now()) return false;
+  return true;
+}
+
+function computeReservedByProduct(){
+  const map = new Map();
+  for(const r of (state.reservations||[])){
+    if(!isReservationActive(r)) continue;
+    for(const it of (r.items||[])){
+      const k = String(it.productId);
+      map.set(k, (map.get(k)||0) + Number(it.qty||0));
+    }
+  }
+  return map;
+}
+
+function modifiedReservationsCount(){
+  return (state.reservations||[]).filter(r => r && r.modified && !r.modifiedAck && isReservationActive(r)).length;
+}
+
   function catById(id){
     return state.doc.categories.find(c => c.id === String(id)) || null;
   }
@@ -241,19 +307,32 @@ state.sales = state.sales.map(s => {
 
   /* ---------- GitHub load/save ---------- */
   async function tryLoadFromGithub(cfg){
-    // branch fallback main/master automatikusan, ha "No commit found for the ref ..."
-    const branchesToTry = [cfg.branch, "main", "master"].filter((v,i,a)=> v && a.indexOf(v)===i);
+    // ✅ branch autodetect + fallback (main/master) – ne haljon meg attól, hogy régen "master" volt beírva
+    let defaultBr = null;
+    try{
+      if(window.ShadowGH && typeof ShadowGH.getRepoInfo === "function"){
+        const info = await ShadowGH.getRepoInfo({ token: cfg.token, owner: cfg.owner, repo: cfg.repo });
+        defaultBr = info && info.default_branch ? String(info.default_branch) : null;
+      }
+    }catch(_e){ /* ignore */ }
+
+    const branchesToTry = [cfg.branch, defaultBr, "main", "master"]
+      .filter(Boolean)
+      .map(String)
+      .filter((v,i,a)=> a.indexOf(v)===i);
 
     let lastErr = null;
     for(const br of branchesToTry){
       try{
         const p = await ShadowGH.getFile({ token: cfg.token, owner: cfg.owner, repo: cfg.repo, branch: br, path: "data/products.json" });
-        // sales.json lehet, hogy még nincs a repo-ban → ilyenkor induljunk üres eladásokkal
-        let s = null;
+
+        // sales.json lehet, hogy még nincs → üres
+        let s = { sha: null };
         let sales = [];
         try{
-          s = await ShadowGH.getFile({ token: cfg.token, owner: cfg.owner, repo: cfg.repo, branch: br, path: "data/sales.json" });
-          sales = JSON.parse(s.content || "[]");
+          const sf = await ShadowGH.getFile({ token: cfg.token, owner: cfg.owner, repo: cfg.repo, branch: br, path: "data/sales.json" });
+          s = sf;
+          sales = JSON.parse(sf.content || "[]");
         }catch(e){
           if(Number(e?.status || 0) === 404){
             s = { sha: null };
@@ -263,16 +342,36 @@ state.sales = state.sales.map(s => {
           }
         }
 
-        const doc = JSON.parse(p.content);
+        // reservations.json lehet, hogy még nincs → üres
+        let rr = { sha: null };
+        let reservations = [];
+        try{
+          const rf = await ShadowGH.getFile({ token: cfg.token, owner: cfg.owner, repo: cfg.repo, branch: br, path: "data/reservations.json" });
+          rr = rf;
+          reservations = JSON.parse(rf.content || "[]");
+        }catch(e){
+          if(Number(e?.status || 0) === 404){
+            rr = { sha: null };
+            reservations = [];
+          }else{
+            throw e;
+          }
+        }
+
+        const doc = JSON.parse(p.content || "{}");
 
         cfg.branch = br;
         saveCfg(cfg);
 
         state.doc = doc;
         state.sales = sales;
-        state.shas.products = p.sha;
+        state.reservations = reservations;
+        state.shas.products = p.sha || null;
         state.shas.sales = s ? (s.sha || null) : null;
+        state.shas.reservations = rr ? (rr.sha || null) : null;
+
         normalizeDoc();
+        normalizeReservations();
         state.loaded = true;
         state.forceSourceSync = true;
 
@@ -283,6 +382,32 @@ state.sales = state.sales.map(s => {
     }
     return { ok:false, err:lastErr };
   }
+
+async function tryLoadLocal(){
+  // ✅ Token nélkül is működjön az admin megtekintés/diagramm (read-only)
+  try{
+    const [doc, sales, reservations] = await Promise.all([
+      fetch("data/products.json", { cache:"no-store" }).then(r=> r.ok ? r.json() : Promise.reject(new Error("products.json"))),
+      fetch("data/sales.json", { cache:"no-store" }).then(r=> r.ok ? r.json() : []),
+      fetch("data/reservations.json", { cache:"no-store" }).then(r=> r.ok ? r.json() : [])
+    ]);
+    state.doc = doc;
+    state.sales = sales;
+    state.reservations = reservations;
+    state.shas.products = null;
+    state.shas.sales = null;
+    state.shas.reservations = null;
+    normalizeDoc();
+    normalizeReservations();
+    state.loaded = true;
+    state.forceSourceSync = false;
+    state.readonly = true;
+    return { ok:true };
+  }catch(e){
+    console.error(e);
+    return { ok:false, err:e };
+  }
+}
 
   async function loadData(){
     const cfg = getCfg();
@@ -296,6 +421,13 @@ state.sales = state.sales.map(s => {
     setSaveStatus("busy","Betöltés...");
     const r = await tryLoadFromGithub(cfg);
     if(!r.ok){
+      // fallback: local JSON – legalább az admin ne haljon meg
+      const local = await tryLoadLocal();
+      if(local.ok){
+        setSaveStatus("bad","Read-only (GH betöltés hiba)");
+        renderAll();
+        return;
+      }
       setSaveStatus("bad","Betöltés hiba");
       return;
     }
@@ -304,11 +436,11 @@ state.sales = state.sales.map(s => {
     renderAll();
   }
 
-  async function saveDataNow(){
+async function saveDataNow(){
     if(!state.loaded) return;
 
     // ✅ MENTÉS GYORSÍTÁS: Csak akkor mentünk, ha tényleges változás van
-    if (!state.dirtyProducts && !state.dirtySales) {
+    if (!state.dirtyProducts && !state.dirtySales && !state.dirtyReservations) {
       setSaveStatus("ok","Nincs változás");
       return;
     }
@@ -344,6 +476,7 @@ state.sales = state.sales.map(s => {
 
     // biztos rend
     normalizeDoc();
+    normalizeReservations();
 
     for(const p of (state.doc.products||[])){
       if(p && p.status === "out") p.stock = 0;
@@ -360,11 +493,13 @@ state.sales = state.sales.map(s => {
 
     const productsText = JSON.stringify(state.doc, null, 2);
     const salesText = JSON.stringify(state.sales, null, 2);
+    const reservationsText = JSON.stringify(state.reservations, null, 2);
 
     
 let ok = false;
 const wantProducts = !!state.dirtyProducts;
 const wantSales = !!state.dirtySales;
+    const wantReservations = !!state.dirtyReservations;
 
 try{
   // SHA csak akkor kell, ha még nincs meg (a putFileSafe úgyis frissít konflikt esetén)
@@ -381,6 +516,17 @@ try{
       if(Number(e?.status || 0) === 404) state.shas.sales = null;
       else throw e;
     }
+
+
+if(wantReservations && !state.shas.reservations){
+  try{
+    const rOld = await ShadowGH.getFile({ token: cfg.token, owner: cfg.owner, repo: cfg.repo, branch: cfg.branch, path: "data/reservations.json" });
+    state.shas.reservations = rOld.sha;
+  }catch(e){
+    if(Number(e?.status || 0) === 404) state.shas.reservations = null;
+    else throw e;
+  }
+}
   }
 
   const tasks = [];
@@ -412,6 +558,21 @@ try{
       })
     );
   }
+
+  if(wantReservations){
+    tasks.push(
+      ShadowGH.putFileSafe({
+        token: cfg.token, owner: cfg.owner, repo: cfg.repo, branch: cfg.branch,
+        path: "data/reservations.json",
+        message: "Update reservations.json",
+        content: reservationsText,
+        sha: state.shas.reservations
+      }).then((rRes)=>{
+        state.shas.reservations = rRes?.content?.sha || state.shas.reservations;
+      })
+    );
+  }
+
 
 
 
@@ -454,6 +615,7 @@ try{
   // ✅ ne reloadoljunk minden autosave után (lassú) — a state már friss
   state.dirtyProducts = false;
   state.dirtySales = false;
+  state.dirtyReservations = false;
 
   setSaveStatus("ok","Mentve ✅");
 }catch(e){
@@ -479,6 +641,7 @@ function markDirty(flags){
   const f = flags || {};
   if(f.products) state.dirtyProducts = true;
   if(f.sales) state.dirtySales = true;
+  if(f.reservations) state.dirtyReservations = true;
   queueAutoSave();
 }
 
@@ -730,7 +893,7 @@ function markDirty(flags){
             <div style="font-weight:900;">${escapeHtml(p.name_hu||p.name_en||"—")} <span class="small-muted">• ${escapeHtml(p.flavor_hu||p.flavor_en||"")}</span></div>
             <div class="small-muted">
               Kategória: <b>${escapeHtml(c ? (c.label_hu||c.id) : "—")}</b>
-              • Ár: <b>${eff.toLocaleString("hu-HU")} Ft</b>
+              • Ár: <b>${eff.toLocaleString("hu-HU")} Ft</b>
               • Készlet: <b>${p.status==="soon" ? "—" : p.stock}</b>
               ${p.status==="soon" && p.soonEta ? `• Várható: <b>${escapeHtml(p.soonEta)}</b>` : ""}
             </div>
@@ -917,67 +1080,476 @@ function markDirty(flags){
     syncStockLock();
   }
 
-  function renderSales(){
-    const cats = [{id:"all", label:"Mind"}, ...state.doc.categories.map(c=>({id:c.id,label:c.label_hu||c.id}))];
+  
+function renderSales(){
+  if(state.filters.salesMode === "list") return renderSalesList();
+  return renderSalesPOS();
+}
 
-    const filterCat = state.filters.salesCat;
-    const q = (state.filters.salesSearch || "").toLowerCase();
+const posState = {
+  cart: new Map() // pid -> qty
+};
 
-    let list = [...state.sales].sort((a,b)=> String(b.date).localeCompare(String(a.date)));
-    if(q){
-      list = list.filter(s => (`${s.name} ${s.payment}`).toLowerCase().includes(q));
-    }
-    if(filterCat !== "all"){
-      list = list.filter(s => saleTotals(s, filterCat).hit);
-    }
+function posCartCount(){
+  let n = 0;
+  for(const v of posState.cart.values()) n += Number(v||0);
+  return n;
+}
 
-    const rows = list.map(s => {
-      const tot = saleTotals(s, filterCat);
-      const itemsCount = s.items.reduce((acc,it)=> acc + Number(it.qty||0), 0);
+function posAvailable(pid){
+  const p = prodById(pid);
+  if(!p) return 0;
+  if(p.status !== "ok") return 0;
+  const reserved = Number(computeReservedByProduct().get(String(pid)) || 0);
+  return Math.max(0, Number(p.stock||0) - reserved);
+}
 
-      return `
-        <div class="rowline">
-          <div class="left">
-            <div style="font-weight:900;">
-              ${escapeHtml(s.date)} • ${escapeHtml(s.name || "—")}
-              <span class="small-muted">• ${escapeHtml(s.payment || "")}</span>
-            </div>
-            <div class="small-muted">Tételek: <b>${itemsCount}</b> • Bevétel: <b>${tot.revenue.toLocaleString("hu-HU")} Ft</b></div>
-          </div>
-          <div style="display:flex;gap:10px;align-items:center;">
-            <button class="ghost" data-view="${escapeHtml(s.id)}">Megnéz</button>
-            <button class="danger" data-delsale="${escapeHtml(s.id)}">Töröl (rollback)</button>
-          </div>
-        </div>
-      `;
-    }).join("");
+function posAdd(pid, delta){
+  const cur = Number(posState.cart.get(String(pid)) || 0);
+  const next = Math.max(0, cur + Number(delta||0));
+  const avail = posAvailable(pid);
+  if(next > avail) return false;
+  if(next <= 0) posState.cart.delete(String(pid));
+  else posState.cart.set(String(pid), next);
+  return true;
+}
 
-    $("#panelSales").innerHTML = `
-      <div class="actions table" style="align-items:center;">
-        <button class="primary" id="btnAddSale">+ Eladás</button>
-        <select id="salesCat">
-          ${cats.map(c => `<option value="${escapeHtml(c.id)}"${c.id===filterCat?" selected":""}>${escapeHtml(c.label)}</option>`).join("")}
-        </select>
-        <input id="salesSearch" placeholder="Keresés név / mód szerint..." value="${escapeHtml(state.filters.salesSearch)}" style="flex:1;min-width:220px;">
-        <div class="small-muted">Szűrés kategóriára: csak az adott kategória tételeit számolja.</div>
-      </div>
-      <div style="margin-top:10px;">${rows || `<div class="small-muted">Nincs eladás.</div>`}</div>
-    `;
+function posClear(){
+  posState.cart.clear();
+}
 
-    $("#salesCat").onchange = () => { state.filters.salesCat = $("#salesCat").value; renderSales(); drawChart(); };
-    $("#salesSearch").oninput = () => { state.filters.salesSearch = $("#salesSearch").value; renderSales(); };
+function renderSalesPOS(){
+  const reservedMap = computeReservedByProduct();
 
-    $("#btnAddSale").onclick = () => openSaleModal();
+  // categories
+  const cats = [{id:"all", label_hu:"Összes termék"}].concat(state.doc.categories.map(c=>({id:c.id, label_hu:c.label_hu||c.id})));
 
-    $("#panelSales").querySelectorAll("button[data-delsale]").forEach(b => {
-      b.onclick = () => deleteSale(b.dataset.delsale);
-    });
-    $("#panelSales").querySelectorAll("button[data-view]").forEach(b => {
-      b.onclick = () => viewSale(b.dataset.view);
+  const q = (state.filters.posSearch || "").toLowerCase();
+  const filterCat = state.filters.posCat || "all";
+
+  let list = state.doc.products.slice();
+  // ugyanúgy, mint public: Összes termék first, Hamarosan last (ha van ilyen kategória)
+  const soonCat = state.doc.categories.find(c => String(c.id).toLowerCase() === "hamarosan");
+  if(soonCat){
+    list.sort((a,b)=>{
+      const aSoon = String(a.categoryId) === String(soonCat.id);
+      const bSoon = String(b.categoryId) === String(soonCat.id);
+      if(aSoon !== bSoon) return aSoon ? 1 : -1;
+      return 0;
     });
   }
 
-  function openSaleModal(){
+  if(filterCat !== "all") list = list.filter(p => String(p.categoryId) === String(filterCat));
+  if(q){
+    list = list.filter(p => {
+      const t = `${p.name_hu||""} ${p.name_en||""} ${p.flavor_hu||""} ${p.flavor_en||""}`.toLowerCase();
+      return t.includes(q);
+    });
+  }
+
+  const modCount = modifiedReservationsCount();
+  const badgeHtml = modCount ? `<span id="resModAck" title="Jelzés törlése" style="display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;padding:0 6px;border-radius:999px;background:var(--brand);color:#12060a;font-weight:900;font-size:12px;margin-left:8px;cursor:pointer;">!</span>` : "";
+
+  const navHtml = `
+    <button class="${filterCat==="all"?"active":""}" data-cat="all">Összes termék</button>
+    ${state.doc.categories.map(c => `<button class="${String(c.id)===String(filterCat)?"active":""}" data-cat="${escapeHtml(c.id)}">${escapeHtml(c.label_hu||c.id)}</button>`).join("")}
+    <div style="height:10px;"></div>
+    <button class="${state.filters.salesMode==="list"?"active":""}" data-salesmode="list">Eladások${badgeHtml}</button>
+  `;
+
+  $("#panelSales").innerHTML = `
+    <div class="wrap" style="max-width:none;margin:0;">
+      <aside class="sidebar">
+        <div class="nav" id="posNav">${navHtml}</div>
+      </aside>
+      <main class="main">
+        <div class="topbar">
+          <div class="h1">Eladás rögzítése</div>
+          <div class="topbar-actions">
+            <input id="posSearch" class="search" placeholder="Keresés…" value="${escapeHtml(state.filters.posSearch||"")}" />
+            <button class="cart-btn" id="posCartBtn">Kosár <span class="cart-badge" id="posCartBadge">${posCartCount()}</span></button>
+          </div>
+        </div>
+        <div class="grid" id="posGrid"></div>
+        <div class="empty" id="posEmpty" style="display:none">Nincs találat.</div>
+      </main>
+    </div>
+  `;
+
+  const nav = $("#posNav");
+  nav.querySelectorAll("button[data-cat]").forEach(b=>{
+    b.onclick = () => {
+      state.filters.posCat = b.dataset.cat;
+      renderSalesPOS();
+    };
+  });
+
+  const listBtn = nav.querySelector("button[data-salesmode='list']");
+  if(listBtn){
+    listBtn.onclick = () => { state.filters.salesMode = "list"; renderSales(); };
+  }
+  const ack = $("#resModAck");
+  if(ack){
+    ack.onclick = (e) => {
+      e.stopPropagation();
+      for(const r of state.reservations){
+        if(r && r.modified && !r.modifiedAck && isReservationActive(r)) r.modifiedAck = true;
+      }
+      markDirty({ reservations:true });
+      renderSalesPOS();
+    };
+  }
+
+  const search = $("#posSearch");
+  search.oninput = () => { state.filters.posSearch = search.value; renderSalesPOS(); };
+
+  $("#posCartBtn").onclick = () => openPosCartModal();
+
+  // Render grid
+  const grid = $("#posGrid");
+  const empty = $("#posEmpty");
+  grid.innerHTML = "";
+  if(!list.length){ empty.style.display="block"; return; }
+  empty.style.display="none";
+
+  for(const p of list){
+    const name = p.name_hu || p.name_en || "—";
+    const flavor = p.flavor_hu || p.flavor_en || "";
+    const out = p.status === "out";
+    const soon = p.status === "soon";
+    const reserved = Number(reservedMap.get(String(p.id)) || 0);
+    const baseStock = Math.max(0, Number(p.stock||0));
+    const availShown = out ? 0 : (soon ? baseStock : Math.max(0, baseStock - reserved));
+    const avail = (soon || out) ? 0 : Math.max(0, baseStock - reserved);
+    const price = effectivePrice(p);
+
+    let cardClass = "card fade-in";
+    if(out) cardClass += " dim outline-red";
+    else if(soon) cardClass += " outline-yellow";
+
+    const card = document.createElement("div");
+    card.className = cardClass;
+
+    const hero = document.createElement("div");
+    hero.className = "hero";
+
+    const img = document.createElement("img");
+    img.loading = "lazy";
+    img.alt = (name + (flavor ? " - " + flavor : "")).trim();
+    img.src = p.image || "";
+    if(out) img.style.filter = "grayscale(.75) contrast(.95) brightness(.85)";
+    else if(soon) img.style.filter = "grayscale(.25) contrast(.98) brightness(.92)";
+
+    const badges = document.createElement("div");
+    badges.className = "badges";
+    if(soon){
+      const b = document.createElement("div");
+      b.className = "badge soon";
+      b.textContent = "Hamarosan";
+      badges.appendChild(b);
+    }
+    if(out){
+      const b = document.createElement("div");
+      b.className = "badge out";
+      b.textContent = "Elfogyott";
+      badges.appendChild(b);
+    }
+
+    const overlay = document.createElement("div");
+    overlay.className = "overlay-title";
+    overlay.innerHTML = `<div class="name">${escapeHtml(name)}</div><div class="flavor">${escapeHtml(flavor)}</div>`;
+
+    hero.appendChild(img);
+    hero.appendChild(badges);
+    hero.appendChild(overlay);
+
+    const body = document.createElement("div");
+    body.className = "card-body";
+    const meta = document.createElement("div");
+    meta.className = "meta-row";
+
+    const priceEl = document.createElement("div");
+    priceEl.className = "price";
+    priceEl.textContent = `${Number(price||0).toLocaleString("hu-HU")} Ft`;
+
+    const stockEl = document.createElement("div");
+    stockEl.className = "stock";
+    stockEl.innerHTML = `Készlet: <b>${soon ? "—" : availShown} ${soon ? "" : "db"}</b>`;
+
+    const reservedEl = document.createElement("div");
+    reservedEl.className = "reserved";
+    reservedEl.innerHTML = `Foglalt: <b>${soon ? "—" : reserved} ${soon ? "" : "db"}</b>`;
+
+    const metaRight = document.createElement("div");
+    metaRight.className = "meta-right";
+    metaRight.appendChild(stockEl);
+    metaRight.appendChild(reservedEl);
+
+    meta.appendChild(priceEl);
+    meta.appendChild(metaRight);
+
+    body.appendChild(meta);
+
+    card.appendChild(hero);
+    card.appendChild(body);
+    grid.appendChild(card);
+  }
+}
+
+function openPosCartModal(){
+  const items = [];
+  for(const [pid, qty] of posState.cart.entries()){
+    const p = prodById(pid);
+    if(!p) continue;
+    const name = p.name_hu || p.name_en || "—";
+    const flavor = p.flavor_hu || p.flavor_en || "";
+    items.push({
+      productId: pid,
+      qty: Number(qty||0),
+      unitPrice: Number(effectivePrice(p) || 0),
+      title: (name + (flavor? " • "+flavor:"")).trim()
+    });
+  }
+  if(!items.length){
+    const b = document.createElement("div");
+    b.className = "small-muted";
+    b.textContent = "A kosár üres.";
+    openModal("Kosár", "", b, [{label:"OK", kind:"primary", onClick: closeModal}]);
+    return;
+  }
+
+  const body = document.createElement("div");
+  body.innerHTML = `<div id="posCartList"></div><div style="margin-top:10px;" class="small-muted">Plusz/mínusz gombokkal állíthatod a darabszámot.</div>`;
+  const list = body.querySelector("#posCartList");
+
+  const render = () => {
+    list.innerHTML = "";
+    let total = 0;
+    for(const it of items){
+      total += Number(it.unitPrice||0) * Number(it.qty||0);
+      const row = document.createElement("div");
+      row.className = "rowline table";
+      row.innerHTML = `
+        <div class="left" style="min-width:260px;">
+          <div style="font-weight:900;">${escapeHtml(it.title)}</div>
+          <div class="small-muted">${Number(it.unitPrice||0).toLocaleString("hu-HU")} Ft / db</div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <button class="ghost" data-minus="${escapeHtml(it.productId)}">−</button>
+          <div style="min-width:40px;text-align:center;font-weight:900;">${it.qty}</div>
+          <button class="ghost" data-plus="${escapeHtml(it.productId)}">+</button>
+        </div>
+        <div style="min-width:120px;text-align:right;font-weight:900;">${(Number(it.unitPrice||0)*Number(it.qty||0)).toLocaleString("hu-HU")} Ft</div>
+      `;
+      list.appendChild(row);
+    }
+
+    const sum = document.createElement("div");
+    sum.className = "rowline";
+    sum.innerHTML = `<div class="left"><b>Összesen</b></div><div style="font-weight:900;">${total.toLocaleString("hu-HU")} Ft</div>`;
+    list.appendChild(sum);
+
+    list.querySelectorAll("button[data-plus]").forEach(b=>{
+      b.onclick = () => {
+        const pid = b.dataset.plus;
+        const it = items.find(x=>x.productId===pid);
+        if(!it) return;
+        if(posAdd(pid, 1)){
+          it.qty += 1;
+          $("#posCartBadge").textContent = String(posCartCount());
+          render();
+        }
+      };
+    });
+    list.querySelectorAll("button[data-minus]").forEach(b=>{
+      b.onclick = () => {
+        const pid = b.dataset.minus;
+        const it = items.find(x=>x.productId===pid);
+        if(!it) return;
+        if(it.qty <= 1){
+          // kérdezzünk rá
+          const ask = document.createElement("div");
+          ask.innerHTML = `<div style="font-weight:900;margin-bottom:6px;">Biztos törlöd?</div><div class="small-muted">${escapeHtml(it.title)}</div>`;
+          openModal("Törlés", "", ask, [
+            {label:"Mégse", kind:"ghost", onClick: ()=>{ closeModal(); openPosCartModal(); }},
+            {label:"Igen", kind:"danger", onClick: ()=>{ 
+              closeModal();
+              posAdd(pid, -9999);
+              const idx = items.findIndex(x=>x.productId===pid);
+              if(idx>=0) items.splice(idx,1);
+              $("#posCartBadge").textContent = String(posCartCount());
+              openPosCartModal();
+            }}
+          ]);
+          return;
+        }
+        if(posAdd(pid, -1)){
+          it.qty -= 1;
+          $("#posCartBadge").textContent = String(posCartCount());
+          render();
+        }
+      };
+    });
+  };
+
+  render();
+
+  openModal("Kosár", "Admin • Eladás rögzítése", body, [
+    {label:"Bezár", kind:"ghost", onClick: closeModal},
+    {label:"Eladás rögzítése", kind:"primary", onClick: () => openPosSaleDetails(items)}
+  ]);
+}
+
+function openPosSaleDetails(items){
+  const body = document.createElement("div");
+  body.innerHTML = `
+    <div class="form-grid">
+      <div class="field third"><label>Dátum</label><input id="pos_date" value="${todayISO()}"></div>
+      <div class="field third"><label>Név</label><input id="pos_name" placeholder="pl. Tesó"></div>
+      <div class="field third"><label>Fizetés</label><input id="pos_pay" placeholder="készpénz / utalás / stb"></div>
+    </div>
+    <div class="small-muted" style="margin-top:10px;">A termékeket a kosárból veszi át.</div>
+  `;
+
+  openModal("Eladás adatai", "", body, [
+    {label:"Mégse", kind:"ghost", onClick: closeModal},
+    {label:"Mentés", kind:"primary", onClick: () => {
+      const date = ($("#pos_date").value||"").trim();
+      const name = ($("#pos_name").value||"").trim();
+      const pay = ($("#pos_pay").value||"").trim();
+      const preset = {
+        date,
+        name,
+        payment: pay,
+        items: items.map(it=>({ productId: it.productId, qty: it.qty, unitPrice: it.unitPrice })),
+        reservationId: null,
+        fromPos: true
+      };
+      closeModal();
+      openSaleModal(preset); // újrahasznosítjuk a validációt/stock kezelést
+      // siker esetén openSaleModal majd renderel és törli a kosarat
+    }}
+  ]);
+}
+
+function renderSalesList(){
+  const cats = [{id:"all", label:"Mind"}, ...state.doc.categories.map(c=>({id:c.id,label:c.label_hu||c.id}))];
+
+  const filterCat = state.filters.salesCat;
+  const q = (state.filters.salesSearch || "").toLowerCase();
+
+  // Sales
+  let list = [...state.sales].sort((a,b)=> String(b.date).localeCompare(String(a.date)));
+  if(q){
+    list = list.filter(s => (`${s.name} ${s.payment}`).toLowerCase().includes(q));
+  }
+  if(filterCat !== "all"){
+    list = list.filter(s => saleTotals(s, filterCat).hit);
+  }
+
+  // Active reservations (always shown on top)
+  const resActive = (state.reservations||[]).filter(isReservationActive)
+    .sort((a,b)=> String(b.createdAt||"").localeCompare(String(a.createdAt||"")));
+
+  const resRows = resActive.map(r => {
+    const itemsCount = (r.items||[]).reduce((acc,it)=> acc + Number(it.qty||0), 0);
+    const total = (r.items||[]).reduce((acc,it)=> acc + Number(it.price||0)*Number(it.qty||0), 0);
+    const date = r.createdAt ? String(r.createdAt).slice(0,10) : "—";
+    const mod = r.modified && !r.modifiedAck ? `<span class="badge out" style="background:linear-gradient(90deg,var(--brand),var(--brand2));color:#12060a;">MÓDOSÍTVA</span>` : "";
+    return `
+      <div class="rowline" style="border-color:rgba(255,42,85,.35);background:linear-gradient(180deg, rgba(255,42,85,.10), rgba(11,15,23,.55));">
+        <div class="left">
+          <div style="font-weight:900;">
+            Foglalás • ${escapeHtml(date)} • <span class="small-muted">public:</span> <b>${escapeHtml(r.publicCode||"—")}</b>
+            <span class="small-muted">• id:</span> <span style="opacity:.85">${escapeHtml(r.id)}</span>
+            ${mod}
+          </div>
+          <div class="small-muted">Tételek: <b>${itemsCount}</b> • Érték: <b>${total.toLocaleString("hu-HU")} Ft</b> • Lejár: <b>${r.expiresAt ? String(r.expiresAt).slice(0,16).replace("T"," ") : "—"}</b></div>
+        </div>
+        <div style="display:flex;gap:10px;align-items:center;">
+          ${r.modified && !r.modifiedAck ? `<button class="ghost" data-ackmod="${escapeHtml(r.id)}" title="Jelzés törlése">!</button>` : ``}
+          <button class="primary" data-res2sale="${escapeHtml(r.id)}">Eladás rögzítése</button>
+        </div>
+      </div>
+    `;
+  }).join("");
+
+  const salesRows = list.map(s => {
+    const tot = saleTotals(s, filterCat);
+    const itemsCount = s.items.reduce((acc,it)=> acc + Number(it.qty||0), 0);
+
+    return `
+      <div class="rowline">
+        <div class="left">
+          <div style="font-weight:900;">
+            ${escapeHtml(s.date)} • ${escapeHtml(s.name || "—")}
+            <span class="small-muted">• ${escapeHtml(s.payment || "")}</span>
+          </div>
+          <div class="small-muted">Tételek: <b>${itemsCount}</b> • Bevétel: <b>${tot.revenue.toLocaleString("hu-HU")} Ft</b></div>
+        </div>
+        <div style="display:flex;gap:10px;align-items:center;">
+          <button class="ghost" data-view="${escapeHtml(s.id)}">Megnéz</button>
+          <button class="danger" data-delsale="${escapeHtml(s.id)}">Töröl (rollback)</button>
+        </div>
+      </div>
+    `;
+  }).join("");
+
+  $("#panelSales").innerHTML = `
+    <div class="actions table" style="align-items:center;">
+      <button class="ghost" id="btnPosMode">POS mód</button>
+      <button class="primary" id="btnAddSale">+ Eladás (űrlap)</button>
+      <select id="salesCat">
+        ${cats.map(c => `<option value="${escapeHtml(c.id)}"${c.id===filterCat?" selected":""}>${escapeHtml(c.label)}</option>`).join("")}
+      </select>
+      <input id="salesSearch" placeholder="Keresés név / mód szerint..." value="${escapeHtml(state.filters.salesSearch)}" style="flex:1;min-width:220px;">
+      <div class="small-muted">Foglalások a lista tetején.</div>
+    </div>
+    <div style="margin-top:10px;">
+      ${resRows ? `<div class="small-muted" style="margin:8px 0;">Aktív foglalások</div>${resRows}` : ``}
+      ${salesRows || `<div class="small-muted">Nincs eladás.</div>`}
+    </div>
+  `;
+
+  $("#btnPosMode").onclick = () => { state.filters.salesMode = "pos"; renderSales(); };
+  $("#salesCat").onchange = () => { state.filters.salesCat = $("#salesCat").value; renderSalesList(); drawChart(); };
+  $("#salesSearch").oninput = () => { state.filters.salesSearch = $("#salesSearch").value; renderSalesList(); };
+  $("#btnAddSale").onclick = () => openSaleModal();
+
+  $("#panelSales").querySelectorAll("button[data-delsale]").forEach(b => {
+    b.onclick = () => deleteSale(b.dataset.delsale);
+  });
+  $("#panelSales").querySelectorAll("button[data-view]").forEach(b => {
+    b.onclick = () => viewSale(b.dataset.view);
+  });
+  $("#panelSales").querySelectorAll("button[data-res2sale]").forEach(b => {
+    b.onclick = () => {
+      const id = b.dataset.res2sale;
+      const r = (state.reservations||[]).find(x=>String(x.id)===String(id));
+      if(!r) return;
+      const date = r.createdAt ? String(r.createdAt).slice(0,10) : todayISO();
+      const preset = {
+        date,
+        name: "",
+        payment: "",
+        reservationId: r.id,
+        items: (r.items||[]).map(it => ({ productId: it.productId, qty: it.qty, unitPrice: Number(it.price||0) }))
+      };
+      openSaleModal(preset);
+    };
+  });
+  $("#panelSales").querySelectorAll("button[data-ackmod]").forEach(b=>{
+    b.onclick = () => {
+      const id = b.dataset.ackmod;
+      const r = (state.reservations||[]).find(x=>String(x.id)===String(id));
+      if(r){ r.modifiedAck = true; markDirty({ reservations:true }); }
+      renderSalesList();
+    };
+  });
+}
+
+
+function openSaleModal(preset=null){
     const body = document.createElement("div");
     body.innerHTML = `
       <div class="form-grid">
@@ -994,7 +1566,7 @@ function markDirty(flags){
 
     const itemsRoot = body.querySelector("#s_items");
 
-    const addItemRow = () => {
+    const addItemRow = (init=null) => {
       const row = document.createElement("div");
       // a CSS input/select stílus a .table alatt él, ezért kap pluszban table osztályt
       row.className = "rowline table";
@@ -1024,13 +1596,42 @@ function markDirty(flags){
       };
       row.querySelector(".it_del").onclick = () => row.remove();
 
+
+// preset values
+if(init){
+  if(init.productId){
+    sel.value = String(init.productId);
+  }
+  if(init.qty){
+    row.querySelector(".it_qty").value = String(Math.max(1, Number(init.qty||1)));
+  }
+  if(init.unitPrice != null){
+    price.value = String(Math.max(0, Number(init.unitPrice||0)));
+  }else{
+    const p0 = prodById(sel.value);
+    if(p0) price.value = String(effectivePrice(p0));
+  }
+}
+
       itemsRoot.appendChild(row);
     };
 
-    addItemRow();
-    body.querySelector("#btnAddItem").onclick = addItemRow;
+    // preset header
+if(preset){
+  if(preset.date) body.querySelector("#s_date").value = String(preset.date);
+  if(preset.name != null) body.querySelector("#s_name").value = String(preset.name||"");
+  if(preset.payment != null) body.querySelector("#s_pay").value = String(preset.payment||"");
+}
 
-    openModal("Új eladás", "Név + dátum + mód + több termék", body, [
+if(preset && Array.isArray(preset.items) && preset.items.length){
+  for(const it of preset.items) addItemRow(it);
+}else{
+  addItemRow();
+}
+body.querySelector("#btnAddItem").onclick = () => addItemRow();
+
+
+    openModal(preset && preset.reservationId ? "Eladás rögzítése (foglalásból)" : "Új eladás", preset && preset.reservationId ? "A foglalás adatai be vannak töltve." : "Név + dátum + mód + több termék", body, [
       { label:"Mégse", kind:"ghost", onClick: closeModal },
       { label:"Mentés", kind:"primary", onClick: () => {
         const date = ($("#s_date").value||"").trim();
@@ -1050,13 +1651,30 @@ function markDirty(flags){
         }
         if(!items.length) return;
 
-        // stock check
-        for(const it of items){
-          const p = prodById(it.productId);
-          if(!p) return;
-          if(p.status === "soon") return;
-          if(p.stock < it.qty) return;
-        }
+        // stock check (figyelembe veszi az aktív foglalásokat)
+const reservedMap = computeReservedByProduct();
+const selfMap = new Map();
+if(preset && preset.reservationId){
+  const r0 = (state.reservations||[]).find(x=>String(x.id)===String(preset.reservationId));
+  if(r0){
+    for(const it0 of (r0.items||[])){
+      selfMap.set(String(it0.productId), (selfMap.get(String(it0.productId))||0) + Number(it0.qty||0));
+    }
+  }
+}
+
+for(const it of items){
+  const p = prodById(it.productId);
+  if(!p) return;
+  if(p.status === "soon") return;
+
+  const reservedAll = Number(reservedMap.get(String(it.productId)) || 0);
+  const reservedSelf = Number(selfMap.get(String(it.productId)) || 0);
+  const lockedOthers = Math.max(0, reservedAll - reservedSelf);
+
+  const free = Math.max(0, Number(p.stock||0) - lockedOthers);
+  if(free < it.qty) return;
+}
 
         // apply stock
         for(const it of items){
@@ -1065,13 +1683,33 @@ function markDirty(flags){
           if(p.stock <= 0) p.status = "out";
         }
 
-        state.sales.push({
-          id: "s_" + Math.random().toString(16).slice(2) + "_" + Date.now().toString(16),
-          date,
-          name,
-          payment,
-          items
-        });
+        const saleId = "s_" + Math.random().toString(16).slice(2) + "_" + Date.now().toString(16);
+state.sales.push({
+  id: saleId,
+  date,
+  name,
+  payment,
+  items
+});
+
+// foglalás -> eladás
+if(preset && preset.reservationId){
+  const r0 = (state.reservations||[]).find(x=>String(x.id)===String(preset.reservationId));
+  if(r0){
+    r0.status = "converted";
+    r0.saleId = saleId;
+    r0.modifiedAck = true;
+    r0.convertedAt = new Date().toISOString();
+    markDirty({ reservations:true });
+  }
+}
+
+// POS-ból jött: ürítjük a kosarat
+if(preset && preset.fromPos){
+  posClear();
+  const badge = document.querySelector("#posCartBadge");
+  if(badge) badge.textContent = String(posCartCount());
+}
 
         closeModal();
         renderAll();
@@ -1093,8 +1731,8 @@ function markDirty(flags){
       return `<tr>
         <td>${escapeHtml(n)} <span class="small-muted">${escapeHtml(f? "• "+f:"")}</span></td>
         <td><b>${it.qty}</b></td>
-        <td>${Number(it.unitPrice||0).toLocaleString("hu-HU")} Ft</td>
-        <td><b>${sum.toLocaleString("hu-HU")} Ft</b></td>
+        <td>${Number(it.unitPrice||0).toLocaleString("hu-HU")} Ft</td>
+        <td><b>${sum.toLocaleString("hu-HU")} Ft</b></td>
       </tr>`;
     }).join("");
 
@@ -1102,7 +1740,7 @@ function markDirty(flags){
 
     body.innerHTML = `
       <div class="small-muted">${escapeHtml(s.date)} • ${escapeHtml(s.name)} • ${escapeHtml(s.payment)}</div>
-      <div style="margin-top:6px;font-weight:900;">Összesen: ${tot.toLocaleString("hu-HU")} Ft</div>
+      <div style="margin-top:6px;font-weight:900;">Összesen: ${tot.toLocaleString("hu-HU")} Ft</div>
       <table class="table" style="margin-top:10px;">
         <thead><tr><th>Termék</th><th>Db</th><th>Egységár</th><th>Összeg</th></tr></thead>
         <tbody>${lines}</tbody>
@@ -1411,7 +2049,7 @@ function drawChart(){
     const labels = days.map(d => d); // teljes dátum
 
     if(kpi){
-      kpi.innerHTML = `<div class="small-muted">Összes bevétel: <b>${total.toLocaleString("hu-HU")} Ft</b> • Napok: <b>${days.length}</b></div>`;
+      kpi.innerHTML = `<div class="small-muted">Összes bevétel: <b>${total.toLocaleString("hu-HU")} Ft</b> • Napok: <b>${days.length}</b></div>`;
     }
 
     // grid
@@ -1445,7 +2083,7 @@ function drawChart(){
       const v = Math.round(maxRev * (1 - t));
       const y = top + t*h;
       ctx.fillStyle = "rgba(255,255,255,.72)";
-      ctx.fillText(`${v.toLocaleString("hu-HU")} Ft`, left - 10, y);
+      ctx.fillText(`${v.toLocaleString("hu-HU")} Ft`, left - 10, y);
     }
 
     // x labels (ritkítva)
@@ -1491,7 +2129,7 @@ function drawChart(){
     renderSettings();
     renderCategories();
     renderProducts();
-    renderSales();
+    renderSalesList();
     renderChartPanel();
     renderPopups();
     drawChart();
@@ -1521,7 +2159,15 @@ function drawChart(){
 
       loadData();
     }else{
-      setSaveStatus("bad","Add meg a GH adatokat");
+      // token nélkül is: próbáljuk helyi json-ból (read-only)
+      tryLoadLocal().then(r=>{
+        if(r.ok){
+          setSaveStatus("bad","Read-only (nincs token)");
+          renderAll();
+        }else{
+          setSaveStatus("bad","Add meg a GH adatokat");
+        }
+      });
     }
   }
 

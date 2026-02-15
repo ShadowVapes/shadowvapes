@@ -1,5 +1,6 @@
 (() => {
   const $ = (s) => document.querySelector(s);
+  const escapeHtml = (str) => String(str ?? "").replace(/[&<>"']/g, (c)=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));
 
   const state = {
     lang: localStorage.getItem("sv_lang") || "hu",
@@ -17,9 +18,27 @@
     docHash: "",
     salesHash: "",
     lastLiveTs: 0,
+  
+    // reservations + cart
+    reservations: [],
+    reservationsFresh: false,
+    cart: {}, // productId -> qty
+    cartOpen: false,
+    cartStep: "items", // items | confirm | done
+    editingReservationId: null,
+    lastReservationPublicCode: null,
   };
 
+  // Global reserved map to avoid any render-time ReferenceError
+  let reservedMap = new Map();
+
   const UI = {
+    myRes: { hu: "Foglalásaim", en: "My reservations" },
+    cart: { hu: "Kosár", en: "Cart" },
+    reserve: { hu: "Foglalás", en: "Reserve" },
+    reserveEdit: { hu: "Foglalás módosítása", en: "Update reservation" },
+    confirm: { hu: "Megerősítés", en: "Confirm" },
+    reserved: { hu: "Foglalt", en: "Reserved" },
     all: { hu: "Összes termék", en: "All products" },
     soon: { hu: "Hamarosan", en: "Coming soon" },
     stock: { hu: "Készlet", en: "Stock" },
@@ -95,6 +114,476 @@
     return ((p && p.status) || "ok") === "soon";
   }
 
+
+  /* ----------------- CART + RESERVATIONS ----------------- */
+  function cartCount(){
+    return Object.values(state.cart||{}).reduce((a,b)=>a+Number(b||0),0);
+  }
+
+  function persistCart(){
+    try{ localStorage.setItem("sv_cart", JSON.stringify(state.cart||{})); }catch{}
+  }
+  function loadCart(){
+    try{
+      const raw = localStorage.getItem("sv_cart");
+      if(raw) state.cart = JSON.parse(raw) || {};
+    }catch{ state.cart = {}; }
+  }
+
+  function ensureCartUI(){
+    loadCart();
+
+    // topbar actions wrapper
+    const topbar = document.querySelector(".topbar");
+    if(!topbar) return;
+    if(!topbar.querySelector(".topbar-actions")){
+      const actions = document.createElement("div");
+      actions.className = "topbar-actions";
+      // move search into actions? keep existing layout: title + search, we add button after search
+      // We'll just append button next to search by wrapping search + button in a flex container.
+      const search = $("#search");
+      if(search){
+        // create wrapper for search+actions
+        const rightWrap = document.createElement("div");
+        rightWrap.className = "topbar-actions";
+        // replace search position
+        search.parentNode.insertBefore(rightWrap, search);
+        const btn = document.createElement("button");
+        btn.className = "cart-btn";
+        btn.id = "cartBtn";
+        btn.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6h15l-1.5 9h-12z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M6 6l-2-2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M9 21a1 1 0 100-2 1 1 0 000 2z" fill="currentColor"/><path d="M18 21a1 1 0 100-2 1 1 0 000 2z" fill="currentColor"/></svg> <span id="cartBtnLabel">${t("cart")}</span><span class="cart-badge" id="cartBadge" style="display:none">0</span>`;
+        rightWrap.appendChild(btn);
+        rightWrap.appendChild(search);
+
+        btn.onclick = () => openCart();
+      }
+    }
+
+    // modal
+    if(!document.querySelector("#cartBg")){
+      const bg = document.createElement("div");
+      bg.className = "cart-backdrop";
+      bg.id = "cartBg";
+      bg.innerHTML = `
+        <div class="cart-modal">
+          <div class="cart-head">
+            <div class="cart-title" id="cartTitle">${t("cart")}</div>
+            <button class="cart-close" id="cartClose">✕</button>
+          </div>
+          <div id="cartBody"></div>
+          <div class="cart-foot" id="cartFoot"></div>
+        </div>
+      `;
+      document.body.appendChild(bg);
+      bg.addEventListener("click",(e)=>{ /* csak X-szel lehessen bezárni */ });
+      bg.querySelector("#cartClose").onclick = () => closeCart();
+    }
+
+    refreshCartBadge();
+  }
+
+  function refreshCartBadge(){
+    const b = document.querySelector("#cartBadge");
+    if(!b) return;
+    const c = cartCount();
+    b.textContent = String(c);
+    b.style.display = c ? "flex" : "none";
+  }
+
+  function availableForProduct(p){
+    const pid=String(p.id);
+    const reservedMap = computeReservedByProduct();
+    const reserved = Number(reservedMap.get(pid)||0);
+    const stock = Math.max(0, Number(p.stock||0));
+    const out = isOut(p);
+    const soon = isSoon(p);
+    if(out || soon) return 0;
+    return Math.max(0, stock - reserved);
+  }
+
+  function addToCart(pid, delta=1){
+    pid=String(pid);
+    const p = (state.productsDoc.products||[]).find(x=>String(x.id)===pid);
+    if(!p) return;
+    const avail = availableForProduct(p);
+    const cur = Number(state.cart[pid]||0);
+    const next = cur + Number(delta||0);
+    if(next <= 0){
+      delete state.cart[pid];
+    }else{
+      if(next > avail) return; // no over
+      state.cart[pid]=next;
+    }
+    persistCart();
+    refreshCartBadge();
+    renderGrid(); // update reserved/available button states and qty hint
+    if(state.cartOpen) renderCart();
+  }
+
+  function openCart(){
+    state.cartOpen = true;
+    state.cartStep = "items";
+    const bg = document.querySelector("#cartBg");
+    if(bg){ bg.style.display="flex"; }
+    renderCart();
+  }
+  function closeCart(){
+    state.cartOpen = false;
+    const bg = document.querySelector("#cartBg");
+    if(bg){ bg.style.display="none"; }
+  }
+
+  function cartItemsResolved(){
+    const items=[];
+    for(const [pid,qty] of Object.entries(state.cart||{})){
+      const p = (state.productsDoc.products||[]).find(x=>String(x.id)===String(pid));
+      if(!p) continue;
+      items.push({ pid:String(pid), qty:Number(qty||0), p });
+    }
+    return items;
+  }
+
+  function renderCart(){
+    const body = document.querySelector("#cartBody");
+    const foot = document.querySelector("#cartFoot");
+    const title = document.querySelector("#cartTitle");
+    if(!body || !foot || !title) return;
+
+    const items = cartItemsResolved();
+
+    if(state.cartStep === "confirm"){
+      title.textContent = t("reserve");
+      const total = items.reduce((a,it)=> a + effectivePrice(it.p)*it.qty, 0);
+      body.innerHTML = `
+        <div class="notice">
+          <div style="font-weight:900;margin-bottom:6px;">Összegzés</div>
+          ${items.map(it=>{ 
+            const name=getName(it.p); const flavor=getFlavor(it.p);
+            const img = (it.p && it.p.image) ? String(it.p.image) : "";
+            return `<div class="sum-item">
+              <img src="${escapeHtml(img)}" alt="">
+              <div class="sum-info">
+                <div class="sum-name">${escapeHtml(name)}${flavor?`, ${escapeHtml(flavor)}`:""}</div>
+                <div class="sum-sub">× ${it.qty}</div>
+              </div>
+              <div class="sum-price">${fmtFt(effectivePrice(it.p)*it.qty)}</div>
+            </div>`;
+          }).join("")}
+          <div style="display:flex;justify-content:space-between;gap:10px;margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,.08);">
+            <div class="small-muted">Végösszeg</div>
+            <div style="font-weight:1000;">${fmtFt(total)}</div>
+          </div>
+        </div>
+        <div class="small-muted" style="margin-top:10px;">A megerősítés gomb 3 másodperc múlva lesz kattintható.</div>
+        <div id="confirmMsg" class="small-muted" style="margin-top:6px;"></div>
+      `;
+      foot.innerHTML = `
+        <button class="cart-ghost" id="backToCart">Vissza</button>
+        <button class="cart-primary" id="confirmBtn" disabled>${t("confirm")}</button>
+      `;
+      foot.querySelector("#backToCart").onclick = ()=>{ state.cartStep="items"; renderCart(); };
+      const confirmBtn = foot.querySelector("#confirmBtn");
+      const msg = body.querySelector("#confirmMsg");
+      let left=3;
+      msg.textContent = `Még ${left} mp...`;
+      const timer = setInterval(()=>{
+        left--;
+        if(left<=0){
+          clearInterval(timer);
+          msg.textContent = "Mehet!";
+          confirmBtn.disabled = false;
+        }else{
+          msg.textContent = `Még ${left} mp...`;
+        }
+      },1000);
+      confirmBtn.onclick = async ()=> {
+        confirmBtn.disabled=true;
+        await submitReservation();
+      };
+      return;
+    }
+
+    if(state.cartStep === "done"){
+      title.textContent = t("reserve");
+      body.innerHTML = `
+        <div class="notice">
+          <div style="font-weight:900;">Foglalás létrehozva ✅</div>
+          <div class="small-muted" style="margin-top:6px;">Rendelésazonosító:</div>
+          <div class="code-wrap"><span class="code3" id="resCode">${escapeHtml(state.lastReservationPublicCode || "000")}</span><button class="copy-btn" id="copyResCode">Kimásol</button></div>
+          <div class="small-muted" style="margin-top:10px;">Ezzel a kóddal tudod azonosítani a foglalást. A foglalás 2 nap múlva automatikusan lejár.</div>
+        </div>
+      `;
+      foot.innerHTML = `<button class="cart-primary" id="doneOk">Oké</button>`;
+      const copyBtn = body.querySelector("#copyResCode");
+      if(copyBtn){
+        copyBtn.onclick = async () => {
+          const code = String(state.lastReservationPublicCode || "000");
+          try{ await navigator.clipboard.writeText(code); copyBtn.textContent = "Kimásolva"; setTimeout(()=>{ copyBtn.textContent = "Kimásol"; }, 1200); }
+          catch(e){
+            try{
+              const el = body.querySelector("#resCode");
+              const range = document.createRange();
+              range.selectNodeContents(el);
+              const sel = window.getSelection();
+              sel.removeAllRanges();
+              sel.addRange(range);
+              document.execCommand("copy");
+              sel.removeAllRanges();
+              copyBtn.textContent = "Kimásolva";
+              setTimeout(()=>{ copyBtn.textContent = "Kimásol"; }, 1200);
+            }catch{}
+          }
+        };
+      }
+
+      foot.querySelector("#doneOk").onclick = ()=>{ closeCart(); };
+      return;
+    }
+
+    // items
+    title.textContent = t("cart");
+    if(!items.length){
+      body.innerHTML = `<div class="small-muted" style="margin-top:12px;">A kosár üres.</div>`;
+      foot.innerHTML = `<button class="cart-primary" disabled>${t("reserve")}</button>`;
+      return;
+    }
+
+    body.innerHTML = items.map(it=>{
+      const name=getName(it.p); const flavor=getFlavor(it.p);
+      return `
+        <div class="cart-item">
+          <img src="${escapeHtml(it.p.image||"")}" alt="">
+          <div>
+            <div class="ci-name">${escapeHtml(name)}</div>
+            <div class="ci-sub">${escapeHtml(flavor||"")}</div>
+            <div class="small-muted" style="margin-top:6px;">${fmtFt(effectivePrice(it.p))} / db</div>
+          </div>
+          <div class="ci-right">
+            <button class="qty-btn" data-minus="${escapeHtml(it.pid)}">−</button>
+            <div class="qty-val">${it.qty}</div>
+            <button class="qty-btn" data-plus="${escapeHtml(it.pid)}">+</button>
+          </div>
+        </div>
+      `;
+    }).join("");
+
+    foot.innerHTML = `
+      <button class="cart-ghost" id="clearCart">Ürítés</button>
+      <button class="cart-primary" id="reserveBtn">${state.editingReservationId ? t("reserveEdit") : t("reserve")}</button>
+    `;
+
+    body.querySelectorAll("button[data-plus]").forEach(b=>{
+      b.onclick=()=>addToCart(b.getAttribute("data-plus"), +1);
+    });
+    body.querySelectorAll("button[data-minus]").forEach(b=>{
+      b.onclick=()=>{
+        const pid=b.getAttribute("data-minus");
+        const cur=Number(state.cart[pid]||0);
+        if(cur===1){
+          const p=(state.productsDoc.products||[]).find(x=>String(x.id)===String(pid));
+          const nm=p?`${getName(p)}${getFlavor(p)?`, ${getFlavor(p)}`:""}`:"terméket";
+          // inline confirm
+          const bg=document.querySelector("#cartBg");
+          const modal=bg.querySelector(".cart-modal");
+          const ask=document.createElement("div");
+          ask.className="notice";
+          ask.innerHTML=`<div style="font-weight:900;">Biztos szeretnéd törölni a "${escapeHtml(nm)}" terméket?</div>
+            <div style="display:flex;gap:10px;margin-top:10px;justify-content:flex-end;">
+              <button class="cart-ghost" id="noDel">Mégse</button>
+              <button class="cart-primary" id="yesDel">Igen</button>
+            </div>`;
+          // remove old ask if exists
+          modal.querySelectorAll(".notice.__ask").forEach(x=>x.remove());
+          ask.classList.add("__ask");
+          modal.appendChild(ask);
+          ask.querySelector("#noDel").onclick=()=>ask.remove();
+          ask.querySelector("#yesDel").onclick=()=>{ ask.remove(); addToCart(pid,-1); };
+        }else{
+          addToCart(pid,-1);
+        }
+      };
+    });
+
+    foot.querySelector("#clearCart").onclick=()=>{ state.cart={}; state.editingReservationId=null; persistCart(); refreshCartBadge(); renderCart(); renderGrid(); };
+    foot.querySelector("#reserveBtn").onclick=()=>{
+      state.cartStep="confirm";
+      renderCart();
+    };
+  }
+
+  function genPublicCode(){
+    return String(Math.floor(Math.random()*1000)).padStart(3,"0");
+  }
+
+  async function loadReservationsDocForWrite(){
+    // Try GH write if configured
+    const token = localStorage.getItem("sv_token") || "";
+    const owner = localStorage.getItem("sv_owner") || "";
+    const repo = localStorage.getItem("sv_repo") || "";
+    const branch = localStorage.getItem("sv_branch") || "main";
+    if(token && owner && repo && window.ShadowGH){
+      try{
+        const r = await ShadowGH.getFile({ token, owner, repo, branch, path:"data/reservations.json" });
+        return { mode:"gh", token, owner, repo, branch, sha:r.sha, list: normalizeReservations(JSON.parse(r.content||"[]")) };
+      }catch(e){
+        if(Number(e?.status||0)===404){
+          return { mode:"gh", token, owner, repo, branch, sha:null, list: [] };
+        }
+        throw e;
+      }
+    }
+    // fallback local
+    let list=[];
+    try{ list = normalizeReservations(JSON.parse(localStorage.getItem("sv_reservations_local")||"[]")); }catch{}
+    return { mode:"local", list };
+  }
+
+  async function saveReservationsDoc(ctx){
+    if(ctx.mode==="gh"){
+      const text = JSON.stringify(ctx.list||[], null, 2);
+      const res = await ShadowGH.putFileSafe({
+        token: ctx.token, owner: ctx.owner, repo: ctx.repo, branch: ctx.branch,
+        path:"data/reservations.json",
+        message:"Update reservations.json",
+        content: text,
+        sha: ctx.sha
+      });
+      ctx.sha = res?.content?.sha || ctx.sha;
+      return true;
+    }else{
+      try{ localStorage.setItem("sv_reservations_local", JSON.stringify(ctx.list||[])); }catch{}
+      return true;
+    }
+  }
+
+  async function submitReservation(){
+    const items = cartItemsResolved();
+    if(!items.length){ state.cartStep="items"; renderCart(); return; }
+
+    // build reservation object
+    const now = new Date();
+    const exp = new Date(Date.now() + 48*60*60*1000);
+    const resId = (crypto.randomUUID ? crypto.randomUUID() : (Date.now().toString(36)+Math.random().toString(36).slice(2)));
+    const code = genPublicCode();
+
+    const resObj = {
+      id: resId,
+      publicCode: code,
+      createdAt: now.toISOString(),
+      expiresAt: exp.toISOString(),
+      status: "active",
+      modified: false,
+      modifiedAck: false,
+      replacedBy: null,
+      previousId: state.editingReservationId || null,
+      items: items.map(it=>({
+        productId: String(it.pid),
+        qty: Number(it.qty),
+        price: Number(effectivePrice(it.p)),
+        name: getName(it.p),
+        flavor: getFlavor(it.p),
+        image: it.p.image || ""
+      }))
+    };
+
+    const ctx = await loadReservationsDocForWrite();
+    ctx.list = normalizeReservations(ctx.list||[]);
+    // clean expired
+    ctx.list = ctx.list.map(r=>{
+      if(r.status==="active" && r.expiresAt && Date.parse(r.expiresAt) <= Date.now()){
+        return { ...r, status:"expired" };
+      }
+      return r;
+    });
+
+    if(state.editingReservationId){
+      const oldId=String(state.editingReservationId);
+      ctx.list = ctx.list.map(r=>{
+        if(String(r.id)===oldId){
+          return { ...r, status:"superseded", modified:true, modifiedAck:false, replacedBy: resId };
+        }
+        return r;
+      });
+    }
+
+    ctx.list.unshift(resObj);
+    await saveReservationsDoc(ctx);
+
+    // update local state (for stock calc)
+    state.reservations = ctx.list;
+    state.lastReservationPublicCode = code;
+    state.cartStep="done";
+    state.cart={};
+    state.editingReservationId=null;
+    persistCart();
+    refreshCartBadge();
+    renderGrid();
+    renderCart();
+  }
+
+  function injectMyReservationsNav(){
+    // after nav built
+    const nav = document.querySelector("#nav");
+    if(!nav) return;
+    if(nav.querySelector('[data-special="myres"]')) return;
+
+    const btn = document.createElement("button");
+    btn.className = "nav-btn";
+    btn.setAttribute("data-special","myres");
+    btn.innerHTML = `🧾 <span>${t("myRes")}</span>`;
+    btn.onclick = () => openMyReservationPrompt();
+    // insert after first button (all)
+    const first = nav.querySelector("button");
+    if(first && first.nextSibling) nav.insertBefore(btn, first.nextSibling);
+    else nav.appendChild(btn);
+  }
+
+  function openMyReservationPrompt(){
+    const bg = document.querySelector("#cartBg");
+    if(!bg) { ensureCartUI(); }
+    openCart();
+    const body = document.querySelector("#cartBody");
+    const foot = document.querySelector("#cartFoot");
+    const title = document.querySelector("#cartTitle");
+    title.textContent = t("myRes");
+    body.innerHTML = `
+      <div class="small-muted" style="margin-top:10px;">Írd be a foglalás belső ID-jét (ezt csak az admin látja).</div>
+      <input id="resLookup" placeholder="Foglalás ID..." style="margin-top:10px;width:100%;border-radius:14px;border:1px solid rgba(255,255,255,.10);background:rgba(11,15,23,.35);color:var(--text);padding:12px;outline:none;">
+      <div id="resLookupMsg" class="small-muted" style="margin-top:10px;"></div>
+    `;
+    foot.innerHTML = `
+      <button class="cart-ghost" id="backCart">Vissza</button>
+      <button class="cart-primary" id="loadResBtn">Betöltés</button>
+    `;
+    foot.querySelector("#backCart").onclick=()=>{ state.cartStep="items"; renderCart(); };
+    foot.querySelector("#loadResBtn").onclick=async ()=>{
+      const id = (body.querySelector("#resLookup").value||"").trim();
+      const msg = body.querySelector("#resLookupMsg");
+      msg.textContent = "Keresés...";
+      try{
+        const raw = await fetchReservations({ forceBust:true });
+        const list = normalizeReservations(raw||[]);
+        const r = list.find(x=>String(x.id)===String(id));
+        if(!r || !isReservationActive(r)){
+          msg.textContent = "Nincs ilyen aktív foglalás.";
+          return;
+        }
+        // load into cart
+        state.cart = {};
+        for(const it of (r.items||[])){
+          state.cart[String(it.productId)] = Number(it.qty||0);
+        }
+        state.editingReservationId = String(r.id);
+        persistCart();
+        refreshCartBadge();
+        renderGrid();
+        msg.textContent = "Betöltve a kosárba ✅";
+        setTimeout(()=>{ state.cartStep="items"; renderCart(); }, 650);
+      }catch(e){
+        msg.textContent = "Nem sikerült betölteni.";
+      }
+    };
+  }
   /* ----------------- Source resolving (RAW preferált, custom domainen is) ----------------- */
   let source = null; // {owner, repo, branch}
 
@@ -196,43 +685,21 @@
   }
 
   async function fetchJson(relPath, { forceBust=false } = {}){
-    const src = await resolveSource();
-    const relBase = relPath;
-    const rawBase = src ? `https://raw.githubusercontent.com/${src.owner}/${src.repo}/${src.branch}/${relPath}` : null;
+  // ✅ CORS-fix: csak ugyanarról az originről töltünk (GitHub Pages / custom domain)
+  const url = forceBust ? `${relPath}${relPath.includes("?") ? "&" : "?"}_=${Date.now()}` : relPath;
+  const r = await fetch(url, { cache: "no-store" });
+  if(!r.ok) throw new Error(`fetchJson failed (${r.status}): ${relPath}`);
+  return await r.json();
+}
 
-    const mkUrl = (base) => forceBust ? `${base}${base.includes("?") ? "&" : "?"}_=${Date.now()}` : base;
-
-    const headers = {
-      "Cache-Control": "no-cache, no-store, must-revalidate",
-      Pragma: "no-cache",
-    };
-
-    if (rawBase) {
-      try {
-        const url = mkUrl(rawBase);
-        const r = await fetch(url, { cache: "no-store", headers });
-        if (r.status === 304) return null;
-        if (r.ok) return await r.json();
-        try { localStorage.removeItem("sv_source"); } catch {}
-        source = null;
-      } catch {
-        try { localStorage.removeItem("sv_source"); } catch {}
-        source = null;
-      }
-    }
-
-    const url = mkUrl(relBase);
-    const r = await fetch(url, { cache: "no-store", headers });
-    if (r.status === 304) return null;
-    if (!r.ok) throw new Error(`Nem tudtam betölteni: ${relPath} (${r.status})`);
-    return await r.json();
-  }
-
-  async function fetchProducts({ forceBust=false } = {}){
+async function fetchProducts({ forceBust=false } = {}){
     return await fetchJson("data/products.json", { forceBust });
   }
   async function fetchSales({ forceBust=false } = {}){
     return await fetchJson("data/sales.json", { forceBust });
+  }
+  async function fetchReservations({ forceBust=false } = {}){
+    return await fetchJson("data/reservations.json", { forceBust });
   }
 
   function normalizeDoc(data) {
@@ -271,6 +738,51 @@
         items
       };
     }).filter(s => s.id);
+  }
+
+  function normalizeReservations(arr){
+    const now = Date.now();
+    const list = Array.isArray(arr) ? arr : [];
+    return list.map(r => ({
+      id: String(r.id || ""),
+      publicCode: String(r.publicCode || ""),
+      createdAt: r.createdAt || null,
+      expiresAt: r.expiresAt || null,
+      status: String(r.status || "active"), // active | converted | expired | superseded
+      modified: !!r.modified,
+      modifiedAck: !!r.modifiedAck,
+      replacedBy: r.replacedBy ? String(r.replacedBy) : null,
+      previousId: r.previousId ? String(r.previousId) : null,
+      items: Array.isArray(r.items) ? r.items.map(it => ({
+        productId: String(it.productId || ""),
+        qty: Number(it.qty || 0),
+        price: Number(it.price || 0),
+        name: String(it.name || ""),
+        flavor: String(it.flavor || ""),
+        image: String(it.image || "")
+      })).filter(x => x.productId && x.qty>0) : []
+    })).filter(r => r.id);
+  }
+
+  function isReservationActive(r){
+    if(!r) return false;
+    if(String(r.status) !== "active") return false;
+    const exp = r.expiresAt ? Date.parse(r.expiresAt) : 0;
+    if(exp && exp <= Date.now()) return false;
+    return true;
+  }
+
+  function computeReservedByProduct(){
+    const map = new Map();
+    for(const r of (state.reservations||[])){
+      if(!isReservationActive(r)) continue;
+      for(const it of (r.items||[])){
+        const k=String(it.productId);
+        map.set(k, (map.get(k)||0) + Number(it.qty||0));
+      }
+    }
+    reservedMap = map;
+    return map;
   }
 
   /* ----------------- Featured (Felkapott) ----------------- */
@@ -398,6 +910,18 @@
     return true;
   }
 
+  function applyReservationsIfChanged(list, { fresh=false } = {}){
+    const h = JSON.stringify(list || []);
+    if(h === state.resHash) {
+      if(fresh) state.reservationsFresh = true;
+      return false;
+    }
+    state.reservations = list || [];
+    state.resHash = h;
+    if(fresh) state.reservationsFresh = true;
+    return true;
+  }
+
   /* ----------------- Rendering ----------------- */
   function orderedCategories() {
     const cats = (state.productsDoc.categories || [])
@@ -467,7 +991,7 @@
 
   function fmtFt(n) {
     const v = Number(n || 0);
-    return v.toLocaleString("hu-HU") + " Ft";
+    return v.toLocaleString("hu-HU") + " Ft";
   }
 
   function renderNav() {
@@ -487,6 +1011,8 @@
       };
       nav.appendChild(btn);
     }
+
+    injectMyReservationsNav();
   }
 
   function getFeaturedListForAll(){
@@ -508,6 +1034,7 @@
     grid.innerHTML = "";
 
     let list = filterList();
+    const reservedMap = computeReservedByProduct();
 
     // ✅ Featured: kategóriánként 1-1 (ha van eladás) + kategória toggle (admin)
     const featuredIds = new Set();
@@ -544,7 +1071,10 @@
       const out = isOut(p);
       const soon = isSoon(p);
       const featured = featuredIds.has(String(p.id));
-      const stockShown = out ? 0 : (soon ? Math.max(0, Number(p.stock || 0)) : Math.max(0, Number(p.stock || 0)));
+      const reserved = Number(reservedMap.get(String(p.id)) || 0);
+      const baseStock = Math.max(0, Number(p.stock || 0));
+      const stockShown = out ? 0 : (soon ? baseStock : Math.max(0, baseStock - reserved));
+      const avail = (soon || out) ? 0 : Math.max(0, baseStock - reserved);
       const price = effectivePrice(p);
 
       // Determine card classes based on status
@@ -618,23 +1148,41 @@
       const body = document.createElement("div");
       body.className = "card-body";
 
-      const meta = document.createElement("div");
-      meta.className = "meta-row";
+      const metaTop = document.createElement("div");
+      metaTop.className = "meta-top";
 
       const priceEl = document.createElement("div");
       priceEl.className = "price";
       priceEl.textContent = fmtFt(price);
 
+      metaTop.appendChild(priceEl);
+
+      const metaBottom = document.createElement("div");
+      metaBottom.className = "meta-bottom";
+
+      const reservedEl = document.createElement("div");
+      reservedEl.className = "reserved";
+      reservedEl.innerHTML = `${t("reserved")}: <b>${soon ? "—" : reserved} ${soon ? "" : t("pcs")}</b>`;
+
       const stockEl = document.createElement("div");
       stockEl.className = "stock";
       stockEl.innerHTML = `${t("stock")}: <b>${soon ? "—" : stockShown} ${soon ? "" : t("pcs")}</b>`;
 
-      meta.appendChild(priceEl);
-      meta.appendChild(stockEl);
-      body.appendChild(meta);
+      metaBottom.appendChild(reservedEl);
+      metaBottom.appendChild(stockEl);
+
+      body.appendChild(metaTop);
+      body.appendChild(metaBottom);
 
       card.appendChild(hero);
       card.appendChild(body);
+
+      const cta = document.createElement("button");
+      cta.className = "card-cta";
+      cta.disabled = avail <= 0;
+      cta.innerHTML = `<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M6 6h15l-1.5 9h-12z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M6 6l-2-2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M9 21a1 1 0 100-2 1 1 0 000 2z" fill="currentColor"/><path d="M18 21a1 1 0 100-2 1 1 0 000 2z" fill="currentColor"/></svg> Kosárba`;
+      cta.onclick = (e) => { e.stopPropagation(); addToCart(p.id, 1); };
+      card.appendChild(cta);
 
       grid.appendChild(card);
     }
@@ -1069,6 +1617,15 @@
       // ha nem tudjuk biztosan betölteni, ne jelenítsünk meg felkapottat
       state.salesFresh = false;
     }
+    // reservations
+    try{
+      const resRaw = await fetchReservations({ forceBust });
+      const rChanged = applyReservationsIfChanged(normalizeReservations(resRaw || []), { fresh:true });
+      if(rChanged) changed = true;
+    }catch{
+      state.reservationsFresh = false;
+    }
+
 
     // featured depends on BOTH products+sales; csak ha változott valami (vagy ha salesFresh változott)
     if(changed || !state.salesFresh){
@@ -1090,6 +1647,8 @@
     await loadAll({ forceBust:true });
 
     renderNav();
+    injectMyReservationsNav();
+    ensureCartUI();
     renderGrid();
 
     // show app
@@ -1117,6 +1676,8 @@
           if(changed){
             computeFeaturedByCategory();
             renderNav();
+            injectMyReservationsNav();
+            ensureCartUI();
             renderGrid();
             setTimeout(() => showPopupsIfNeeded(), 100);
           }
