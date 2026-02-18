@@ -195,7 +195,7 @@
       "id": "p_d44a935527ac98_19b5b68e535",
       "categoryId": "elfraya25",
       "status": "ok",
-      "stock": 6,
+      "stock": 5,
       "visible": true,
       "price": null,
       "image": "https://i.ibb.co/m5h7W97V/2-bue-razz-ice.png",
@@ -514,7 +514,7 @@
   ],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1771105275401,
-    "updatedAt": "2026-02-14T21:41:15.401Z"
+    "rev": 1771448193902,
+    "updatedAt": "2026-02-18T20:56:33.902Z"
   }
 }
