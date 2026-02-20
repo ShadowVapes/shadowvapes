@@ -484,6 +484,20 @@
       "flavor_hu": "Lemon Lime & Raspberry Watermelon & Strawberry Ice & Fizzy Cherry",
       "flavor_en": "Citrom Lime & Málna Dinnye & Eper Jég & Pezsgő Cseresznye",
       "soonEta": ""
+    },
+    {
+      "id": "p_81909e3d929628_19c7af58890",
+      "categoryId": "vapsolo80k",
+      "status": "ok",
+      "stock": 9,
+      "visible": true,
+      "price": null,
+      "image": "https://i.ibb.co/vCVsy7Sf/7-PINK-LEMONADE-KIWI-PASSION-FRUIT-GUAVA-PEACH-BERRY-STRAWBERRY-BANANA-NOBG.png",
+      "name_hu": "Vapsolo Quads 80k",
+      "name_en": "Vapsolo Quads 80k",
+      "flavor_hu": "Pink Limonádé & Eper Banán & Kiwi Maracuja Guava & Barack Bogyó",
+      "flavor_en": "Pink Limonade & Strawberry Banana & Kiwi Passion Fruit Guava & Peach Berry",
+      "soonEta": ""
     }
   ],
   "popups": [
@@ -542,7 +556,7 @@
   ],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1771589155400,
-    "updatedAt": "2026-02-20T12:05:55.400Z"
+    "rev": 1771589631306,
+    "updatedAt": "2026-02-20T12:13:51.306Z"
   }
 }
