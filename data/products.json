@@ -125,7 +125,7 @@
       "id": "p_ffc645ec0ef398_19b5b5ed5eb",
       "categoryId": "elfraya25",
       "status": "ok",
-      "stock": 9,
+      "stock": 8,
       "visible": true,
       "price": null,
       "image": "https://i.ibb.co/1GVHr6XM/2-grape-ice-NOBG.png",
@@ -139,7 +139,7 @@
       "id": "p_9842bfea4d24c_19b5b637a59",
       "categoryId": "elfraya25",
       "status": "ok",
-      "stock": 5,
+      "stock": 4,
       "visible": true,
       "price": null,
       "image": "https://i.ibb.co/yncZwdbP/2-watermelon-ice-NOBG.png",
@@ -565,7 +565,7 @@
   ],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1771606651365,
-    "updatedAt": "2026-02-20T16:57:31.365Z"
+    "rev": 1771606669550,
+    "updatedAt": "2026-02-20T16:57:49.550Z"
   }
 }
