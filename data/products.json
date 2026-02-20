@@ -377,7 +377,7 @@
       "id": "p_7e90788f76589_19b6adc49b6",
       "categoryId": "vapsolo80k",
       "status": "ok",
-      "stock": 0,
+      "stock": 8,
       "visible": true,
       "price": null,
       "image": "https://i.ibb.co/TCXqQSH/4-WATERMELON-ICE-STRAWBERRY-MANGO-BLUEBERRYICE-FIZZY-CHERRY-NOBG.png",
@@ -514,7 +514,7 @@
   ],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1771587537397,
-    "updatedAt": "2026-02-20T11:38:57.397Z"
+    "rev": 1771587539831,
+    "updatedAt": "2026-02-20T11:38:59.831Z"
   }
 }
