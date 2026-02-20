@@ -527,50 +527,11 @@
       ],
       "createdAt": 1769097160768,
       "updatedAt": 1769097160768
-    },
-    {
-      "id": "popup_fa2e7424d271f8_19bec3c3ea2",
-      "enabled": true,
-      "rev": 1769194938442,
-      "title_hu": "Új termékek elérhetőek",
-      "title_en": "Új termékek elérhetőek",
-      "categoryIds": [
-        "vapsolo80k"
-      ],
-      "productIds": [],
-      "createdAt": 1769194938442,
-      "updatedAt": 1769194938442
-    },
-    {
-      "id": "popup_76b505cd685758_19bffc299f7",
-      "enabled": true,
-      "rev": 1769522511362,
-      "title_hu": "Új termékek elérhetőek",
-      "title_en": "Új termékek elérhetőek",
-      "categoryIds": [
-        "elflush40"
-      ],
-      "productIds": [],
-      "createdAt": 1769522511362,
-      "updatedAt": 1769522511362
-    },
-    {
-      "id": "popup_fe2469a6c5964_19bffc2c3f0",
-      "enabled": true,
-      "rev": 1769522515717,
-      "title_hu": "Új termékek elérhetőek",
-      "title_en": "Új termékek elérhetőek",
-      "categoryIds": [
-        "elfraya25"
-      ],
-      "productIds": [],
-      "createdAt": 1769522515717,
-      "updatedAt": 1769522515717
     }
   ],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1771590605400,
-    "updatedAt": "2026-02-20T12:30:05.400Z"
+    "rev": 1771590653957,
+    "updatedAt": "2026-02-20T12:30:53.957Z"
   }
 }
