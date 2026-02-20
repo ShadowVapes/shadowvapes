@@ -355,8 +355,8 @@
       "image": "https://i.ibb.co/bjKpw35c/7-watermelon-ice-NOBG.png",
       "name_hu": "BOOD Pulse Storm 12K",
       "name_en": "BOOD Pulse Storm 12K",
-      "flavor_hu": "Dinnye Jég",
-      "flavor_en": "Watermelon Ice",
+      "flavor_hu": "Black Berry Dragon Fruit Strawberry",
+      "flavor_en": "Szeder Sárkánygyümölcs Eper",
       "soonEta": "2026-01"
     },
     {
@@ -514,7 +514,7 @@
   ],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1771586595428,
-    "updatedAt": "2026-02-20T11:23:15.428Z"
+    "rev": 1771586677961,
+    "updatedAt": "2026-02-20T11:24:37.961Z"
   }
 }
