@@ -467,8 +467,8 @@
       "image": "https://i.ibb.co/5hS4Wq1f/STRAWBERRY-WATERMELON-CHERRY-COLA-JUICY-PEACH-ICE-GRAPEFRUIT-REFRESHER-NOBG.png",
       "name_hu": "Vapsolo Quads 80k",
       "name_en": "Vapsolo Quads 80k",
-      "flavor_hu": "Cherry Cola & Grapefruit Refresher & Strawberry Watermelon & Juicy Peach Ice",
-      "flavor_en": "Cseresznye Kóla & Hűs Grépfrút & Eper Dinnye & Lédús Brack Jég",
+      "flavor_hu": "Cseresznye Kóla & Hűs Grépfrút & Eper Dinnye & Lédús Brack Jég",
+      "flavor_en": "Cherry Cola & Grapefruit Refresher & Strawberry Watermelon & Juicy Peach Ice",
       "soonEta": ""
     },
     {
@@ -556,7 +556,7 @@
   ],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1771589631306,
-    "updatedAt": "2026-02-20T12:13:51.306Z"
+    "rev": 1771589790699,
+    "updatedAt": "2026-02-20T12:16:30.699Z"
   }
 }
