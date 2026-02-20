@@ -350,7 +350,7 @@
       "categoryId": "bood12k",
       "status": "soon",
       "stock": 10,
-      "visible": false,
+      "visible": true,
       "price": null,
       "image": "https://i.ibb.co/bjKpw35c/7-watermelon-ice-NOBG.png",
       "name_hu": "BOOD Pulse Storm 12K",
@@ -514,7 +514,7 @@
   ],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1771448193902,
-    "updatedAt": "2026-02-18T20:56:33.902Z"
+    "rev": 1771586595428,
+    "updatedAt": "2026-02-20T11:23:15.428Z"
   }
 }
