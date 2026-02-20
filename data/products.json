@@ -348,7 +348,7 @@
     {
       "id": "p_f711f17c5fdd3_19b6a7bed1f",
       "categoryId": "bood12k",
-      "status": "soon",
+      "status": "ok",
       "stock": 10,
       "visible": true,
       "price": null,
@@ -514,7 +514,7 @@
   ],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1771587130902,
-    "updatedAt": "2026-02-20T11:32:10.902Z"
+    "rev": 1771587150703,
+    "updatedAt": "2026-02-20T11:32:30.703Z"
   }
 }
