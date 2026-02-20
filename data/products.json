@@ -343,7 +343,7 @@
       "name_en": "Elfbar Ice King 30k",
       "flavor_hu": "Szeder Áfonya",
       "flavor_en": "Blackberry Cranberry",
-      "soonEta": "2026-01"
+      "soonEta": ""
     },
     {
       "id": "p_f711f17c5fdd3_19b6a7bed1f",
@@ -565,7 +565,7 @@
   ],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1771590821631,
-    "updatedAt": "2026-02-20T12:33:41.631Z"
+    "rev": 1771590860054,
+    "updatedAt": "2026-02-20T12:34:20.054Z"
   }
 }
