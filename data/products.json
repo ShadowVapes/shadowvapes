@@ -481,8 +481,8 @@
       "image": "https://i.ibb.co/xS1D61xC/6-LEMON-LIME-STRAWBERRY-ICE-RASPBERRY-WATERMELON-FIZZY-CHERRY-NOBG.png",
       "name_hu": "Vapsolo Quads 80k",
       "name_en": "Vapsolo Quads 80k",
-      "flavor_hu": "Lemon Lime & Raspberry Watermelon & Strawberry Ice & Fizzy Cherry",
-      "flavor_en": "Citrom Lime & Málna Dinnye & Eper Jég & Pezsgő Cseresznye",
+      "flavor_hu": "Citrom Lime & Málna Dinnye & Eper Jég & Pezsgő Cseresznye",
+      "flavor_en": "Lemon Lime & Raspberry Watermelon & Strawberry Ice & Fizzy Cherry",
       "soonEta": ""
     },
     {
@@ -556,7 +556,7 @@
   ],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1771589790699,
-    "updatedAt": "2026-02-20T12:16:30.699Z"
+    "rev": 1771589812261,
+    "updatedAt": "2026-02-20T12:16:52.261Z"
   }
 }
