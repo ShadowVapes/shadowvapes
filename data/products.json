@@ -25,7 +25,7 @@
       "id": "bood12k",
       "label_hu": "BOOD Pulse Storm 12K",
       "label_en": "BOOD Pulse Storm 12K",
-      "basePrice": 4500,
+      "basePrice": 4000,
       "featuredEnabled": true
     },
     {
@@ -556,7 +556,7 @@
   ],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1771589812261,
-    "updatedAt": "2026-02-20T12:16:52.261Z"
+    "rev": 1771589932547,
+    "updatedAt": "2026-02-20T12:18:52.547Z"
   }
 }
