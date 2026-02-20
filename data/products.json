@@ -357,7 +357,7 @@
       "name_en": "BOOD Pulse Storm 12K",
       "flavor_hu": "Black Berry Dragon Fruit Strawberry",
       "flavor_en": "Szeder Sárkánygyümölcs Eper",
-      "soonEta": "2026-01"
+      "soonEta": ""
     },
     {
       "id": "p_8a393a08657b48_19b6ad67348",
@@ -514,7 +514,7 @@
   ],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1771587150703,
-    "updatedAt": "2026-02-20T11:32:30.703Z"
+    "rev": 1771587158256,
+    "updatedAt": "2026-02-20T11:32:38.256Z"
   }
 }
