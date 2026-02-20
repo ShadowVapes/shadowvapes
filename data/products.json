@@ -456,6 +456,20 @@
       "flavor_hu": "Dinnye Jég",
       "flavor_en": "Watermelon Ice",
       "soonEta": ""
+    },
+    {
+      "id": "p_03568182a15ac_19c7ae3aa7d",
+      "categoryId": "vapsolo80k",
+      "status": "ok",
+      "stock": 8,
+      "visible": true,
+      "price": null,
+      "image": "https://i.ibb.co/5hS4Wq1f/STRAWBERRY-WATERMELON-CHERRY-COLA-JUICY-PEACH-ICE-GRAPEFRUIT-REFRESHER-NOBG.png",
+      "name_hu": "Vapsolo Quads 80k",
+      "name_en": "Vapsolo Quads 80k",
+      "flavor_hu": "Cherry Cola & Grapefruit Refresher & Strawberry Watermelon & Juicy Peach Ice",
+      "flavor_en": "Cseresznye Kóla & Hűs Grépfrút & Eper Dinnye & Lédús Brack Jég",
+      "soonEta": ""
     }
   ],
   "popups": [
@@ -514,7 +528,7 @@
   ],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1771587551259,
-    "updatedAt": "2026-02-20T11:39:11.259Z"
+    "rev": 1771588628400,
+    "updatedAt": "2026-02-20T11:57:08.400Z"
   }
 }
