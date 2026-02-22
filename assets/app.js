@@ -25,6 +25,7 @@
     reservations: [],
     reservationsHash: "",
     reservationsFresh: false,
+    reserveApi: "",
   };
 
   const isAdminMode = (()=>{
@@ -485,6 +486,47 @@
       return String(Math.floor(100 + Math.random()*900));
     }
 
+
+    // ✅ Token NÉLKÜLI foglalás mentés: Foglalás API (Cloudflare Worker / backend)
+    function getReserveApiUrl(){
+      try{
+        const api = String(state.reserveApi || localStorage.getItem("sv_res_api") || "").trim();
+        return api.replace(/\/+$/,'');
+      }catch{ return ""; }
+    }
+
+    async function callReserveApi(action, payload){
+      const api = getReserveApiUrl();
+      if(!api){
+        const e = new Error("NO_RES_API");
+        e.code = "NO_RES_API";
+        throw e;
+      }
+      const r = await fetch(api, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action, ...(payload||{}) })
+      });
+      const txt = await r.text();
+      let j = null;
+      try{ j = txt ? JSON.parse(txt) : null; }catch{ j = { message: txt }; }
+      if(!r.ok || (j && j.ok === false)){
+        const e = new Error(j?.message || `Foglalás mentési hiba (${r.status})`);
+        e.status = r.status;
+        e.data = j;
+        throw e;
+      }
+      return j;
+    }
+
+    async function createReservationViaApi(reservation){
+      return await callReserveApi("reservation.create", { reservation });
+    }
+
+    async function updateReservationViaApi(id, reservation){
+      return await callReserveApi("reservation.update", { id, reservation });
+    }
+
     function getWriteCfg(){
       try{
         const token = String(localStorage.getItem('sv_token') || '').trim();
@@ -681,9 +723,7 @@
         items: items.map(it => ({ productId: it.productId, qty: it.qty, unitPrice: it.unitPrice }))
       };
 
-      const cfg = await ensureWriteCfgInteractive();
-      if(!cfg) throw new Error("NO_CFG");
-      await appendReservationToGithub(cfg, reservation);
+            await createReservationViaApi(reservation);
 
       try{
         state.reservations = [...(state.reservations||[]), reservation];
@@ -733,7 +773,12 @@
         await finalizeReservation();
       }catch(err){
         console.error(err);
-        showToast(String(err?.message||'') === 'NO_CFG' ? 'Mentés megszakítva.' : 'Foglalás mentése nem sikerült.');
+        const code = String(err?.code || err?.message || '');
+        if(code === 'NO_RES_API'){
+          showToast('Foglalás most nem menthető: nincs foglalás-szinkron beállítva.');
+        }else{
+          showToast('Foglalás mentése nem sikerült.');
+        }
         try{ if(btnYes) btnYes.disabled = false; }catch{}
       }
     });
@@ -863,6 +908,14 @@
         if (j && j.owner && j.repo) {
           const br = String(j.branch || j.ref || "main").trim();
           source = { owner: String(j.owner).trim(), repo: String(j.repo).trim(), branch: br };
+          // ✅ Foglalás API (token nélküli mentéshez)
+          try{
+            const api = String(j.reserveApi || j.reserve_api || j.reservationsApi || j.reservations_api || j.resApi || j.res_api || "").trim();
+            if(api){
+              state.reserveApi = api;
+              try{ localStorage.setItem("sv_res_api", api); }catch{}
+            }
+          }catch{}
           try { localStorage.setItem("sv_source", JSON.stringify(source)); } catch {}
           return source;
         }

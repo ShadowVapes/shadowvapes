@@ -6,6 +6,7 @@
     repo: "sv_repo",
     branch: "sv_branch",
     token: "sv_token",
+    resApi: "sv_res_api",
   };
 
   const state = {
@@ -41,27 +42,64 @@
     $("#saveText").textContent = text;
   }
 
+  
+  const modalStack = [];
+
   function openModal(title, sub, bodyEl, actions){
+    const bg = $("#modalBg");
+    const body = $("#modalBody");
+    const act = $("#modalActions");
+
+    // ✅ modal stack: ne zárja be a "szülő" modalt (pl. eladás űrlap) amikor nyílik a termék picker
+    if(bg.style.display === "flex"){
+      modalStack.push({
+        title: $("#modalTitle").textContent,
+        sub: $("#modalSub").textContent,
+        bodyNodes: [...body.childNodes],
+        actionNodes: [...act.childNodes],
+      });
+    }
+
     $("#modalTitle").textContent = title;
     $("#modalSub").textContent = sub || "";
-    const body = $("#modalBody");
+
+    // move nodes out (eventek megmaradnak)
     body.innerHTML = "";
     body.appendChild(bodyEl);
 
-    const act = $("#modalActions");
     act.innerHTML = "";
     actions.forEach(a => {
       const b = document.createElement("button");
       b.textContent = a.label;
       b.className = a.kind === "primary" ? "primary" : (a.kind === "danger" ? "danger" : "ghost");
+      b.type = "button";
       b.onclick = a.onClick;
       act.appendChild(b);
     });
 
-    $("#modalBg").style.display = "flex";
+    bg.style.display = "flex";
   }
+
   function closeModal(){
-    $("#modalBg").style.display = "none";
+    const bg = $("#modalBg");
+    const body = $("#modalBody");
+    const act = $("#modalActions");
+
+    if(modalStack.length){
+      const prev = modalStack.pop();
+      $("#modalTitle").textContent = prev.title || "";
+      $("#modalSub").textContent = prev.sub || "";
+
+      body.innerHTML = "";
+      (prev.bodyNodes || []).forEach(n => body.appendChild(n));
+
+      act.innerHTML = "";
+      (prev.actionNodes || []).forEach(n => act.appendChild(n));
+
+      bg.style.display = "flex";
+      return;
+    }
+    bg.style.display = "none";
   }
 
   function todayISO(){
@@ -111,7 +149,8 @@
       owner: ($("#cfgOwner")?.value || "").trim(),
       repo: ($("#cfgRepo")?.value || "").trim(),
       branch: ($("#cfgBranch")?.value || "main").trim() || "main",
-      token: ($("#cfgToken")?.value || "").trim()
+      token: ($("#cfgToken")?.value || "").trim(),
+      resApi: ($("#cfgResApi")?.value || "").trim()
     };
   }
   function loadCfg(){
@@ -119,14 +158,16 @@
     const repo = localStorage.getItem(LS.repo) || "";
     const branch = localStorage.getItem(LS.branch) || "main";
     const token = localStorage.getItem(LS.token) || "";
+    const resApi = localStorage.getItem(LS.resApi) || "";
 
-    return { owner, repo, branch, token };
+    return { owner, repo, branch, token, resApi };
   }
   function saveCfg(cfg){
     localStorage.setItem(LS.owner, cfg.owner);
     localStorage.setItem(LS.repo, cfg.repo);
     localStorage.setItem(LS.branch, cfg.branch);
     localStorage.setItem(LS.token, cfg.token);
+    localStorage.setItem(LS.resApi, cfg.resApi || "");
   }
 
   /* ---------- Data logic ---------- */
@@ -145,6 +186,7 @@
         label_hu: c.label_hu || c.id,
         label_en: c.label_en || c.label_hu || c.id,
         basePrice: Number(c.basePrice || 0),
+        visible: (c.visible === false) ? false : true,
         featuredEnabled: (c.featuredEnabled === false) ? false : true
       }));
 
@@ -504,6 +546,7 @@ if(wantReservations){
   // ✅ sv_source.json (custom domain + telefon): a public oldal ebből találja meg a RAW forrást
   try{
     const srcObj = { owner: cfg.owner, repo: cfg.repo, branch: cfg.branch };
+    if(cfg.resApi) srcObj.reserveApi = cfg.resApi;
     const srcText = JSON.stringify(srcObj, null, 2);
     const prev = localStorage.getItem("sv_source_json") || "";
     if(state.forceSourceSync || prev !== srcText){
@@ -616,6 +659,7 @@ function markDirty(flags){
         <div class="field third"><label>Repo</label><input id="cfgRepo" value="${escapeHtml(cfg.repo)}" placeholder="pl. shadowvapes" /></div>
         <div class="field third"><label>Branch</label><input id="cfgBranch" value="${escapeHtml(cfg.branch)}" placeholder="main" /></div>
         <div class="field full"><label>Token</label><input id="cfgToken" value="${escapeHtml(cfg.token)}" type="password" placeholder="ghp_..." /></div>
+        <div class="field full"><label>Foglalás API (token nélkül a felhasználóknak)</label><input id="cfgResApi" value="${escapeHtml(cfg.resApi || '')}" placeholder="https://... (Cloudflare Worker URL)" /></div>
       </div>
       <div class="actions">
         <button class="ghost" id="btnLoad">Betöltés</button>
@@ -680,7 +724,7 @@ function markDirty(flags){
         }
       };
     }catch{}
-    ["cfgOwner","cfgRepo","cfgBranch","cfgToken"].forEach(id => {
+    ["cfgOwner","cfgRepo","cfgBranch","cfgToken","cfgResApi"].forEach(id => {
       $("#"+id).addEventListener("input", () => saveCfg(getCfg()));
     });
 
@@ -705,7 +749,7 @@ function markDirty(flags){
 
     let rows = cats.map(c => `
       <tr>
-        <td><b>${escapeHtml(c.id)}</b></td>
+        <td><div style="display:flex;gap:8px;align-items:center;justify-content:space-between;"><b>${escapeHtml(c.id)}</b><button type="button" class="ghost" data-ren-cat="${escapeHtml(c.id)}">Szerk</button></div></td>
         <td><input data-cid="${escapeHtml(c.id)}" data-k="label_hu" value="${escapeHtml(c.label_hu)}"></td>
         <td><input data-cid="${escapeHtml(c.id)}" data-k="label_en" value="${escapeHtml(c.label_en)}"></td>
         <td style="width:160px;"><input data-cid="${escapeHtml(c.id)}" data-k="basePrice" type="number" min="0" value="${Number(c.basePrice||0)}"></td>
@@ -778,6 +822,10 @@ function markDirty(flags){
       else inp.oninput = apply;
     });
 
+    $("#panelCategories").querySelectorAll("button[data-ren-cat]").forEach(btn => {
+      btn.onclick = () => renameCategory(btn.dataset.renCat);
+    });
+
     $("#panelCategories").querySelectorAll("button[data-delcat]").forEach(btn => {
       btn.onclick = () => {
         const id = btn.dataset.delcat;
@@ -790,7 +838,47 @@ function markDirty(flags){
     });
   }
 
-  function renderProducts(){
+  
+
+  function renameCategory(oldId){
+    const c = catById(oldId);
+    if(!c) return;
+
+    const body = document.createElement("div");
+    body.innerHTML = `
+      <div class="field">
+        <label>Új kategória ID</label>
+        <input id="renCatId" value="${escapeHtml(oldId)}" placeholder="pl. elf" />
+      </div>
+      <div class="small-muted" style="margin-top:10px;">
+        Ez átírja a termékekben is a kategóriát (categoryId).
+      </div>
+    `;
+
+    openModal("Kategória szerkesztése", "ID átnevezés", body, [
+      { label:"Mégse", kind:"ghost", onClick: closeModal },
+      { label:"Mentés", kind:"primary", onClick: () => {
+        const newId = (document.querySelector("#renCatId")?.value || "").trim();
+        if(!newId) return;
+        if(newId === oldId){ closeModal(); return; }
+        if(state.doc.categories.some(x => String(x.id) === newId)) return;
+
+        // update category
+        c.id = newId;
+
+        // update products pointing to it
+        for(const p of (state.doc.products || [])){
+          if(String(p.categoryId) === oldId) p.categoryId = newId;
+        }
+
+        closeModal();
+        renderAll();
+        markDirty({ products:true });
+      }}
+    ]);
+  }
+
+function renderProducts(){
     const cats = [{id:"all", label:"Mind"}, ...state.doc.categories.map(c=>({id:c.id,label:c.label_hu||c.id}))];
 
     const filterCat = state.filters.productsCat;

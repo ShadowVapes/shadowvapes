@@ -339,7 +339,14 @@ button, input, select{
   border-radius: 22px;
   padding: 18px;
   box-shadow: var(--shadow);
+  color: var(--text);
+  max-height: min(88vh, 720px);
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
 }
+#modalBody{ overflow:auto; max-height: 62vh; padding-right: 4px; }
+#modalActions{ flex:0 0 auto; }
 .modal h2{ margin:0 0 6px; }
 .modal p{ margin:0 0 14px; color: var(--muted); }
 .modal .row{ display:flex; gap:10px; flex-wrap:wrap; }
@@ -1081,6 +1088,7 @@ button, input, select{
   font-weight: 800;
 }
 .picker-cat{
+  color: var(--text);
   margin-top: 14px;
   margin-bottom: 6px;
   font-weight: 950;
@@ -1093,6 +1101,7 @@ button, input, select{
 }
 .picker-item{
   width: 100%;
+  color: var(--text);
   display:flex;
   align-items:center;
   gap: 10px;
