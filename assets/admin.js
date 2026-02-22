@@ -11,6 +11,8 @@
   const state = {
     doc: { categories: [], products: [] },
     sales: [],
+    reservations: [],
+    dirtyReservations: false,
     loaded: false,
     saving: false,
     saveQueued: false,
@@ -205,6 +207,45 @@ state.sales = state.sales.map(s => {
 }).filter(s => s.id);
   }
 
+
+  function normalizeReservations(list){
+    if(!Array.isArray(list)) return [];
+    const out = [];
+    for(const r of list){
+      if(!r) continue;
+      const id = String(r.id || r._id || r.resId || "");
+      if(!id) continue;
+
+      const confirmed = !!r.confirmed;
+      const createdAt = Number(r.createdAt || r.ts || 0) || 0;
+
+      let expiresAt = null;
+      if(!confirmed){
+        const ex = (r.expiresAt === null || r.expiresAt === undefined || r.expiresAt === "") ? null : Number(r.expiresAt || 0) || null;
+        expiresAt = ex;
+      }
+
+      const items = Array.isArray(r.items) ? r.items.map(it => ({
+        productId: String(it.productId || it.pid || it.product || ""),
+        qty: Math.max(1, Number(it.qty || it.quantity || 1) || 1),
+        unitPrice: Math.max(0, Number(it.unitPrice || it.price || 0) || 0),
+      })).filter(it => it.productId) : [];
+
+      out.push({
+        id,
+        publicCode: String(r.publicCode || r.code || ""),
+        createdAt,
+        expiresAt,
+        confirmed,
+        modified: !!r.modified,
+        modifiedAt: Number(r.modifiedAt || 0) || 0,
+        items
+      });
+    }
+    return out;
+  }
+
+
   function catById(id){
     return state.doc.categories.find(c => c.id === String(id)) || null;
   }
@@ -313,7 +354,8 @@ state.sales = state.sales.map(s => {
     setSaveStatus("busy","Betöltés...");
     const r = await tryLoadFromGithub(cfg);
     if(!r.ok){
-      setSaveStatus("bad","Betöltés hiba");
+      console.error(r.err);
+      setSaveStatus("bad", "Betöltés hiba: " + String(r.err?.message || ""));
       return;
     }
 
@@ -1008,7 +1050,7 @@ function markDirty(flags){
       <div class="admin-sales-embedwrap">
         <iframe class="admin-sales-embed" src="./?sv_admin=1" loading="lazy" referrerpolicy="no-referrer"></iframe>
       </div>
-      ${reservationsSection}
+      ${renderReservationsSection()}
       <div class=\"actions table" style="align-items:center;">
         <button class="primary" id="btnAddSale">+ Eladás</button>
         <select id="salesCat">
@@ -1230,6 +1272,103 @@ function markDirty(flags){
   }
 
   
+
+
+  function isReservationExpired(r){
+    if(!r) return true;
+    if(r.confirmed) return false;
+    const ex = Number(r.expiresAt || 0) || 0;
+    if(!ex) return false;
+    return Date.now() >= ex;
+  }
+
+  function formatRemaining(ms){
+    const sec = Math.max(0, Math.floor(Number(ms || 0) / 1000));
+    const d = Math.floor(sec / 86400);
+    const h = Math.floor((sec % 86400) / 3600);
+    const m = Math.floor((sec % 3600) / 60);
+    const s = sec % 60;
+    const hh = String(h).padStart(2,"0");
+    const mm = String(m).padStart(2,"0");
+    const ss = String(s).padStart(2,"0");
+    return (d > 0 ? `${d}n ` : "") + `${hh}:${mm}:${ss}`;
+  }
+
+  function reservationTotals(r){
+    let qty = 0;
+    let sum = 0;
+    for(const it of (r.items || [])){
+      const q = Number(it.qty || 0) || 0;
+      const up = Number(it.unitPrice || 0) || 0;
+      qty += q;
+      sum += q * up;
+    }
+    return { qty, sum };
+  }
+
+  function renderReservationsSection(){
+    const list = (state.reservations || [])
+      .filter(r => r && (r.confirmed || !isReservationExpired(r)))
+      .sort((a,b) => Number(b.createdAt || 0) - Number(a.createdAt || 0));
+
+    if(!list.length){
+      return `<div class="small-muted" style="margin:10px 0;">Nincs aktív foglalás.</div>`;
+    }
+
+    const rows = list.map(r => {
+      const code = r.publicCode || "—";
+      const dateTxt = r.createdAt ? new Date(Number(r.createdAt)).toLocaleString("hu-HU") : "—";
+      const { qty, sum } = reservationTotals(r);
+
+      const ex = (!r.confirmed && r.expiresAt) ? Number(r.expiresAt) : 0;
+      const timerTxt = r.confirmed ? "Megerősítve" : (ex ? formatRemaining(ex - Date.now()) : "—");
+
+      return `
+        <div class="rowline table reservation-row" style="align-items:center;">
+          <div class="left" style="min-width:0;">
+            <div style="font-weight:950;display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+              <span>Foglalás <b>#${escapeHtml(code)}</b></span>
+              <span class="small-muted">• ${escapeHtml(dateTxt)}</span>
+              <span class="small-muted">• ID: <b>${escapeHtml(r.id)}</b></span>
+            </div>
+            <div class="small-muted" style="margin-top:2px;">
+              Tételek: <b>${qty}</b> • Összeg: <b>${Number(sum || 0).toLocaleString("hu-HU")} Ft</b>
+            </div>
+          </div>
+          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:flex-end;">
+            ${r.confirmed ? `<span class="res-timer">—</span>` : `<span class="res-timer" data-expires="${escapeHtml(ex)}">${escapeHtml(timerTxt)}</span>`}
+            <button class="ghost" data-res-edit="${escapeHtml(r.id)}">Szerkesztés</button>
+            ${r.confirmed ? "" : `<button class="primary" data-res-confirm="${escapeHtml(r.id)}">Megerősítés</button>`}
+            <button class="primary" data-res-sale="${escapeHtml(r.id)}">Eladás rögzítése</button>
+            <button class="danger" data-res-del="${escapeHtml(r.id)}">Törlés</button>
+          </div>
+        </div>
+      `;
+    }).join("");
+
+    return `
+      <div style="margin:12px 0 6px;font-weight:950;">Foglalások</div>
+      ${rows}
+    `;
+  }
+
+  function purgeExpiredReservations(){
+    const before = (state.reservations || []).length;
+    if(!before) return;
+    const now = Date.now();
+    const kept = (state.reservations || []).filter(r => {
+      if(!r) return false;
+      if(r.confirmed) return true;
+      const ex = Number(r.expiresAt || 0) || 0;
+      if(!ex) return true;
+      return ex > now;
+    });
+    if(kept.length !== before){
+      state.reservations = kept;
+      markDirty({ reservations:true });
+      renderAll();
+    }
+  }
 
   let _resTick = null;
   function startReservationTicker(){

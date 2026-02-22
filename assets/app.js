@@ -420,7 +420,27 @@
     const lines = items.map(it => {
       const label = `${it.name}${it.flavor ? " • " + it.flavor : ""}`;
       const lineTotal = it.unitPrice * it.qty;
-      return `<div class="cart-sum-row"><span>${escHtml(label)}</span><span class="small-muted">${fmtFt(it.unitPrice)}</span><b>x${it.qty}</b><b>${fmtFt(lineTotal)}</b></div>`;
+      const img = (it.image || "").trim();
+      const thumb = img
+        ? `<img class="res-sum-thumb" src="${escHtml(img)}" alt="">`
+        : `<div class="res-sum-thumb ph">SV</div>`;
+
+      return `
+        <div class="res-sum-item">
+          ${thumb}
+          <div class="res-sum-mid">
+            <div class="res-sum-name">${escHtml(label)}</div>
+            <div class="res-sum-meta">
+              <span>Egységár: <b>${fmtFt(it.unitPrice)}</b></span>
+              <span>Db: <b>${it.qty}</b></span>
+            </div>
+          </div>
+          <div class="res-sum-right">
+            <div class="line">${fmtFt(lineTotal)}</div>
+            <div class="unit small-muted">Sorösszeg</div>
+          </div>
+        </div>
+      `;
     }).join("");
 
     const m = document.createElement("div");
@@ -429,7 +449,7 @@
       <div class="cart-confirm-card">
         <div class="cart-confirm-title">Foglalás összegzés</div>
         <div class="small-muted" style="margin-top:6px;">${totalQty} db • ${fmtFt(totalSum)}</div>
-        <div class="cart-sum">${lines}</div>
+        <div class="res-sum-list">${lines}</div>
         <div style="margin-top:10px;display:flex;justify-content:space-between;gap:10px;">
           <span class="muted">Végösszeg</span>
           <b>${fmtFt(totalSum)}</b>

@@ -927,6 +927,55 @@ button, input, select{
 .cart-sum-row{ display:flex; align-items:center; justify-content:space-between; gap:10px; font-size: 13px; }
 .cart-sum-row b{ font-weight: 950; }
 
+
+/* Reservation summary (nicer, with images) */
+.res-sum-list{ margin-top: 10px; display:flex; flex-direction:column; gap: 8px; }
+.res-sum-item{
+  display:flex;
+  gap: 10px;
+  align-items:flex-start;
+  padding: 10px 10px;
+  border-radius: 16px;
+  background: rgba(255,255,255,.03);
+  border: 1px solid rgba(255,255,255,.06);
+}
+.res-sum-thumb{
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  object-fit: cover;
+  flex: 0 0 auto;
+  border: 1px solid rgba(255,255,255,.10);
+  background: rgba(255,255,255,.04);
+}
+.res-sum-thumb.ph{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-weight: 950;
+  letter-spacing: .06em;
+  color: rgba(255,255,255,.70);
+}
+.res-sum-mid{ min-width:0; flex: 1; }
+.res-sum-name{
+  font-weight: 950;
+  line-height: 1.18;
+  overflow-wrap: anywhere;
+}
+.res-sum-meta{
+  margin-top: 4px;
+  font-size: 12px;
+  opacity: .85;
+  display:flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.res-sum-right{
+  flex: 0 0 auto;
+  text-align:right;
+}
+.res-sum-right .line{ font-weight: 950; }
+
 .cart-foot{
   padding: 12px;
   border-top: 1px solid rgba(255,255,255,.08);
