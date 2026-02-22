@@ -88,7 +88,7 @@
       "id": "p_f93b7eb924ed1_19b4e156422",
       "categoryId": "elf30",
       "status": "ok",
-      "stock": 2,
+      "stock": 3,
       "visible": true,
       "price": null,
       "image": "https://i.ibb.co/JRHp6YcK/Polar-mint-no-bg.png",
@@ -144,7 +144,7 @@
       "id": "p_9842bfea4d24c_19b5b637a59",
       "categoryId": "elfraya25",
       "status": "ok",
-      "stock": 3,
+      "stock": 4,
       "visible": true,
       "price": null,
       "image": "https://i.ibb.co/yncZwdbP/2-watermelon-ice-NOBG.png",
@@ -256,7 +256,7 @@
       "id": "p_4b3ea070114908_19b5bc64622",
       "categoryId": "elflush40",
       "status": "ok",
-      "stock": 5,
+      "stock": 6,
       "visible": true,
       "price": null,
       "image": "https://i.ibb.co/VcjFbc5R/Cactus-Lime-NOBG.png",
@@ -340,7 +340,7 @@
       "id": "p_96e473e02863_19b6a6106ac",
       "categoryId": "elf30",
       "status": "ok",
-      "stock": 1,
+      "stock": 2,
       "visible": true,
       "price": null,
       "image": "https://i.ibb.co/60r2WcXw/Blackberry-cranberry-NOBG.png",
@@ -354,7 +354,7 @@
       "id": "p_f711f17c5fdd3_19b6a7bed1f",
       "categoryId": "bood12k",
       "status": "ok",
-      "stock": 9,
+      "stock": 10,
       "visible": true,
       "price": null,
       "image": "https://i.ibb.co/bjKpw35c/7-watermelon-ice-NOBG.png",
@@ -508,7 +508,7 @@
       "id": "p_0b0caf39ccc8_19c7b06f9d2",
       "categoryId": "elf30",
       "status": "ok",
-      "stock": 3,
+      "stock": 4,
       "visible": true,
       "price": null,
       "image": "https://i.ibb.co/mCXPk2g2/Strawberry-ice-no-bg.png",
@@ -570,7 +570,7 @@
   ],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1771758870246,
-    "updatedAt": "2026-02-22T11:14:30.246Z"
+    "rev": 1771758932599,
+    "updatedAt": "2026-02-22T11:15:32.599Z"
   }
 }
