@@ -466,7 +466,7 @@
       "id": "p_03568182a15ac_19c7ae3aa7d",
       "categoryId": "vapsolo80k",
       "status": "ok",
-      "stock": 6,
+      "stock": 8,
       "visible": true,
       "price": null,
       "image": "https://i.ibb.co/5hS4Wq1f/STRAWBERRY-WATERMELON-CHERRY-COLA-JUICY-PEACH-ICE-GRAPEFRUIT-REFRESHER-NOBG.png",
@@ -570,7 +570,7 @@
   ],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1771759506170,
-    "updatedAt": "2026-02-22T11:25:06.170Z"
+    "rev": 1771759533938,
+    "updatedAt": "2026-02-22T11:25:33.938Z"
   }
 }
