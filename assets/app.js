@@ -564,6 +564,24 @@
     return v.toLocaleString("hu-HU") + " Ft";
   }
 
+  /* ----------------- Toast ----------------- */
+  let svToastTimer = null;
+  function showToast(msg){
+    if(!msg) return;
+    let el = document.getElementById("svToast");
+    if(!el){
+      el = document.createElement("div");
+      el.id = "svToast";
+      el.className = "sv-toast";
+      document.body.appendChild(el);
+    }
+    el.textContent = msg;
+    el.classList.add("show");
+    if(svToastTimer) clearTimeout(svToastTimer);
+    svToastTimer = setTimeout(()=>{ try{ el.classList.remove("show"); }catch{} }, 1800);
+  }
+
+
   /* ----------------- Reservations + Cart helpers ----------------- */
   function computeReservedByPid(){
     const m = new Map();
@@ -627,23 +645,32 @@
     updateCartBadge();
   }
 
-  function addToCart(pid, delta){
+  function addToCart(pid, delta, label){
     const id = String(pid||"");
     const d = Number(delta||0) || 0;
     if(!id || !d) return;
     const p = (state.productsDoc.products||[]).find(x => String(x.id) === id);
     if(!p) return;
+
     const maxAvail = availableStock(p);
     const cur = state.cart.get(id) || 0;
-    const next = Math.max(0, cur + d);
-    if(next > maxAvail){
-      // cap
-      state.cart.set(id, Math.max(0, maxAvail));
-    }else{
-      if(next <= 0) state.cart.delete(id);
-      else state.cart.set(id, next);
+
+    let next = Math.max(0, cur + d);
+    if(next > maxAvail) next = Math.max(0, maxAvail);
+
+    if(next <= 0) state.cart.delete(id);
+    else state.cart.set(id, next);
+
+    // ensure UI exists so badge updates on first add
+    if(!document.getElementById("cartBadge")){
+      try{ initCartUI(); }catch{}
     }
+
     updateCartBadge();
+
+    if(label && d > 0 && next > cur){
+      showToast(`${label} kosárba helyezve`);
+    }
   }
 
   function clearCart(){
@@ -968,35 +995,15 @@
       hero.appendChild(badges);
       hero.appendChild(overlay);
 
-      // add-to-cart button (keeps layout)
-      const addBtn = document.createElement("button");
-      addBtn.className = "add-btn";
-      addBtn.type = "button";
-      addBtn.title = t("addToCart");
-      addBtn.innerHTML = `<span>+</span>`;
-      if(soon || out){
-        addBtn.disabled = true;
-      }
-      addBtn.onclick = (e) => {
-        e.stopPropagation();
-        addToCart(String(p.id), 1);
-        // quick feedback
-        if(!state.cartOpen) flashCart();
-      };
-      hero.appendChild(addBtn);
-
       const body = document.createElement("div");
       body.className = "card-body";
 
       const meta = document.createElement("div");
-      meta.className = "meta-row";
+      meta.className = "meta-grid";
 
       const priceEl = document.createElement("div");
       priceEl.className = "price";
       priceEl.textContent = fmtFt(price);
-
-      const stockWrap = document.createElement("div");
-      stockWrap.className = "stock-wrap";
 
       const stockEl = document.createElement("div");
       stockEl.className = "stock";
@@ -1006,15 +1013,29 @@
       resEl.className = "reserved";
       resEl.innerHTML = `${t("reserved")}: <b>${soon ? "—" : reservedTotal} ${soon ? "" : t("pcs")}</b>`;
 
-      stockWrap.appendChild(stockEl);
-      stockWrap.appendChild(resEl);
-
       meta.appendChild(priceEl);
-      meta.appendChild(stockWrap);
+      meta.appendChild(stockEl);
+      meta.appendChild(resEl);
       body.appendChild(meta);
 
       card.appendChild(hero);
       card.appendChild(body);
+
+      // card bottom add button
+      const addBtn2 = document.createElement("button");
+      addBtn2.className = "card-add-btn";
+      addBtn2.type = "button";
+      addBtn2.textContent = "Kosárba teszem";
+      if(soon || out){
+        addBtn2.disabled = true;
+      }
+      addBtn2.onclick = (e) => {
+        e.stopPropagation();
+        const label = (name + (flavor ? " • " + flavor : "")).trim();
+        addToCart(String(p.id), 1, label);
+        flashCart();
+      };
+      card.appendChild(addBtn2);
 
       grid.appendChild(card);
     }
