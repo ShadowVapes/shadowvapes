@@ -790,6 +790,11 @@ button, input, select{
   font-weight: 900;
   letter-spacing:.15px;
   cursor:pointer;
+  width: auto;
+  max-width: 260px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   transition: transform .12s ease, background .12s ease, border-color .12s ease, opacity .12s ease;
 }
 .add-cart-btn:hover{ background: rgba(124,92,255,.26); border-color: rgba(255,255,255,.22); }
@@ -870,6 +875,18 @@ button, input, select{
   border: 1px solid rgba(255,255,255,.06);
   margin-bottom: 10px;
 }
+.cart-item-img{
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  object-fit: cover;
+  flex: 0 0 auto;
+  border: 1px solid rgba(255,255,255,.10);
+  background: rgba(255,255,255,.04);
+}
+.cart-item-img.ph{
+  display:block;
+}
 .cart-item-name{ font-weight: 900; }
 .cart-item-sub{ font-size: 12px; opacity: .8; margin-top: 2px; }
 .cart-qty{ display:flex; align-items:center; gap: 8px; }
@@ -905,6 +922,40 @@ button, input, select{
 }
 .cart-confirm-title{ font-weight: 900; line-height: 1.25; }
 .cart-confirm-actions{ display:flex; gap:10px; justify-content:flex-end; margin-top: 12px; }
+
+.cart-sum{ margin-top: 10px; display:flex; flex-direction:column; gap:6px; }
+.cart-sum-row{ display:flex; align-items:center; justify-content:space-between; gap:10px; font-size: 13px; }
+.cart-sum-row b{ font-weight: 950; }
+
+.cart-foot{
+  padding: 12px;
+  border-top: 1px solid rgba(255,255,255,.08);
+}
+.cart-action-btn{
+  width: 100%;
+  border:none;
+  border-radius: 14px;
+  padding: 12px 14px;
+  font-weight: 950;
+  cursor:pointer;
+  background: linear-gradient(90deg, var(--brand), var(--brand2));
+  color: #061018;
+  transition: transform .12s ease, opacity .12s ease;
+}
+.cart-action-btn:active{ transform: translateY(1px); }
+.cart-action-btn:disabled{ opacity:.40; cursor:not-allowed; transform:none; }
+
+/* Admin termék thumbnail */
+.admin-prod-left{ display:flex; gap:10px; align-items:center; }
+.admin-prod-thumb{
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+  object-fit: cover;
+  flex: 0 0 auto;
+  border: 1px solid rgba(255,255,255,.10);
+  background: rgba(255,255,255,.04);
+}
 
 /* Admin sales embed (if used) */
 .admin-sales-embedwrap{ margin-bottom: 12px; }

@@ -25,6 +25,10 @@
     reservationsFresh: false,
   };
 
+  const isAdminMode = (()=>{
+    try{ return new URLSearchParams(location.search).get("sv_admin") === "1"; }catch{ return false; }
+  })();
+
   const UI = {
     all: { hu: "Összes termék", en: "All products" },
     soon: { hu: "Hamarosan", en: "Coming soon" },
@@ -150,6 +154,9 @@
           <div id="svCartItems"></div>
           <div id="svCartEmpty" class="small-muted" style="display:none;margin-top:10px;">A kosár üres.</div>
         </div>
+        <div class="cart-foot">
+          <button type="button" class="cart-action-btn" id="svCartActionBtn" disabled>${isAdminMode ? "Eladás rögzítése" : "Foglalás"}</button>
+        </div>
       </div>
     `;
     document.body.appendChild(overlay);
@@ -162,16 +169,32 @@
       toggleCart(false);
     });
 
+    document.querySelector("#svCartActionBtn")?.addEventListener("click", (e)=>{
+      e.preventDefault(); e.stopPropagation();
+      if(!cartCount()) return;
+      if(isAdminMode) return adminSaleFromCart();
+      return reservationFromCart();
+    });
+
     document.addEventListener("keydown", (e)=>{
       if(e.key === "Escape" && state.cartOpen) toggleCart(false);
     });
 
     updateCartBadge();
+    updateCartActionBtn();
   }
 
   function updateCartBadge(){
     const b = document.querySelector("#svCartBadge");
     if(b) b.textContent = String(cartCount());
+    updateCartActionBtn();
+  }
+
+  function updateCartActionBtn(){
+    const btn = document.querySelector("#svCartActionBtn");
+    if(!btn) return;
+    btn.textContent = isAdminMode ? "Eladás rögzítése" : "Foglalás";
+    btn.disabled = cartCount() <= 0;
   }
 
   let toastTimer = null;
@@ -276,8 +299,14 @@
       const fl = getFlavor(p);
       const label = `${nm}${fl ? ", " + fl : ""}`;
 
+      const img = (p.image || "").trim();
+      const imgTag = img
+        ? `<img class="cart-item-img" src="${escHtml(img)}" alt="${escHtml(label)}" loading="lazy" onerror="this.style.display='none'">`
+        : `<div class="cart-item-img ph" aria-hidden="true"></div>`;
+
       rows.push(`
         <div class="cart-item">
+          ${imgTag}
           <div class="cart-item-main">
             <div class="cart-item-name">${escHtml(nm)}</div>
             <div class="cart-item-sub">${escHtml(fl || "")}</div>
@@ -293,6 +322,7 @@
 
     wrap.innerHTML = rows.join("");
     empty.style.display = rows.length ? "none" : "block";
+    updateCartActionBtn();
 
     wrap.querySelectorAll("button[data-plus]").forEach(b=>{
       b.addEventListener("click", (e)=>{
@@ -319,6 +349,79 @@
         }
         setCartQty(pid, cur - 1);
       });
+    });
+  }
+
+  /* ----------------- Cart actions ----------------- */
+  function adminSaleFromCart(){
+    try{
+      const items = [...state.cart.entries()].map(([productId, qty]) => ({ productId: String(productId), qty: Number(qty||0) })).filter(it => it.productId && it.qty > 0);
+      if(!items.length) return;
+      // Parent admin page will open the real sale modal + save/rollback logic.
+      if(window.parent && window.parent !== window){
+        window.parent.postMessage({ type:"sv_admin_cart_sale", items }, "*");
+        showToast("Tételek átadva az eladás rögzítéséhez.");
+        toggleCart(false);
+      }else{
+        showToast("Admin mód: nincs parent ablak.");
+      }
+    }catch{}
+  }
+
+  function reservationFromCart(){
+    const panel = document.querySelector("#svCartOverlay .cart-panel");
+    if(!panel) return;
+
+    const products = (state.productsDoc.products || []).filter(p => p && p.id && p.visible !== false);
+    const lines = [...state.cart.entries()].map(([pid, qty]) => {
+      const p = products.find(x => String(x.id) === String(pid));
+      const nm = p ? getName(p) : "Termék";
+      const fl = p ? getFlavor(p) : "";
+      return `<div class="cart-sum-row"><span>${escHtml(nm)}${fl ? " • " + escHtml(fl) : ""}</span><b>x${Number(qty)}</b></div>`;
+    }).join("");
+
+    const m = document.createElement("div");
+    m.className = "cart-confirm";
+    m.innerHTML = `
+      <div class="cart-confirm-card">
+        <div class="cart-confirm-title">Foglalás összegzés</div>
+        <div class="cart-sum">${lines}</div>
+        <div class="small-muted" id="svHoldTxt" style="margin-top:10px;">A megerősítés 3 mp múlva aktív.</div>
+        <div class="cart-confirm-actions">
+          <button type="button" class="ghost" id="svResNo">Mégse</button>
+          <button type="button" class="primary" id="svResYes" disabled>Megerősítés</button>
+        </div>
+      </div>
+    `;
+    panel.appendChild(m);
+
+    const btnYes = m.querySelector("#svResYes");
+    const txt = m.querySelector("#svHoldTxt");
+    let left = 3;
+    const tick = () => {
+      left -= 1;
+      if(txt) txt.textContent = left > 0 ? `A megerősítés ${left} mp múlva aktív.` : "Most már mehet!";
+      if(left <= 0){
+        if(btnYes) btnYes.disabled = false;
+        clearInterval(int);
+      }
+    };
+    const int = setInterval(tick, 1000);
+
+    const close = () => { try{ clearInterval(int); m.remove(); }catch{} };
+    m.querySelector("#svResNo")?.addEventListener("click", (e)=>{ e.preventDefault(); e.stopPropagation(); close(); });
+    btnYes?.addEventListener("click", (e)=>{
+      e.preventDefault(); e.stopPropagation();
+      const code = String(Math.floor(100 + Math.random()*900));
+      try{ localStorage.setItem("sv_last_res_code", code); }catch{}
+      // clear cart
+      state.cart = new Map();
+      saveCart();
+      updateCartBadge();
+      renderCart();
+      showToast(`Foglalás leadva • Azonosító: ${code}`);
+      close();
+      toggleCart(false);
     });
   }
 

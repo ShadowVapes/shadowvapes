@@ -723,16 +723,22 @@ function markDirty(flags){
     const rows = list.map(p => {
       const c = catById(p.categoryId);
       const eff = effectivePrice(p);
+      const img = (p.image || "").trim();
 
       return `
         <div class="rowline table">
           <div class="left">
-            <div style="font-weight:900;">${escapeHtml(p.name_hu||p.name_en||"—")} <span class="small-muted">• ${escapeHtml(p.flavor_hu||p.flavor_en||"")}</span></div>
-            <div class="small-muted">
-              Kategória: <b>${escapeHtml(c ? (c.label_hu||c.id) : "—")}</b>
-              • Ár: <b>${eff.toLocaleString("hu-HU")} Ft</b>
-              • Készlet: <b>${p.status==="soon" ? "—" : p.stock}</b>
-              ${p.status==="soon" && p.soonEta ? `• Várható: <b>${escapeHtml(p.soonEta)}</b>` : ""}
+            <div class="admin-prod-left">
+              <img class="admin-prod-thumb" src="${escapeHtml(img)}" alt="" loading="lazy" onerror="this.style.display='none'">
+              <div>
+                <div style="font-weight:900;">${escapeHtml(p.name_hu||p.name_en||"—")} <span class="small-muted">• ${escapeHtml(p.flavor_hu||p.flavor_en||"")}</span></div>
+                <div class="small-muted">
+                  Kategória: <b>${escapeHtml(c ? (c.label_hu||c.id) : "—")}</b>
+                  • Ár: <b>${eff.toLocaleString("hu-HU")} Ft</b>
+                  • Készlet: <b>${p.status==="soon" ? "—" : p.stock}</b>
+                  ${p.status==="soon" && p.soonEta ? `• Várható: <b>${escapeHtml(p.soonEta)}</b>` : ""}
+                </div>
+              </div>
             </div>
           </div>
           <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
@@ -980,13 +986,15 @@ function markDirty(flags){
     });
   }
 
-  function openSaleModal(){
+  function openSaleModal(prefill){
+    const pre = (prefill && typeof prefill === "object") ? prefill : {};
+    const preItems = Array.isArray(pre.items) ? pre.items : null;
     const body = document.createElement("div");
     body.innerHTML = `
       <div class="form-grid">
-        <div class="field third"><label>Dátum (YYYY-MM-DD)</label><input id="s_date" value="${todayISO()}"></div>
-        <div class="field third"><label>Név</label><input id="s_name" placeholder="pl. Tesó"></div>
-        <div class="field third"><label>Vásárlás módja</label><input id="s_pay" placeholder="pl. készpénz / utalás / bármi"></div>
+        <div class="field third"><label>Dátum (YYYY-MM-DD)</label><input id="s_date" value="${escapeHtml((pre.date || todayISO()))}"></div>
+        <div class="field third"><label>Név</label><input id="s_name" placeholder="pl. Tesó" value="${escapeHtml(pre.name || "")}"></div>
+        <div class="field third"><label>Vásárlás módja</label><input id="s_pay" placeholder="pl. készpénz / utalás / bármi" value="${escapeHtml(pre.payment || "")}"></div>
         <div class="field full"><label>Tételek</label><div id="s_items"></div></div>
       </div>
       <div class="actions">
@@ -997,7 +1005,7 @@ function markDirty(flags){
 
     const itemsRoot = body.querySelector("#s_items");
 
-    const addItemRow = () => {
+    const addItemRow = (pref) => {
       const row = document.createElement("div");
       // a CSS input/select stílus a .table alatt él, ezért kap pluszban table osztályt
       row.className = "rowline table";
@@ -1019,6 +1027,7 @@ function markDirty(flags){
       `;
 
       const sel = row.querySelector(".it_prod");
+      const qtyInp = row.querySelector(".it_qty");
       const price = row.querySelector(".it_price");
 
       sel.onchange = () => {
@@ -1027,10 +1036,24 @@ function markDirty(flags){
       };
       row.querySelector(".it_del").onclick = () => row.remove();
 
+      // prefill
+      if(pref && pref.productId){
+        sel.value = String(pref.productId);
+        const p = prodById(sel.value);
+        if(qtyInp) qtyInp.value = String(Math.max(1, Number(pref.qty || 1)));
+        price.value = String(p ? effectivePrice(p) : 0);
+      }
+
       itemsRoot.appendChild(row);
     };
 
-    addItemRow();
+    if(preItems && preItems.length){
+      for(const it of preItems){
+        addItemRow({ productId: it.productId, qty: it.qty });
+      }
+    }else{
+      addItemRow();
+    }
     body.querySelector("#btnAddItem").onclick = addItemRow;
 
     openModal("Új eladás", "Név + dátum + mód + több termék", body, [
@@ -1510,6 +1533,16 @@ function drawChart(){
 
     // first render panels + inject settings inputs ids
     renderSettings();
+
+    // Cart -> Sale (iframe) bridge
+    window.addEventListener("message", (ev)=>{
+      const d = ev && ev.data;
+      if(!d || d.type !== "sv_admin_cart_sale") return;
+      const items = Array.isArray(d.items) ? d.items : [];
+      if(!items.length) return;
+      try{ document.querySelector('#tabs button[data-tab="sales"]')?.click(); }catch{}
+      openSaleModal({ items });
+    });
 
     // betöltés ha van config
     const cfg = loadCfg();
