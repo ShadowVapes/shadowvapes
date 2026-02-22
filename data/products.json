@@ -5,6 +5,7 @@
       "label_hu": "Elfbar Ice King 30k",
       "label_en": "Elfbar Ice King 30k",
       "basePrice": 5000,
+      "visible": true,
       "featuredEnabled": true
     },
     {
@@ -12,6 +13,7 @@
       "label_hu": "Elfbar Raya D3  25k",
       "label_en": "Elfbar Raya D3  25k",
       "basePrice": 6000,
+      "visible": true,
       "featuredEnabled": true
     },
     {
@@ -19,6 +21,7 @@
       "label_hu": "Elfbar Lush King Pro 40k",
       "label_en": "Elfbar Lush King Pro 40k",
       "basePrice": 7000,
+      "visible": true,
       "featuredEnabled": true
     },
     {
@@ -26,6 +29,7 @@
       "label_hu": "BOOD Pulse Storm 12K",
       "label_en": "BOOD Pulse Storm 12K",
       "basePrice": 4000,
+      "visible": true,
       "featuredEnabled": true
     },
     {
@@ -33,6 +37,7 @@
       "label_hu": "Vapsolo Quads 80k",
       "label_en": "Vapsolo Quads 80k",
       "basePrice": 6500,
+      "visible": true,
       "featuredEnabled": true
     }
   ],
@@ -83,7 +88,7 @@
       "id": "p_f93b7eb924ed1_19b4e156422",
       "categoryId": "elf30",
       "status": "ok",
-      "stock": 3,
+      "stock": 2,
       "visible": true,
       "price": null,
       "image": "https://i.ibb.co/JRHp6YcK/Polar-mint-no-bg.png",
@@ -139,7 +144,7 @@
       "id": "p_9842bfea4d24c_19b5b637a59",
       "categoryId": "elfraya25",
       "status": "ok",
-      "stock": 4,
+      "stock": 3,
       "visible": true,
       "price": null,
       "image": "https://i.ibb.co/yncZwdbP/2-watermelon-ice-NOBG.png",
@@ -251,7 +256,7 @@
       "id": "p_4b3ea070114908_19b5bc64622",
       "categoryId": "elflush40",
       "status": "ok",
-      "stock": 6,
+      "stock": 5,
       "visible": true,
       "price": null,
       "image": "https://i.ibb.co/VcjFbc5R/Cactus-Lime-NOBG.png",
@@ -335,7 +340,7 @@
       "id": "p_96e473e02863_19b6a6106ac",
       "categoryId": "elf30",
       "status": "ok",
-      "stock": 2,
+      "stock": 1,
       "visible": true,
       "price": null,
       "image": "https://i.ibb.co/60r2WcXw/Blackberry-cranberry-NOBG.png",
@@ -349,7 +354,7 @@
       "id": "p_f711f17c5fdd3_19b6a7bed1f",
       "categoryId": "bood12k",
       "status": "ok",
-      "stock": 10,
+      "stock": 9,
       "visible": true,
       "price": null,
       "image": "https://i.ibb.co/bjKpw35c/7-watermelon-ice-NOBG.png",
@@ -503,7 +508,7 @@
       "id": "p_0b0caf39ccc8_19c7b06f9d2",
       "categoryId": "elf30",
       "status": "ok",
-      "stock": 4,
+      "stock": 3,
       "visible": true,
       "price": null,
       "image": "https://i.ibb.co/mCXPk2g2/Strawberry-ice-no-bg.png",
@@ -565,7 +570,7 @@
   ],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1771674319559,
-    "updatedAt": "2026-02-21T11:45:19.559Z"
+    "rev": 1771758870246,
+    "updatedAt": "2026-02-22T11:14:30.246Z"
   }
 }
