@@ -424,7 +424,7 @@
       "id": "p_b862159bc3f608_19beb0c6380",
       "categoryId": "vapsolo80k",
       "status": "ok",
-      "stock": 8,
+      "stock": 7,
       "visible": true,
       "price": null,
       "image": "https://i.ibb.co/tWJGc13/MIXED-BERRY-CHERRY-LEMON-STRAWBERRY-KIWI-STRAWBERRY-WATERMELON-BUBBLEGUM-NOBG.png",
@@ -480,7 +480,7 @@
       "id": "p_d1c0df1b50542_19c7aee39b0",
       "categoryId": "vapsolo80k",
       "status": "ok",
-      "stock": 6,
+      "stock": 4,
       "visible": true,
       "price": null,
       "image": "https://i.ibb.co/xS1D61xC/6-LEMON-LIME-STRAWBERRY-ICE-RASPBERRY-WATERMELON-FIZZY-CHERRY-NOBG.png",
@@ -570,7 +570,7 @@
   ],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1771759536807,
-    "updatedAt": "2026-02-22T11:25:36.807Z"
+    "rev": 1771759743018,
+    "updatedAt": "2026-02-22T11:29:03.018Z"
   }
 }
