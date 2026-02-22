@@ -508,6 +508,95 @@
       }catch{ return null; }
     }
 
+
+    async function ensureWriteCfgInteractive(){
+      let cfg = getWriteCfg();
+      if(cfg) return cfg;
+
+      return await new Promise((resolve) => {
+        const ov = document.createElement("div");
+        ov.className = "cart-confirm";
+        ov.innerHTML = `
+          <div class="cart-confirm-card">
+            <div class="cart-confirm-title">Mentéshez beállítás kell</div>
+            <div class="small-muted" style="margin-top:6px;">Telefonon is ugyanúgy kell a GitHub token (admin). Ha van Sync link, ide be tudod másolni.</div>
+
+            <div style="margin-top:10px;">
+              <div class="small-muted" style="margin-bottom:6px;">Sync link (opcionális)</div>
+              <input id="svSyncLink" class="picker-search" placeholder="https://...">
+            </div>
+
+            <div style="margin-top:10px;">
+              <div class="small-muted" style="margin-bottom:6px;">GitHub token</div>
+              <input id="svTokenInput" class="picker-search" type="password" placeholder="ghp_..." autocomplete="off">
+            </div>
+
+            <div class="small-muted" id="svCfgErr" style="margin-top:10px;color:rgba(255,77,109,.95);display:none;"></div>
+
+            <div class="cart-confirm-actions" style="margin-top:14px;justify-content:space-between;">
+              <button type="button" class="ghost" id="svCfgCancel">Mégse</button>
+              <button type="button" class="primary" id="svCfgSave">Mentés</button>
+            </div>
+          </div>
+        `;
+        panel.appendChild(ov);
+
+        const errEl = ov.querySelector("#svCfgErr");
+        const showErr = (txt) => {
+          if(!errEl) return;
+          errEl.textContent = String(txt || "Hiányzó adatok.");
+          errEl.style.display = "block";
+        };
+
+        const cleanup = () => { try{ ov.remove(); }catch{} };
+
+        ov.querySelector("#svCfgCancel")?.addEventListener("click", (e)=>{
+          e.preventDefault(); e.stopPropagation();
+          cleanup();
+          resolve(null);
+        });
+
+        ov.querySelector("#svCfgSave")?.addEventListener("click", (e)=>{
+          e.preventDefault(); e.stopPropagation();
+
+          try{
+            const link = String(ov.querySelector("#svSyncLink")?.value || "").trim();
+            if(link){
+              try{
+                const u = new URL(link);
+                const sp = u.searchParams;
+                const owner = sp.get("sv_owner") || sp.get("owner") || "";
+                const repo  = sp.get("sv_repo")  || sp.get("repo")  || "";
+                const branch= sp.get("sv_branch")|| sp.get("branch")|| "main";
+                if(owner) localStorage.setItem("sv_owner", owner);
+                if(repo) localStorage.setItem("sv_repo", repo);
+                if(branch) localStorage.setItem("sv_branch", branch);
+                try{
+                  if(owner && repo){
+                    localStorage.setItem("sv_source", JSON.stringify({ owner, repo, branch }));
+                  }
+                }catch{}
+              }catch{}
+            }
+
+            const token = String(ov.querySelector("#svTokenInput")?.value || "").trim();
+            if(token) localStorage.setItem("sv_token", token);
+
+            cfg = getWriteCfg();
+            if(!cfg){
+              showErr("Add meg a tokent és/vagy a Sync linket (owner/repo).");
+              return;
+            }
+
+            cleanup();
+            resolve(cfg);
+          }catch(err){
+            showErr("Hiba a beállítás mentésekor.");
+          }
+        });
+      });
+    }
+
     function b64encode(str){
       return btoa(unescape(encodeURIComponent(str)));
     }
@@ -592,12 +681,9 @@
         items: items.map(it => ({ productId: it.productId, qty: it.qty, unitPrice: it.unitPrice }))
       };
 
-      const cfg = getWriteCfg();
-      if(cfg){
-        await appendReservationToGithub(cfg, reservation);
-      }else{
-        showToast('Foglalás kód generálva, de mentéshez nincs token.');
-      }
+      const cfg = await ensureWriteCfgInteractive();
+      if(!cfg) throw new Error("NO_CFG");
+      await appendReservationToGithub(cfg, reservation);
 
       try{
         state.reservations = [...(state.reservations||[]), reservation];
@@ -647,7 +733,7 @@
         await finalizeReservation();
       }catch(err){
         console.error(err);
-        showToast('Foglalás mentése nem sikerült.');
+        showToast(String(err?.message||'') === 'NO_CFG' ? 'Mentés megszakítva.' : 'Foglalás mentése nem sikerült.');
         try{ if(btnYes) btnYes.disabled = false; }catch{}
       }
     });
@@ -1086,8 +1172,10 @@
         label_hu: c.label_hu || c.id,
         label_en: c.label_en || c.label_hu || c.id,
         basePrice: Number(c.basePrice || 0),
-        featuredEnabled: (c.featuredEnabled === false) ? false : true
+        featuredEnabled: (c.featuredEnabled === false) ? false : true,
+        visible: (c.visible === false) ? false : true
       }))
+      .filter(c => isAdminMode || c.visible !== false)
       .sort((a, b) => catLabel(a).localeCompare(catLabel(b), locale()));
 
     return [
@@ -1100,6 +1188,11 @@
   function filterList() {
     const q = norm(state.search);
 
+    const catVisible = new Map();
+    for(const c of (state.productsDoc.categories || [])){
+      if(c && c.id) catVisible.set(String(c.id), (c.visible === false) ? false : true);
+    }
+
     let list = (state.productsDoc.products || []).map((p) => ({
       ...p,
       id: String(p.id || ""),
@@ -1108,6 +1201,10 @@
       stock: Math.max(0, Number(p.stock || 0)),
       visible: (p.visible === false) ? false : true
     })).filter(p => p.id && p.visible !== false);
+
+    if(!isAdminMode){
+      list = list.filter(p => p.status === "soon" || (catVisible.get(String(p.categoryId)) !== false));
+    }
 
     if (state.active === "soon") {
       list = list.filter((p) => p.status === "soon");

@@ -914,11 +914,15 @@ button, input, select{
 }
 .cart-confirm-card{
   width: min(360px, 100%);
+  max-height: min(86vh, 720px);
   border-radius: 18px;
   border: 1px solid rgba(255,255,255,.14);
   background: rgba(15,22,36,.96);
   box-shadow: 0 18px 50px rgba(0,0,0,.65);
   padding: 14px;
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
 }
 .cart-confirm-title{ font-weight: 900; line-height: 1.25; }
 .cart-confirm-actions{ display:flex; gap:10px; justify-content:flex-end; margin-top: 12px; }
@@ -929,7 +933,7 @@ button, input, select{
 
 
 /* Reservation summary (nicer, with images) */
-.res-sum-list{ margin-top: 10px; display:flex; flex-direction:column; gap: 8px; }
+.res-sum-list{ margin-top: 10px; display:flex; flex-direction:column; gap: 8px; overflow:auto; flex: 1 1 auto; min-height:0; padding-right:2px; }
 .res-sum-item{
   display:flex;
   gap: 10px;
@@ -1062,4 +1066,102 @@ button, input, select{
   border: 1px solid rgba(255,255,255,.10);
   background: rgba(255,255,255,.05);
   flex: 0 0 auto;
+}
+
+
+/* --- Product picker (admin) --- */
+.picker-search{
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,.10);
+  background: rgba(255,255,255,.04);
+  color: var(--text);
+  outline: none;
+  font-weight: 800;
+}
+.picker-cat{
+  margin-top: 14px;
+  margin-bottom: 6px;
+  font-weight: 950;
+  opacity: .95;
+}
+.picker-list{
+  display:flex;
+  flex-direction:column;
+  gap: 8px;
+}
+.picker-item{
+  width: 100%;
+  display:flex;
+  align-items:center;
+  gap: 10px;
+  padding: 10px 10px;
+  border-radius: 16px;
+  border: 1px solid rgba(255,255,255,.08);
+  background: rgba(255,255,255,.03);
+  cursor: pointer;
+  text-align:left;
+}
+.picker-item:hover{ background: rgba(255,255,255,.06); }
+.picker-thumb{
+  width: 34px;
+  height: 34px;
+  border-radius: 12px;
+  object-fit: cover;
+  border: 1px solid rgba(255,255,255,.10);
+  background: rgba(255,255,255,.04);
+  flex: 0 0 auto;
+}
+.picker-thumb.ph{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-weight: 950;
+  letter-spacing:.06em;
+  color: rgba(255,255,255,.70);
+}
+.picker-name{ font-weight: 950; line-height: 1.15; }
+.picker-sub{ font-size: 12px; opacity: .82; margin-top: 2px; }
+.picker-right{ margin-left:auto; text-align:right; font-size: 12px; opacity: .85; }
+.it-pick-btn{
+  min-width: 280px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,.12);
+  background: rgba(255,255,255,.05);
+  color: var(--text);
+  font-weight: 900;
+  cursor:pointer;
+  text-align:left;
+}
+.it-pick-btn:hover{ background: rgba(255,255,255,.08); }
+
+
+/* --- Charts (admin) --- */
+.chart-card{
+  margin-top: 12px;
+  border-radius: 18px;
+  border: 1px solid rgba(255,255,255,.10);
+  background: rgba(255,255,255,.03);
+  padding: 12px 12px 10px;
+}
+.chart-head{
+  display:flex;
+  align-items:flex-end;
+  justify-content:space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.chart-title{
+  font-weight: 950;
+  letter-spacing: .02em;
+}
+.chart-card canvas{
+  width: 100%;
+  height: 220px;
+  display:block;
+  border-radius: 16px;
+  background: rgba(0,0,0,.12);
+  border: 1px solid rgba(255,255,255,.06);
 }

@@ -709,6 +709,7 @@ function markDirty(flags){
         <td><input data-cid="${escapeHtml(c.id)}" data-k="label_hu" value="${escapeHtml(c.label_hu)}"></td>
         <td><input data-cid="${escapeHtml(c.id)}" data-k="label_en" value="${escapeHtml(c.label_en)}"></td>
         <td style="width:160px;"><input data-cid="${escapeHtml(c.id)}" data-k="basePrice" type="number" min="0" value="${Number(c.basePrice||0)}"></td>
+        <td style="width:110px;text-align:center;"><input type="checkbox" data-cid="${escapeHtml(c.id)}" data-k="visible"${c.visible===false?"":" checked"}></td>
         <td style="width:120px;text-align:center;"><input type="checkbox" data-cid="${escapeHtml(c.id)}" data-k="featuredEnabled"${c.featuredEnabled===false?"":" checked"}></td>
         <td style="width:110px;"><button class="danger" data-delcat="${escapeHtml(c.id)}">Töröl</button></td>
       </tr>
@@ -721,7 +722,7 @@ function markDirty(flags){
       </div>
       <table class="table">
         <thead>
-          <tr><th>ID</th><th>HU</th><th>EN</th><th>Alap ár (Ft)</th><th>Felkapott</th><th></th></tr>
+          <tr><th>ID</th><th>HU</th><th>EN</th><th>Alap ár (Ft)</th><th>Látható</th><th>Felkapott</th><th></th></tr>
         </thead>
         <tbody>${rows}</tbody>
       </table>
@@ -749,7 +750,9 @@ function markDirty(flags){
             id,
             label_hu: hu,
             label_en: hu, // ✅ EN nem kell külön, maradjon HU
-            basePrice: Math.max(0, Number($("#newCprice").value||0))
+            basePrice: Math.max(0, Number($("#newCprice").value||0)),
+            visible: true,
+            featuredEnabled: true
           });
           closeModal();
           renderAll();
@@ -765,6 +768,7 @@ function markDirty(flags){
         const c = catById(id);
         if(!c) return;
         if(k === "basePrice") c.basePrice = Math.max(0, Number(inp.value||0));
+        else if(k === "visible") c.visible = !!inp.checked;
         else if(k === "featuredEnabled") c.featuredEnabled = !!inp.checked;
         else c[k] = inp.value;
         markDirty({ products:true });
@@ -1083,6 +1087,105 @@ function markDirty(flags){
     startReservationTicker();
   }
 
+
+function prodLabel(p){
+  const n = (p && (p.name_hu || p.name_en)) || "—";
+  const f = (p && (p.flavor_hu || p.flavor_en)) || "";
+  return n + (f ? " • " + f : "");
+}
+
+function openProductPicker(opts = {}){
+  const title = opts.title || "Válassz terméket";
+  const allowSoon = !!opts.allowSoon;
+
+  return new Promise((resolve) => {
+    const body = document.createElement("div");
+    body.innerHTML = `
+      <input class="picker-search" id="pp_q" placeholder="Keresés (név / íz)...">
+      <div id="pp_list" style="margin-top:12px;"></div>
+    `;
+
+    const qEl = body.querySelector("#pp_q");
+    const listEl = body.querySelector("#pp_list");
+
+    const cats = [...state.doc.categories].sort((a,b)=> (a.label_hu||a.id).localeCompare(b.label_hu||b.id,"hu"));
+
+    const render = () => {
+      const q = String(qEl.value || "").trim().toLowerCase();
+
+      let prods = state.doc.products
+        .filter(p => p && p.id)
+        .filter(p => allowSoon ? true : (p.status !== "soon"));
+
+      if(q){
+        prods = prods.filter(p => (prodLabel(p).toLowerCase()).includes(q));
+      }
+
+      const byCat = new Map();
+      for(const c of cats) byCat.set(String(c.id), []);
+      byCat.set("_other", []);
+
+      for(const p of prods){
+        const k = byCat.has(String(p.categoryId)) ? String(p.categoryId) : "_other";
+        byCat.get(k).push(p);
+      }
+
+      const sections = [];
+
+      const renderGroup = (title, arr) => {
+        if(!arr || !arr.length) return;
+        arr.sort((a,b)=> prodLabel(a).localeCompare(prodLabel(b),"hu"));
+        const items = arr.map(p => {
+          const img = (p.image || "").trim();
+          const thumb = img
+            ? `<img class="picker-thumb" src="${escapeHtml(img)}" alt="" loading="lazy" onerror="this.style.display='none'">`
+            : `<div class="picker-thumb ph">SV</div>`;
+          const eff = effectivePrice(p);
+          const stockTxt = (p.status === "out") ? "Elfogyott" : (p.status === "soon" ? "Hamarosan" : `Készlet: ${Number(p.stock||0)}`);
+          return `
+            <button type="button" class="picker-item" data-pid="${escapeHtml(p.id)}">
+              ${thumb}
+              <div>
+                <div class="picker-name">${escapeHtml(prodLabel(p))}</div>
+                <div class="picker-sub">${escapeHtml(stockTxt)}</div>
+              </div>
+              <div class="picker-right"><b>${eff.toLocaleString("hu-HU")} Ft</b></div>
+            </button>
+          `;
+        }).join("");
+        sections.push(`
+          <div class="picker-cat">${escapeHtml(title)}</div>
+          <div class="picker-list">${items}</div>
+        `);
+      };
+
+      for(const c of cats){
+        renderGroup(c.label_hu || c.id, byCat.get(String(c.id)));
+      }
+      renderGroup("Egyéb", byCat.get("_other"));
+
+      listEl.innerHTML = sections.length ? sections.join("") : `<div class="small-muted">Nincs találat.</div>`;
+    };
+
+    qEl.oninput = render;
+    render();
+
+    listEl.addEventListener("click", (e) => {
+      const b = e.target.closest("[data-pid]");
+      if(!b) return;
+      const pid = String(b.dataset.pid || "");
+      closeModal();
+      resolve(pid || null);
+    });
+
+    openModal(title, "Képes lista, kategóriánként", body, [
+      { label:"Mégse", kind:"ghost", onClick: () => { closeModal(); resolve(null); } }
+    ]);
+
+    setTimeout(()=>{ try{ qEl.focus(); }catch{} }, 60);
+  });
+}
+
   function openSaleModal(pre){
     const preDate = (pre && pre.date) ? String(pre.date) : todayISO();
     const preName = (pre && pre.name) ? String(pre.name) : "";
@@ -1108,73 +1211,73 @@ function markDirty(flags){
 
     const itemsRoot = body.querySelector("#s_items");
 
-    const optionHtml = state.doc.products
-      .filter(p => p.status !== "soon")
-      .map(p => {
-        const n = p.name_hu || p.name_en || "—";
-        const f = p.flavor_hu || p.flavor_en || "";
-        const stock = p.stock;
-        return `<option value="${escapeHtml(p.id)}">${escapeHtml(n + (f ? " • " + f : "") + ` (stock:${stock})`)}</option>`;
-      }).join("");
 
-    const addItemRow = (pref = {}) => {
-      const row = document.createElement("div");
-      row.className = "rowline table";
-      row.innerHTML = `
-        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;width:100%;">
-          <img class="it-thumb" alt="" />
-          <select class="it_prod" style="min-width:280px;">
-            <option value="">Válassz terméket…</option>
-            ${optionHtml}
-          </select>
-          <input class="it_qty" type="number" min="1" value="1" style="width:110px;">
-          <input class="it_price" type="number" min="0" value="0" style="width:150px;">
-          <button class="danger it_del" type="button">Töröl</button>
-        </div>
-      `;
+const addItemRow = (pref = {}) => {
+  const row = document.createElement("div");
+  row.className = "rowline table";
+  row.innerHTML = `
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;width:100%;">
+      <img class="it-thumb" alt="" />
+      <button type="button" class="it-pick-btn it_pick">Válassz terméket…</button>
+      <input type="hidden" class="it_prod" value="">
+      <input class="it_qty" type="number" min="1" value="1" style="width:110px;">
+      <input class="it_price" type="number" min="0" value="0" style="width:150px;">
+      <button class="danger it_del" type="button">Töröl</button>
+    </div>
+  `;
 
-      const sel = row.querySelector(".it_prod");
-      const qtyInp = row.querySelector(".it_qty");
-      const priceInp = row.querySelector(".it_price");
-      const thumb = row.querySelector(".it-thumb");
+  const pidInp = row.querySelector(".it_prod");
+  const pickBtn = row.querySelector(".it_pick");
+  const qtyInp = row.querySelector(".it_qty");
+  const priceInp = row.querySelector(".it_price");
+  const thumb = row.querySelector(".it-thumb");
 
-      const syncThumb = () => {
-        const p = prodById(sel.value);
-        const img = p && (p.image || "").trim();
-        if(!thumb) return;
-        if(img){
-          thumb.src = img;
-          thumb.style.visibility = "visible";
-        }else{
-          thumb.removeAttribute("src");
-          thumb.style.visibility = "hidden";
-        }
-      };
+  const syncThumb = (p) => {
+    const img = p && (p.image || "").trim();
+    if(!thumb) return;
+    if(img){
+      thumb.src = img;
+      thumb.style.visibility = "visible";
+    }else{
+      thumb.removeAttribute("src");
+      thumb.style.visibility = "hidden";
+    }
+  };
 
-      sel.onchange = () => {
-        const p = prodById(sel.value);
-        priceInp.value = String(p ? effectivePrice(p) : 0);
-        syncThumb();
-      };
+  const applyPid = (pid, setPrice = true) => {
+    pidInp.value = String(pid || "");
+    const p = prodById(pidInp.value);
+    pickBtn.textContent = p ? prodLabel(p) : "Válassz terméket…";
+    if(setPrice){
+      priceInp.value = String(p ? effectivePrice(p) : 0);
+    }
+    syncThumb(p);
+  };
 
-      row.querySelector(".it_del").onclick = () => row.remove();
+  pickBtn.onclick = async () => {
+    const pid = await openProductPicker({ title: "Válassz terméket" });
+    if(pid) applyPid(pid, true);
+  };
 
-      if(pref && pref.productId){
-        sel.value = String(pref.productId);
-        const p = prodById(sel.value);
-        qtyInp.value = String(Math.max(1, Number(pref.qty || 1) || 1));
-        if(pref.unitPrice !== undefined && pref.unitPrice !== null && String(pref.unitPrice) !== ""){
-          priceInp.value = String(Math.max(0, Number(pref.unitPrice) || 0));
-        }else{
-          priceInp.value = String(p ? effectivePrice(p) : 0);
-        }
-      }else{
-        priceInp.value = "0";
-      }
+  row.querySelector(".it_del").onclick = () => row.remove();
 
-      syncThumb();
-      itemsRoot.appendChild(row);
-    };
+  if(pref && pref.productId){
+    applyPid(pref.productId, false);
+    qtyInp.value = String(Math.max(1, Number(pref.qty || 1) || 1));
+    const p = prodById(pidInp.value);
+    if(pref.unitPrice !== undefined && pref.unitPrice !== null && String(pref.unitPrice) !== ""){
+      priceInp.value = String(Math.max(0, Number(pref.unitPrice) || 0));
+    }else{
+      priceInp.value = String(p ? effectivePrice(p) : 0);
+    }
+    syncThumb(p);
+  }else{
+    applyPid("", true);
+    priceInp.value = "0";
+  }
+
+  itemsRoot.appendChild(row);
+};
 
     if(preItems && preItems.length){
       for(const it of preItems) addItemRow(it);
@@ -1441,51 +1544,60 @@ function markDirty(flags){
 
     const itemsRoot = body.querySelector('#r_items');
 
-    const addRow = (pref) => {
-      const row = document.createElement('div');
-      row.className = 'rowline table';
-      row.innerHTML = `
-        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;width:100%;">
-          <img class="it-thumb" alt="" />
-          <select class="it_prod" style="min-width:280px;">
-            <option value="">Válassz terméket…</option>
-            ${state.doc.products.filter(p=>p.status!=="soon").map(p=>{
-              const n = p.name_hu || p.name_en || '—';
-              const f = p.flavor_hu || p.flavor_en || '';
-              return `<option value="${escapeHtml(p.id)}">${escapeHtml(n + (f? ' • '+f:''))}</option>`;
-            }).join('')}
-          </select>
-          <input class="it_qty" type="number" min="1" value="1" style="width:110px;">
-          <button class="danger it_del" type="button">Töröl</button>
-        </div>
-      `;
-      const sel = row.querySelector('.it_prod');
-      const qtyInp = row.querySelector('.it_qty');
-      const thumb = row.querySelector('.it-thumb');
 
-      const syncThumb = () => {
-        const p = prodById(sel.value);
-        const img = p && (p.image||'').trim();
-        if(!thumb) return;
-        if(img){
-          thumb.src = img;
-          thumb.style.visibility = 'visible';
-        }else{
-          thumb.removeAttribute('src');
-          thumb.style.visibility = 'hidden';
-        }
-      };
+const addRow = (pref) => {
+  const row = document.createElement('div');
+  row.className = 'rowline table';
+  row.innerHTML = `
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;width:100%;">
+      <img class="it-thumb" alt="" />
+      <button type="button" class="it-pick-btn it_pick">Válassz terméket…</button>
+      <input type="hidden" class="it_prod" value="">
+      <input class="it_qty" type="number" min="1" value="1" style="width:110px;">
+      <button class="danger it_del" type="button">Töröl</button>
+    </div>
+  `;
 
-      sel.onchange = syncThumb;
-      row.querySelector('.it_del').onclick = () => row.remove();
+  const pidInp = row.querySelector('.it_prod');
+  const pickBtn = row.querySelector('.it_pick');
+  const qtyInp = row.querySelector('.it_qty');
+  const thumb = row.querySelector('.it-thumb');
 
-      if(pref && pref.productId){
-        sel.value = String(pref.productId);
-        qtyInp.value = String(Math.max(1, Number(pref.qty||1)||1));
-      }
-      syncThumb();
-      itemsRoot.appendChild(row);
-    };
+  const syncThumb = (p) => {
+    const img = p && (p.image||'').trim();
+    if(!thumb) return;
+    if(img){
+      thumb.src = img;
+      thumb.style.visibility = 'visible';
+    }else{
+      thumb.removeAttribute('src');
+      thumb.style.visibility = 'hidden';
+    }
+  };
+
+  const applyPid = (pid) => {
+    pidInp.value = String(pid || '');
+    const p = prodById(pidInp.value);
+    pickBtn.textContent = p ? prodLabel(p) : 'Válassz terméket…';
+    syncThumb(p);
+  };
+
+  pickBtn.onclick = async () => {
+    const pid = await openProductPicker({ title: "Válassz terméket" });
+    if(pid) applyPid(pid);
+  };
+
+  row.querySelector('.it_del').onclick = () => row.remove();
+
+  if(pref && pref.productId){
+    applyPid(pref.productId);
+    qtyInp.value = String(Math.max(1, Number(pref.qty||1)||1));
+  }else{
+    applyPid('');
+  }
+
+  itemsRoot.appendChild(row);
+};
 
     for(const it of (r.items||[])) addRow({ productId: it.productId, qty: it.qty });
     body.querySelector('#btnAddResItem').onclick = () => addRow();
@@ -1556,25 +1668,101 @@ function deleteSale(id){
   }
 
   function renderChartPanel(){
-    const cats = [{id:"all", label:"Mind"}, ...state.doc.categories.map(c=>({id:c.id,label:c.label_hu||c.id}))];
+  const cats = [{id:"all", label:"Mind"}, ...state.doc.categories.map(c=>({id:c.id,label:c.label_hu||c.id}))];
 
-    $("#panelChart").innerHTML = `
-      <div class="actions table" style="align-items:center;">
+  $("#panelChart").innerHTML = `
+    <div class="actions table" style="align-items:center;justify-content:space-between;gap:12px;">
+      <div class="small-muted">Bevétel diagrammok (eladások alapján)</div>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:flex-end;">
+        <div class="small-muted">Kategória:</div>
         <select id="chartCat">
           ${cats.map(c => `<option value="${escapeHtml(c.id)}"${c.id===state.filters.chartCat?" selected":""}>${escapeHtml(c.label)}</option>`).join("")}
         </select>
-        <div class="small-muted">Csak bevétel (Ft), napra bontva. Kategória szűrésnél csak az adott kategória tételeit számolja.</div>
       </div>
+    </div>
 
-      <div class="kpi" style="margin-top:12px;" id="chartKpi"></div>
-
-      <div style="margin-top:12px;">
-        <canvas id="revCanvas" width="1100" height="360" style="width:100%;height:360px;display:block;border-radius:16px;border:1px solid rgba(255,255,255,.06);background:rgba(11,15,23,.25);"></canvas>
+    <div class="kpi" style="margin-top:10px;">
+      <div class="box" style="min-width:170px;">
+        <div class="t">Összesen</div>
+        <div class="v" id="kpi_all">0 Ft</div>
       </div>
-    `;
+      <div class="box" style="min-width:170px;">
+        <div class="t">Év</div>
+        <div class="v" id="kpi_year">0 Ft</div>
+      </div>
+      <div class="box" style="min-width:170px;">
+        <div class="t">Hónap</div>
+        <div class="v" id="kpi_month">0 Ft</div>
+      </div>
+      <div class="box" style="min-width:170px;">
+        <div class="t">Hét</div>
+        <div class="v" id="kpi_week">0 Ft</div>
+      </div>
+      <div class="box" style="min-width:170px;">
+        <div class="t">Ma</div>
+        <div class="v" id="kpi_day">0 Ft</div>
+      </div>
+    </div>
 
-    $("#chartCat").onchange = () => { state.filters.chartCat = $("#chartCat").value; drawChart(); };
-  }
+    <div class="chart-card">
+      <div class="chart-head">
+        <div>
+          <div class="chart-title">Összesen</div>
+          <div class="small-muted">Havi bontás (teljes időszak)</div>
+        </div>
+      </div>
+      <canvas id="revAll" height="220"></canvas>
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-head">
+        <div>
+          <div class="chart-title">Évi</div>
+          <div class="small-muted">Havi bontás (idén)</div>
+        </div>
+      </div>
+      <canvas id="revYear" height="220"></canvas>
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-head">
+        <div>
+          <div class="chart-title">Havi</div>
+          <div class="small-muted">Napi bontás (ebben a hónapban)</div>
+        </div>
+      </div>
+      <canvas id="revMonth" height="220"></canvas>
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-head">
+        <div>
+          <div class="chart-title">Heti</div>
+          <div class="small-muted">Napi bontás (utolsó 7 nap)</div>
+        </div>
+      </div>
+      <canvas id="revWeek" height="220"></canvas>
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-head">
+        <div>
+          <div class="chart-title">Napi</div>
+          <div class="small-muted">Ma + tegnap</div>
+        </div>
+      </div>
+      <canvas id="revDay" height="220"></canvas>
+    </div>
+  `;
+
+  $("#chartCat").onchange = () => {
+    state.filters.chartCat = $("#chartCat").value;
+    drawChart();
+  };
+
+  drawChart();
+}
+
 
 
 
@@ -1790,124 +1978,213 @@ function deleteSale(id){
   }
 
 function drawChart(){
-  const canvas = $("#revCanvas");
-  const kpi = $("#chartKpi");
-  if(!canvas) return;
+  const cat = state.filters.chartCat || "all";
 
-  try{
+  const css = getComputedStyle(document.documentElement);
+  const accent = (css.getPropertyValue("--brand2") || "#4aa3ff").trim();
+  const grid = "rgba(255,255,255,.08)";
+  const text = "rgba(255,255,255,.82)";
+  const muted = "rgba(255,255,255,.55)";
+
+  const fmtFt = (n) => `${Math.round(n).toLocaleString("hu-HU")} Ft`;
+
+  const iso = (d) => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth()+1).padStart(2,"0");
+    const da = String(d.getDate()).padStart(2,"0");
+    return `${y}-${m}-${da}`;
+  };
+  const parseISO = (s) => new Date(`${s}T00:00:00`);
+  const addDays = (d, n) => { const x = new Date(d); x.setDate(x.getDate()+n); return x; };
+
+  const today = new Date();
+  const todayIso = iso(today);
+  const yearStartIso = `${today.getFullYear()}-01-01`;
+  const monthStartIso = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,"0")}-01`;
+
+  const dayMap = new Map(); // iso -> revenue
+  let allTotal = 0, yearTotal = 0, monthTotal = 0, weekTotal = 0, dayTotal = 0;
+
+  const dYearStart = parseISO(yearStartIso);
+  const dMonthStart = parseISO(monthStartIso);
+  const dWeekStart = addDays(today, -6); // utolsó 7 nap
+
+  for(const s of (state.sales || [])){
+    const dt = String(s.date || "").slice(0,10);
+    if(!dt) continue;
+
+    const tot = saleTotals(s, cat);
+    const rev = Number(tot.revenue || 0);
+    if(!rev) continue;
+
+    dayMap.set(dt, (dayMap.get(dt) || 0) + rev);
+
+    allTotal += rev;
+
+    const d = parseISO(dt);
+    if(d >= dYearStart) yearTotal += rev;
+    if(d >= dMonthStart) monthTotal += rev;
+    if(d >= parseISO(iso(dWeekStart))) weekTotal += rev;
+    if(dt === todayIso) dayTotal += rev;
+  }
+
+  const setKpi = (id, val) => { const el = $(id); if(el) el.textContent = fmtFt(val); };
+  setKpi("#kpi_all", allTotal);
+  setKpi("#kpi_year", yearTotal);
+  setKpi("#kpi_month", monthTotal);
+  setKpi("#kpi_week", weekTotal);
+  setKpi("#kpi_day", dayTotal);
+
+  const buildDailySeries = (startIso, endIso) => {
+    const s = parseISO(startIso);
+    const e = parseISO(endIso);
+    const arr = [];
+    for(let d = new Date(s); d <= e; d = addDays(d,1)){
+      const key = iso(d);
+      arr.push({ label: key, rev: Number(dayMap.get(key) || 0) });
+    }
+    return arr;
+  };
+
+  const buildMonthlySeries = (startIso, endIso) => {
+    const s = parseISO(startIso);
+    const e = parseISO(endIso);
+    const m = new Map(); // YYYY-MM -> rev
+    for(const [k, v] of dayMap.entries()){
+      const d = parseISO(k);
+      if(d < s || d > e) continue;
+      const ym = k.slice(0,7);
+      m.set(ym, (m.get(ym) || 0) + Number(v||0));
+    }
+    // ensure continuous months
+    const arr = [];
+    const cur = new Date(s);
+    cur.setDate(1);
+    const end = new Date(e);
+    end.setDate(1);
+    while(cur <= end){
+      const ym = `${cur.getFullYear()}-${String(cur.getMonth()+1).padStart(2,"0")}`;
+      arr.push({ label: ym, rev: Number(m.get(ym) || 0) });
+      cur.setMonth(cur.getMonth()+1);
+    }
+    return arr;
+  };
+
+  const drawLine = (canvas, points) => {
+    if(!canvas) return;
+
     const rect = canvas.getBoundingClientRect();
-    const cssW = Math.max(520, Math.floor(rect.width || 1100));
-    const cssH = Math.max(260, Math.floor(rect.height || 360));
+    const w = Math.max(1, rect.width);
+    const h = Math.max(1, rect.height);
     const dpr = window.devicePixelRatio || 1;
 
-    canvas.width = Math.floor(cssW * dpr);
-    canvas.height = Math.floor(cssH * dpr);
+    canvas.width = Math.round(w * dpr);
+    canvas.height = Math.round(h * dpr);
 
     const ctx = canvas.getContext("2d");
+    if(!ctx) return;
     ctx.setTransform(dpr,0,0,dpr,0,0);
-    ctx.font = "12px system-ui, -apple-system, Segoe UI, Roboto, Arial";
-    ctx.clearRect(0,0,cssW,cssH);
+    ctx.clearRect(0,0,w,h);
 
-    const cat = state.filters.chartCat;
+    const padL = 44, padR = 14, padT = 18, padB = 32;
+    const pw = Math.max(1, w - padL - padR);
+    const ph = Math.max(1, h - padT - padB);
 
-    // group by date => revenue
-    const map = new Map();
-    let total = 0;
-    for(const s of state.sales){
-      const st = saleTotals(s, cat);
-      if(cat !== "all" && !st.hit) continue;
-
-      let d = String(s.date || "");
-      if(!d) continue;
-      // ha véletlen idő is van benne: "YYYY-MM-DDTHH:MM" -> "YYYY-MM-DD"
-      d = d.split("T")[0].split(" ")[0];
-
-      const rev = Number(st.revenue || 0);
-      if(!Number.isFinite(rev)) continue;
-
-      map.set(d, (map.get(d) || 0) + rev);
-      total += rev;
-    }
-
-    const days = [...map.keys()].sort();
-    const revs = days.map(d => Number(map.get(d) || 0));
-    const labels = days.map(d => d); // teljes dátum
-
-    if(kpi){
-      kpi.innerHTML = `<div class="small-muted">Összes bevétel: <b>${total.toLocaleString("hu-HU")} Ft</b> • Napok: <b>${days.length}</b></div>`;
-    }
+    const max = Math.max(1, ...points.map(p=>Number(p.rev||0)));
+    const n = points.length;
 
     // grid
-    ctx.strokeStyle = "rgba(255,255,255,.10)";
     ctx.lineWidth = 1;
-
-    const left = 96, right = cssW - 18, top = 18, bottom = cssH - 46;
-    const w = right - left;
-    const h = bottom - top;
-
-    for(let i=0;i<=5;i++){
-      const y = top + (i/5)*h;
-      ctx.beginPath(); ctx.moveTo(left,y); ctx.lineTo(right,y); ctx.stroke();
+    ctx.strokeStyle = grid;
+    for(let i=0;i<=4;i++){
+      const y = padT + (ph * i/4);
+      ctx.beginPath();
+      ctx.moveTo(padL, y);
+      ctx.lineTo(padL + pw, y);
+      ctx.stroke();
     }
-
-    if(!days.length){
-      ctx.fillStyle = "rgba(255,255,255,.65)";
-      ctx.font = "16px ui-sans-serif, system-ui";
-      ctx.fillText("Nincs adat a diagrammhoz.", left, top + 28);
-      return;
-    }
-
-    const maxRev = Math.max(...revs, 1);
 
     // y labels
-    ctx.font = "13px ui-sans-serif, system-ui";
+    ctx.fillStyle = muted;
+    ctx.font = "12px system-ui, -apple-system, Segoe UI, Roboto, Arial";
     ctx.textAlign = "right";
     ctx.textBaseline = "middle";
     for(let i=0;i<=4;i++){
-      const t = i/4;
-      const v = Math.round(maxRev * (1 - t));
-      const y = top + t*h;
-      ctx.fillStyle = "rgba(255,255,255,.72)";
-      ctx.fillText(`${v.toLocaleString("hu-HU")} Ft`, left - 10, y);
+      const v = Math.round(max * (1 - i/4));
+      const y = padT + (ph * i/4);
+      ctx.fillText(fmtFt(v).replace(" Ft",""), padL - 8, y);
     }
 
-    // x labels (ritkítva)
-    const step = Math.ceil(days.length / 6);
-    ctx.textAlign = "center";
-    ctx.textBaseline = "top";
-    ctx.fillStyle = "rgba(255,255,255,.70)";
-    for(let i=0;i<days.length;i+=step){
-      const x = left + (days.length===1 ? w/2 : (i/(days.length-1))*w);
-      ctx.fillText(labels[i], x, bottom + 10);
-    }
+    const xAt = (i) => {
+      if(n <= 1) return padL + pw/2;
+      return padL + (pw * (i/(n-1)));
+    };
+    const yAt = (v) => padT + ph - (ph * (Number(v||0)/max));
 
-    const xAt = (i) => left + (days.length===1 ? w/2 : (i/(days.length-1))*w);
-    const yAt = (v) => bottom - (v/maxRev)*h;
-
-    // revenue line (crypto-style)
-    ctx.strokeStyle = "rgba(124,92,255,.95)";
-    ctx.lineWidth = 2.8;
+    // line
+    ctx.strokeStyle = accent;
+    ctx.lineWidth = 2;
     ctx.beginPath();
-    for(let i=0;i<days.length;i++){
+    points.forEach((p,i)=>{
       const x = xAt(i);
-      const y = yAt(revs[i]);
-      if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
-    }
+      const y = yAt(p.rev);
+      if(i===0) ctx.moveTo(x,y);
+      else ctx.lineTo(x,y);
+    });
     ctx.stroke();
 
-    // last point highlight
-    const lx = xAt(days.length-1);
-    const ly = yAt(revs[revs.length-1]);
-    ctx.fillStyle = "rgba(124,92,255,.95)";
-    ctx.beginPath(); ctx.arc(lx, ly, 3.8, 0, Math.PI*2); ctx.fill();
+    // points
+    ctx.fillStyle = accent;
+    points.forEach((p,i)=>{
+      const x = xAt(i);
+      const y = yAt(p.rev);
+      ctx.beginPath();
+      ctx.arc(x,y,3.2,0,Math.PI*2);
+      ctx.fill();
+    });
 
-  }catch(e){
-    console.error(e);
-    if(kpi){
-      kpi.innerHTML = `<div class="small-muted">Diagramm hiba: <b>${escapeHtml(String(e?.message || e))}</b></div>`;
+    // x labels (first, middle, last)
+    ctx.fillStyle = text;
+    ctx.font = "12px system-ui, -apple-system, Segoe UI, Roboto, Arial";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "top";
+
+    const labels = [];
+    if(n === 1){
+      labels.push({i:0, t: points[0].label});
+    }else if(n === 2){
+      labels.push({i:0, t: points[0].label});
+      labels.push({i:1, t: points[1].label});
+    }else{
+      labels.push({i:0, t: points[0].label});
+      labels.push({i:Math.floor((n-1)/2), t: points[Math.floor((n-1)/2)].label});
+      labels.push({i:n-1, t: points[n-1].label});
     }
-  }
+
+    labels.forEach(o=>{
+      const t = String(o.t || "");
+      ctx.fillText(t, xAt(o.i), padT + ph + 10);
+    });
+  };
+
+  // ranges
+  const allDates = [...dayMap.keys()].sort();
+  const allStart = allDates[0] || todayIso;
+  const allEnd = allDates[allDates.length-1] || todayIso;
+
+  const seriesAll = buildMonthlySeries(allStart, allEnd);
+  const seriesYear = buildMonthlySeries(yearStartIso, todayIso);
+  const seriesMonth = buildDailySeries(monthStartIso, todayIso);
+  const seriesWeek = buildDailySeries(iso(addDays(today, -6)), todayIso);
+  const seriesDay = buildDailySeries(iso(addDays(today, -1)), todayIso);
+
+  drawLine($("#revAll"), seriesAll);
+  drawLine($("#revYear"), seriesYear);
+  drawLine($("#revMonth"), seriesMonth);
+  drawLine($("#revWeek"), seriesWeek);
+  drawLine($("#revDay"), seriesDay);
 }
+
 
 
   function renderAll(){
