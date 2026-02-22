@@ -22,6 +22,8 @@
     cart: new Map(),
     cartOpen: false,
     reservedByProduct: new Map(),
+    reservations: [],
+    reservationsHash: "",
     reservationsFresh: false,
   };
 
@@ -153,6 +155,7 @@
         <div class="cart-body">
           <div id="svCartItems"></div>
           <div id="svCartEmpty" class="small-muted" style="display:none;margin-top:10px;">A kosár üres.</div>
+          <div id=\"svCartTotals\" class=\"cart-totals\" style=\"display:none;\"></div>
         </div>
         <div class="cart-foot">
           <button type="button" class="cart-action-btn" id="svCartActionBtn" disabled>${isAdminMode ? "Eladás rögzítése" : "Foglalás"}</button>
@@ -287,17 +290,25 @@
   function renderCart(){
     const wrap = document.querySelector("#svCartItems");
     const empty = document.querySelector("#svCartEmpty");
+    const totalsEl = document.querySelector("#svCartTotals");
     if(!wrap || !empty) return;
 
     const products = (state.productsDoc.products || []).filter(p => p && p.id && p.visible !== false);
     const rows = [];
+    let totalSum = 0;
 
-    for(const [pid, qty] of state.cart.entries()){
+    for(const [pid, qty0] of state.cart.entries()){
       const p = products.find(x => String(x.id) === String(pid));
       if(!p) continue;
+      const qty = Math.max(1, Number(qty0||0)||0);
+
       const nm = getName(p);
       const fl = getFlavor(p);
       const label = `${nm}${fl ? ", " + fl : ""}`;
+
+      const unit = Number(effectivePrice(p) || 0);
+      const lineTotal = unit * qty;
+      totalSum += lineTotal;
 
       const img = (p.image || "").trim();
       const imgTag = img
@@ -309,11 +320,11 @@
           ${imgTag}
           <div class="cart-item-main">
             <div class="cart-item-name">${escHtml(nm)}</div>
-            <div class="cart-item-sub">${escHtml(fl || "")}</div>
+            <div class="cart-item-sub">${escHtml(fl || "")} • Darabár: ${fmtFt(unit)} • Össz: <b>${fmtFt(lineTotal)}</b></div>
           </div>
           <div class="cart-qty">
             <button type="button" class="qty-btn" data-minus="${escHtml(pid)}">−</button>
-            <div class="qty-num">${Number(qty)}</div>
+            <div class="qty-num">${qty}</div>
             <button type="button" class="qty-btn" data-plus="${escHtml(pid)}">+</button>
           </div>
         </div>
@@ -322,6 +333,17 @@
 
     wrap.innerHTML = rows.join("");
     empty.style.display = rows.length ? "none" : "block";
+
+    if(totalsEl){
+      if(rows.length){
+        totalsEl.style.display = "flex";
+        totalsEl.innerHTML = `<span class="muted">Végösszeg</span><b>${fmtFt(totalSum)}</b>`;
+      }else{
+        totalsEl.style.display = "none";
+        totalsEl.innerHTML = "";
+      }
+    }
+
     updateCartActionBtn();
 
     wrap.querySelectorAll("button[data-plus]").forEach(b=>{
@@ -352,6 +374,7 @@
     });
   }
 
+
   /* ----------------- Cart actions ----------------- */
   function adminSaleFromCart(){
     try{
@@ -373,11 +396,31 @@
     if(!panel) return;
 
     const products = (state.productsDoc.products || []).filter(p => p && p.id && p.visible !== false);
-    const lines = [...state.cart.entries()].map(([pid, qty]) => {
+
+    const items = [...state.cart.entries()].map(([pid, qty0]) => {
       const p = products.find(x => String(x.id) === String(pid));
-      const nm = p ? getName(p) : "Termék";
-      const fl = p ? getFlavor(p) : "";
-      return `<div class="cart-sum-row"><span>${escHtml(nm)}${fl ? " • " + escHtml(fl) : ""}</span><b>x${Number(qty)}</b></div>`;
+      if(!p) return null;
+      const qty = Math.max(1, Number(qty0||0)||0);
+      const unit = Number(effectivePrice(p) || 0);
+      return {
+        productId: String(pid),
+        qty,
+        unitPrice: unit,
+        name: getName(p),
+        flavor: getFlavor(p),
+        image: (p.image || "").trim()
+      };
+    }).filter(Boolean);
+
+    if(!items.length) return;
+
+    const totalQty = items.reduce((a,it)=>a+it.qty,0);
+    const totalSum = items.reduce((a,it)=>a+(it.unitPrice*it.qty),0);
+
+    const lines = items.map(it => {
+      const label = `${it.name}${it.flavor ? " • " + it.flavor : ""}`;
+      const lineTotal = it.unitPrice * it.qty;
+      return `<div class="cart-sum-row"><span>${escHtml(label)}</span><span class="small-muted">${fmtFt(it.unitPrice)}</span><b>x${it.qty}</b><b>${fmtFt(lineTotal)}</b></div>`;
     }).join("");
 
     const m = document.createElement("div");
@@ -385,8 +428,13 @@
     m.innerHTML = `
       <div class="cart-confirm-card">
         <div class="cart-confirm-title">Foglalás összegzés</div>
+        <div class="small-muted" style="margin-top:6px;">${totalQty} db • ${fmtFt(totalSum)}</div>
         <div class="cart-sum">${lines}</div>
-        <div class="small-muted" id="svHoldTxt" style="margin-top:10px;">A megerősítés 3 mp múlva aktív.</div>
+        <div style="margin-top:10px;display:flex;justify-content:space-between;gap:10px;">
+          <span class="muted">Végösszeg</span>
+          <b>${fmtFt(totalSum)}</b>
+        </div>
+        <div class="small-muted" style="margin-top:10px;">A foglalás 2 nap múlva automatikusan lejár!</div>
         <div class="cart-confirm-actions">
           <button type="button" class="ghost" id="svResNo">Mégse</button>
           <button type="button" class="primary" id="svResYes" disabled>Megerősítés</button>
@@ -396,34 +444,195 @@
     panel.appendChild(m);
 
     const btnYes = m.querySelector("#svResYes");
-    const txt = m.querySelector("#svHoldTxt");
-    let left = 3;
-    const tick = () => {
-      left -= 1;
-      if(txt) txt.textContent = left > 0 ? `A megerősítés ${left} mp múlva aktív.` : "Most már mehet!";
-      if(left <= 0){
-        if(btnYes) btnYes.disabled = false;
-        clearInterval(int);
-      }
-    };
-    const int = setInterval(tick, 1000);
+    const btnNo = m.querySelector("#svResNo");
 
-    const close = () => { try{ clearInterval(int); m.remove(); }catch{} };
-    m.querySelector("#svResNo")?.addEventListener("click", (e)=>{ e.preventDefault(); e.stopPropagation(); close(); });
-    btnYes?.addEventListener("click", (e)=>{
-      e.preventDefault(); e.stopPropagation();
-      const code = String(Math.floor(100 + Math.random()*900));
-      try{ localStorage.setItem("sv_last_res_code", code); }catch{}
-      // clear cart
+    const close = () => { try{ m.remove(); }catch{} };
+    btnNo?.addEventListener("click", (e)=>{ e.preventDefault(); e.stopPropagation(); close(); });
+
+    // 3s safety delay
+    setTimeout(()=>{ try{ if(btnYes) btnYes.disabled = false; }catch{} }, 3000);
+
+    function makeId(){
+      return `r_${Date.now().toString(36)}_${Math.random().toString(36).slice(2,8)}`;
+    }
+
+    function genPublicCode(){
+      const used = new Set((state.reservations || []).map(r=>String(r.publicCode||"")));
+      for(let i=0;i<60;i++){
+        const code = String(Math.floor(100 + Math.random()*900));
+        if(!used.has(code)) return code;
+      }
+      return String(Math.floor(100 + Math.random()*900));
+    }
+
+    function getWriteCfg(){
+      try{
+        const token = String(localStorage.getItem('sv_token') || '').trim();
+        let owner = String(localStorage.getItem('sv_owner') || '').trim();
+        let repo  = String(localStorage.getItem('sv_repo') || '').trim();
+        let branch = String(localStorage.getItem('sv_branch') || '').trim();
+
+        if(!owner || !repo){
+          try{
+            const src = JSON.parse(localStorage.getItem('sv_source') || 'null');
+            if(src && src.owner && src.repo){
+              owner = String(src.owner).trim();
+              repo = String(src.repo).trim();
+              branch = String(src.branch || 'main').trim();
+            }
+          }catch{}
+        }
+        if(!branch) branch = 'main';
+        if(!token || !owner || !repo) return null;
+        return { token, owner, repo, branch };
+      }catch{ return null; }
+    }
+
+    function b64encode(str){
+      return btoa(unescape(encodeURIComponent(str)));
+    }
+
+    async function ghReq(cfg, method, url, body){
+      const headers = {
+        'Accept':'application/vnd.github+json',
+        'Authorization':`Bearer ${cfg.token}`,
+        'X-GitHub-Api-Version':'2022-11-28'
+      };
+      if(body) headers['Content-Type']='application/json';
+      const r = await fetch(url, { method, headers, body: body ? JSON.stringify(body) : undefined });
+      const txt = await r.text();
+      let j = null;
+      try{ j = txt ? JSON.parse(txt) : null; }catch{ j = { message: txt }; }
+      if(!r.ok){
+        const err = new Error(j?.message || `GitHub hiba (${r.status})`);
+        err.status = r.status;
+        err.data = j;
+        throw err;
+      }
+      return j;
+    }
+
+    async function appendReservationToGithub(cfg, reservation){
+      const path = 'data/reservations.json';
+      const base = `https://api.github.com/repos/${cfg.owner}/${cfg.repo}/contents/${path}`;
+      let lastErr = null;
+
+      for(let attempt=0; attempt<3; attempt++){
+        try{
+          let sha = null;
+          let data = [];
+
+          try{
+            const cur = await ghReq(cfg, 'GET', `${base}?ref=${encodeURIComponent(cfg.branch)}`);
+            sha = cur.sha || null;
+            const raw = cur && cur.content ? atob(String(cur.content).replace(/\n/g,'')) : '[]';
+            const parsed = JSON.parse(raw || '[]');
+            data = Array.isArray(parsed) ? parsed : [];
+          }catch(e){
+            if(Number(e.status||0) === 404){
+              sha = null;
+              data = [];
+            }else{
+              throw e;
+            }
+          }
+
+          data.push(reservation);
+          const content = JSON.stringify(data, null, 2);
+
+          const body = {
+            message: 'Add reservation',
+            content: b64encode(content),
+            branch: cfg.branch
+          };
+          if(sha) body.sha = sha;
+
+          await ghReq(cfg, 'PUT', base, body);
+          return true;
+        }catch(e){
+          lastErr = e;
+          await new Promise(r=>setTimeout(r, 250 + Math.random()*250));
+        }
+      }
+      throw lastErr || new Error('Mentés hiba');
+    }
+
+    async function finalizeReservation(){
+      const id = makeId();
+      const publicCode = genPublicCode();
+      const createdAt = Date.now();
+      const expiresAt = createdAt + 48*60*60*1000;
+
+      const reservation = {
+        id,
+        publicCode,
+        createdAt,
+        expiresAt,
+        confirmed: false,
+        items: items.map(it => ({ productId: it.productId, qty: it.qty, unitPrice: it.unitPrice }))
+      };
+
+      const cfg = getWriteCfg();
+      if(cfg){
+        await appendReservationToGithub(cfg, reservation);
+      }else{
+        showToast('Foglalás kód generálva, de mentéshez nincs token.');
+      }
+
+      try{
+        state.reservations = [...(state.reservations||[]), reservation];
+        state.reservationsHash = '';
+        rebuildReservedMap();
+      }catch{}
+
       state.cart = new Map();
       saveCart();
       updateCartBadge();
       renderCart();
-      showToast(`Foglalás leadva • Azonosító: ${code}`);
-      close();
-      toggleCart(false);
+      renderGrid();
+
+      const card = m.querySelector('.cart-confirm-card');
+      if(card){
+        card.innerHTML = `
+          <div class="cart-confirm-title">Foglalás leadva ✅</div>
+          <div class="res-code" style="margin-top:10px;text-align:center;font-weight:950;font-size:34px;letter-spacing:.14em;">${escHtml(publicCode)}</div>
+          <div class="small-muted" style="margin-top:10px;">A foglalás 2 nap múlva automatikusan lejár!</div>
+          <div class="cart-confirm-actions" style="margin-top:14px;justify-content:space-between;">
+            <button type="button" class="ghost" id="svCopyCode">Kód másolása</button>
+            <button type="button" class="primary" id="svCloseDone">Bezárás</button>
+          </div>
+        `;
+
+        card.querySelector('#svCopyCode')?.addEventListener('click', async (e)=>{
+          e.preventDefault(); e.stopPropagation();
+          try{
+            await navigator.clipboard.writeText(String(publicCode));
+            showToast('Kód másolva ✅');
+          }catch{
+            showToast(String(publicCode));
+          }
+        });
+        card.querySelector('#svCloseDone')?.addEventListener('click', (e)=>{
+          e.preventDefault(); e.stopPropagation();
+          close();
+          toggleCart(false);
+        });
+      }
+    }
+
+    btnYes?.addEventListener('click', async (e)=>{
+      e.preventDefault(); e.stopPropagation();
+      if(btnYes) btnYes.disabled = true;
+      try{
+        await finalizeReservation();
+      }catch(err){
+        console.error(err);
+        showToast('Foglalás mentése nem sikerült.');
+        try{ if(btnYes) btnYes.disabled = false; }catch{}
+      }
     });
   }
+
 
   function catLabel(c) {
     return (c && (c.label_hu || c.label_en || c.id)) || "";
@@ -616,6 +825,10 @@
     return await fetchJson("data/sales.json", { forceBust });
   }
 
+  async function fetchReservations({ forceBust=false } = {}){
+    return await fetchJson("data/reservations.json", { forceBust });
+  }
+
   function normalizeDoc(data) {
     if (Array.isArray(data)) return { categories: [], products: data, popups: [], _meta: null };
     const categories = data && Array.isArray(data.categories) ? data.categories : [];
@@ -653,6 +866,71 @@
       };
     }).filter(s => s.id);
   }
+
+
+  function normalizeReservations(data){
+    if(!Array.isArray(data)) return [];
+    return data.map(r => {
+      const createdAt = (typeof r.createdAt === "string") ? Date.parse(r.createdAt) : Number(r.createdAt||0);
+      const expiresAt = (r.expiresAt === null || r.expiresAt === undefined || r.expiresAt === "")
+        ? null
+        : ((typeof r.expiresAt === "string") ? Date.parse(r.expiresAt) : Number(r.expiresAt||0));
+
+      const items = Array.isArray(r.items)
+        ? r.items.map(it => ({
+            productId: String(it.productId || it.pid || ""),
+            qty: Math.max(1, Number.parseFloat(it.qty || it.quantity || 1) || 1),
+            unitPrice: Math.max(0, Number.parseFloat(it.unitPrice || it.price || 0) || 0)
+          })).filter(it => it.productId)
+        : [];
+
+      return {
+        id: String(r.id || ""),
+        publicCode: String(r.publicCode || r.code || ""),
+        createdAt: Number.isFinite(createdAt) ? createdAt : 0,
+        expiresAt: (expiresAt === null) ? null : (Number.isFinite(expiresAt) ? expiresAt : null),
+        confirmed: !!r.confirmed,
+        modified: !!r.modified,
+        modifiedAt: (typeof r.modifiedAt === "string") ? Date.parse(r.modifiedAt) : (Number(r.modifiedAt||0) || 0),
+        items
+      };
+    }).filter(r => r.id && r.items && r.items.length);
+  }
+
+  function reservationsSig(res){
+    try{ return hashStr(JSON.stringify(res || [])); }catch{ return ""; }
+  }
+
+  function applyReservationsIfChanged(nextRes, { fresh=false } = {}){
+    const arr = normalizeReservations(nextRes);
+    const sig = reservationsSig(arr);
+    if(sig && sig === state.reservationsHash){
+      if(fresh) state.reservationsFresh = true;
+      return false;
+    }
+    state.reservations = arr;
+    state.reservationsHash = sig;
+    state.reservationsFresh = !!fresh;
+    rebuildReservedMap();
+    return true;
+  }
+
+  function rebuildReservedMap(){
+    const m = new Map();
+    const now = Date.now();
+    for(const r of (state.reservations || [])){
+      if(!r) continue;
+      if(!r.confirmed && r.expiresAt && r.expiresAt <= now) continue;
+      for(const it of (r.items || [])){
+        const pid = String(it.productId || "");
+        const qty = Number(it.qty || 0) || 0;
+        if(!pid || qty <= 0) continue;
+        m.set(pid, (m.get(pid)||0) + qty);
+      }
+    }
+    state.reservedByProduct = m;
+  }
+
 
   /* ----------------- Featured (Felkapott) ----------------- */
   function computeFeaturedByCategory(){
@@ -1192,7 +1470,7 @@
             const name = getName(product);
             const flavor = getFlavor(product);
             const price = effectivePrice(product);
-            const stock = product.stock;
+            const stock = Math.max(0, (product.stock||0) - reservedQty(product.id));
             const isProductSoon = isSoon(product);
             const isProductOut = isOut(product);
             const imgFilter = isProductOut
@@ -1446,7 +1724,9 @@
       // sales: csak akkor frissnek tekintjük, ha a payload ténylegesen tartalmaz sales adatot
       const salesChanged = applySalesIfChanged(normalizeSales(payload.sales || []), { fresh: true });
 
-      if(docChanged || salesChanged){
+      const resChanged = ("reservations" in payload) ? applyReservationsIfChanged(payload.reservations || [], { fresh: true }) : false;
+
+      if(docChanged || salesChanged || resChanged){
         computeFeaturedByCategory();
       }
       return (docChanged || salesChanged);
@@ -1474,6 +1754,15 @@
     }catch{
       // ha nem tudjuk biztosan betölteni, ne jelenítsünk meg felkapottat
       state.salesFresh = false;
+    }
+
+    // reservations
+    try{
+      const reservationsRaw = await fetchReservations({ forceBust });
+      const rChanged = applyReservationsIfChanged(reservationsRaw || [], { fresh:true });
+      if(rChanged) changed = true;
+    }catch{
+      state.reservationsFresh = false;
     }
 
     // featured depends on BOTH products+sales; csak ha változott valami (vagy ha salesFresh változott)
@@ -1526,6 +1815,9 @@
           if("sales" in e.data){
             // admin mentés után ez friss
             changed = applySalesIfChanged(normalizeSales(e.data.sales || []), { fresh:true }) || changed;
+          }
+          if("reservations" in e.data){
+            changed = applyReservationsIfChanged(e.data.reservations || [], { fresh:true }) || changed;
           }
           if(changed){
             computeFeaturedByCategory();

@@ -970,3 +970,47 @@ button, input, select{
 @media (max-width: 720px){
   .admin-sales-embed{ height: 62vh; min-height: 520px; }
 }
+
+
+/* --- Cart totals & reservation code --- */
+.cart-totals{
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: 16px;
+  border: 1px solid rgba(255,255,255,.06);
+  background: rgba(255,255,255,.03);
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap: 10px;
+  font-weight: 900;
+}
+.cart-totals .muted{
+  opacity: .85;
+  font-weight: 800;
+}
+
+/* --- Admin reservation rows --- */
+.rowline.reservation-row{
+  border-color: rgba(255,152,0,.55) !important;
+  box-shadow: 0 0 0 1px rgba(255,152,0,.10) inset;
+}
+.res-timer{
+  font-weight: 900;
+  letter-spacing: .04em;
+}
+.res-mod{
+  margin-left: 6px;
+  color: #ff3b30;
+}
+
+/* --- Item thumbnails in admin forms --- */
+.it-thumb{
+  width: 34px;
+  height: 34px;
+  border-radius: 12px;
+  object-fit: cover;
+  border: 1px solid rgba(255,255,255,.10);
+  background: rgba(255,255,255,.05);
+  flex: 0 0 auto;
+}

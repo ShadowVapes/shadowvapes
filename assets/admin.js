@@ -263,6 +263,21 @@ state.sales = state.sales.map(s => {
           }
         }
 
+        // reservations.json lehet, hogy még nincs a repo-ban → ilyenkor induljunk üres foglalásokkal
+        let r = null;
+        let reservations = [];
+        try{
+          r = await ShadowGH.getFile({ token: cfg.token, owner: cfg.owner, repo: cfg.repo, branch: br, path: "data/reservations.json" });
+          reservations = JSON.parse(r.content || "[]");
+        }catch(e){
+          if(Number(e?.status || 0) === 404){
+            r = { sha: null };
+            reservations = [];
+          }else{
+            throw e;
+          }
+        }
+
         const doc = JSON.parse(p.content);
 
         cfg.branch = br;
@@ -270,8 +285,10 @@ state.sales = state.sales.map(s => {
 
         state.doc = doc;
         state.sales = sales;
+        state.reservations = normalizeReservations(reservations);
         state.shas.products = p.sha;
         state.shas.sales = s ? (s.sha || null) : null;
+        state.shas.reservations = r ? (r.sha || null) : null;
         normalizeDoc();
         state.loaded = true;
         state.forceSourceSync = true;
@@ -308,7 +325,7 @@ state.sales = state.sales.map(s => {
     if(!state.loaded) return;
 
     // ✅ MENTÉS GYORSÍTÁS: Csak akkor mentünk, ha tényleges változás van
-    if (!state.dirtyProducts && !state.dirtySales) {
+    if (!state.dirtyProducts && !state.dirtySales && !state.dirtyReservations) {
       setSaveStatus("ok","Nincs változás");
       return;
     }
@@ -360,25 +377,38 @@ state.sales = state.sales.map(s => {
 
     const productsText = JSON.stringify(state.doc, null, 2);
     const salesText = JSON.stringify(state.sales, null, 2);
+    const reservationsText = JSON.stringify(state.reservations, null, 2);
 
     
 let ok = false;
 const wantProducts = !!state.dirtyProducts;
 const wantSales = !!state.dirtySales;
+const wantReservations = !!state.dirtyReservations;
 
 try{
   // SHA csak akkor kell, ha még nincs meg (a putFileSafe úgyis frissít konflikt esetén)
   if(wantProducts && !state.shas.products){
+    // refresh sha, ha nincs
     const pOld = await ShadowGH.getFile({ token: cfg.token, owner: cfg.owner, repo: cfg.repo, branch: cfg.branch, path: "data/products.json" });
     state.shas.products = pOld.sha;
   }
+
   if(wantSales && !state.shas.sales){
     try{
       const sOld = await ShadowGH.getFile({ token: cfg.token, owner: cfg.owner, repo: cfg.repo, branch: cfg.branch, path: "data/sales.json" });
       state.shas.sales = sOld.sha;
     }catch(e){
-      // ha még nem létezik, mentés sha nélkül fogja létrehozni
       if(Number(e?.status || 0) === 404) state.shas.sales = null;
+      else throw e;
+    }
+  }
+
+  if(wantReservations && !state.shas.reservations){
+    try{
+      const rOld = await ShadowGH.getFile({ token: cfg.token, owner: cfg.owner, repo: cfg.repo, branch: cfg.branch, path: "data/reservations.json" });
+      state.shas.reservations = rOld.sha;
+    }catch(e){
+      if(Number(e?.status || 0) === 404) state.shas.reservations = null;
       else throw e;
     }
   }
@@ -409,6 +439,20 @@ try{
         sha: state.shas.sales
       }).then((sRes) => {
         state.shas.sales = sRes?.content?.sha || state.shas.sales;
+      })
+    );
+  }
+
+if(wantReservations){
+    tasks.push(
+      ShadowGH.putFileSafe({
+        token: cfg.token, owner: cfg.owner, repo: cfg.repo, branch: cfg.branch,
+        path: "data/reservations.json",
+        message: "Update reservations.json",
+        content: reservationsText,
+        sha: state.shas.reservations
+      }).then((rRes) => {
+        state.shas.reservations = rRes?.content?.sha || state.shas.reservations;
       })
     );
   }
@@ -446,7 +490,7 @@ try{
 
   // ✅ azonnali update a katalógus tabnak (ha nyitva van ugyanabban a böngészőben)
   try{
-    const payload = { doc: state.doc, sales: state.sales, ts: Date.now() };
+    const payload = { doc: state.doc, sales: state.sales, reservations: state.reservations, ts: Date.now() };
     localStorage.setItem("sv_live_payload", JSON.stringify(payload));
     try{ new BroadcastChannel("sv_live").postMessage(payload); }catch{}
   }catch{}
@@ -454,6 +498,7 @@ try{
   // ✅ ne reloadoljunk minden autosave után (lassú) — a state már friss
   state.dirtyProducts = false;
   state.dirtySales = false;
+  state.dirtyReservations = false;
 
   setSaveStatus("ok","Mentve ✅");
 }catch(e){
@@ -479,6 +524,7 @@ function markDirty(flags){
   const f = flags || {};
   if(f.products) state.dirtyProducts = true;
   if(f.sales) state.dirtySales = true;
+  if(f.reservations) state.dirtyReservations = true;
   queueAutoSave();
 }
 
@@ -962,7 +1008,8 @@ function markDirty(flags){
       <div class="admin-sales-embedwrap">
         <iframe class="admin-sales-embed" src="./?sv_admin=1" loading="lazy" referrerpolicy="no-referrer"></iframe>
       </div>
-      <div class="actions table" style="align-items:center;">
+      ${reservationsSection}
+      <div class=\"actions table" style="align-items:center;">
         <button class="primary" id="btnAddSale">+ Eladás</button>
         <select id="salesCat">
           ${cats.map(c => `<option value="${escapeHtml(c.id)}"${c.id===filterCat?" selected":""}>${escapeHtml(c.label)}</option>`).join("")}
@@ -984,41 +1031,59 @@ function markDirty(flags){
     $("#panelSales").querySelectorAll("button[data-view]").forEach(b => {
       b.onclick = () => viewSale(b.dataset.view);
     });
+
+    // reservation handlers
+    $("#panelSales").querySelectorAll("button[data-res-del]").forEach(b=>{ b.onclick = () => deleteReservation(b.dataset.resDel); });
+    $("#panelSales").querySelectorAll("button[data-res-confirm]").forEach(b=>{ b.onclick = () => confirmReservation(b.dataset.resConfirm); });
+    $("#panelSales").querySelectorAll("button[data-res-edit]").forEach(b=>{ b.onclick = () => openReservationEditModal(b.dataset.resEdit); });
+    $("#panelSales").querySelectorAll("button[data-res-sale]").forEach(b=>{ b.onclick = () => saleFromReservation(b.dataset.resSale); });
+
+    startReservationTicker();
   }
 
-  function openSaleModal(prefill){
-    const pre = (prefill && typeof prefill === "object") ? prefill : {};
-    const preItems = Array.isArray(pre.items) ? pre.items : null;
+  function openSaleModal(pre){
+    const preDate = (pre && pre.date) ? String(pre.date) : todayISO();
+    const preName = (pre && pre.name) ? String(pre.name) : "";
+    const prePay  = (pre && pre.payment) ? String(pre.payment) : "";
+    const preItems = (pre && Array.isArray(pre.items)) ? pre.items : [];
+    const title = (pre && pre.title) ? String(pre.title) : "Új eladás";
+
     const body = document.createElement("div");
     body.innerHTML = `
-      <div class="form-grid">
-        <div class="field third"><label>Dátum (YYYY-MM-DD)</label><input id="s_date" value="${escapeHtml((pre.date || todayISO()))}"></div>
-        <div class="field third"><label>Név</label><input id="s_name" placeholder="pl. Tesó" value="${escapeHtml(pre.name || "")}"></div>
-        <div class="field third"><label>Vásárlás módja</label><input id="s_pay" placeholder="pl. készpénz / utalás / bármi" value="${escapeHtml(pre.payment || "")}"></div>
-        <div class="field full"><label>Tételek</label><div id="s_items"></div></div>
+      <div class="grid2">
+        <div class="field"><label>Dátum (YYYY-MM-DD)</label><input id="s_date" type="text" value="${escapeHtml(preDate)}"></div>
+        <div class="field"><label>Név (opcionális)</label><input id="s_name" type="text" value="${escapeHtml(preName)}"></div>
+      </div>
+      <div class="field" style="margin-top:10px;"><label>Fizetési mód (opcionális)</label><input id="s_pay" type="text" value="${escapeHtml(prePay)}"></div>
+      <div class="field" style="margin-top:10px;">
+        <label>Tételek</label>
+        <div id="s_items"></div>
       </div>
       <div class="actions">
         <button class="ghost" id="btnAddItem">+ Tétel</button>
       </div>
-      <div class="small-muted">Mentéskor levonja a stockot, törléskor visszaadja (rollback).</div>
     `;
 
     const itemsRoot = body.querySelector("#s_items");
 
-    const addItemRow = (pref) => {
+    const optionHtml = state.doc.products
+      .filter(p => p.status !== "soon")
+      .map(p => {
+        const n = p.name_hu || p.name_en || "—";
+        const f = p.flavor_hu || p.flavor_en || "";
+        const stock = p.stock;
+        return `<option value="${escapeHtml(p.id)}">${escapeHtml(n + (f ? " • " + f : "") + ` (stock:${stock})`)}</option>`;
+      }).join("");
+
+    const addItemRow = (pref = {}) => {
       const row = document.createElement("div");
-      // a CSS input/select stílus a .table alatt él, ezért kap pluszban table osztályt
       row.className = "rowline table";
       row.innerHTML = `
         <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;width:100%;">
+          <img class="it-thumb" alt="" />
           <select class="it_prod" style="min-width:280px;">
             <option value="">Válassz terméket…</option>
-            ${state.doc.products.filter(p=>p.status!=="soon").map(p=>{
-              const n = p.name_hu || p.name_en || "—";
-              const f = p.flavor_hu || p.flavor_en || "";
-              const stock = p.stock;
-              return `<option value="${escapeHtml(p.id)}">${escapeHtml(n + (f? " • "+f:"") + ` (stock:${stock})`)}</option>`;
-            }).join("")}
+            ${optionHtml}
           </select>
           <input class="it_qty" type="number" min="1" value="1" style="width:110px;">
           <input class="it_price" type="number" min="0" value="0" style="width:150px;">
@@ -1028,67 +1093,85 @@ function markDirty(flags){
 
       const sel = row.querySelector(".it_prod");
       const qtyInp = row.querySelector(".it_qty");
-      const price = row.querySelector(".it_price");
+      const priceInp = row.querySelector(".it_price");
+      const thumb = row.querySelector(".it-thumb");
+
+      const syncThumb = () => {
+        const p = prodById(sel.value);
+        const img = p && (p.image || "").trim();
+        if(!thumb) return;
+        if(img){
+          thumb.src = img;
+          thumb.style.visibility = "visible";
+        }else{
+          thumb.removeAttribute("src");
+          thumb.style.visibility = "hidden";
+        }
+      };
 
       sel.onchange = () => {
         const p = prodById(sel.value);
-        price.value = String(p ? effectivePrice(p) : 0);
+        priceInp.value = String(p ? effectivePrice(p) : 0);
+        syncThumb();
       };
+
       row.querySelector(".it_del").onclick = () => row.remove();
 
-      // prefill
       if(pref && pref.productId){
         sel.value = String(pref.productId);
         const p = prodById(sel.value);
-        if(qtyInp) qtyInp.value = String(Math.max(1, Number(pref.qty || 1)));
-        price.value = String(p ? effectivePrice(p) : 0);
+        qtyInp.value = String(Math.max(1, Number(pref.qty || 1) || 1));
+        if(pref.unitPrice !== undefined && pref.unitPrice !== null && String(pref.unitPrice) !== ""){
+          priceInp.value = String(Math.max(0, Number(pref.unitPrice) || 0));
+        }else{
+          priceInp.value = String(p ? effectivePrice(p) : 0);
+        }
+      }else{
+        priceInp.value = "0";
       }
 
+      syncThumb();
       itemsRoot.appendChild(row);
     };
 
     if(preItems && preItems.length){
-      for(const it of preItems){
-        addItemRow({ productId: it.productId, qty: it.qty });
-      }
+      for(const it of preItems) addItemRow(it);
     }else{
       addItemRow();
     }
-    body.querySelector("#btnAddItem").onclick = addItemRow;
 
-    openModal("Új eladás", "Név + dátum + mód + több termék", body, [
+    body.querySelector("#btnAddItem").onclick = () => addItemRow();
+
+    openModal(title, "Név + dátum + mód + több termék", body, [
       { label:"Mégse", kind:"ghost", onClick: closeModal },
       { label:"Mentés", kind:"primary", onClick: () => {
-        const date = ($("#s_date").value||"").trim();
-        const name = ($("#s_name").value||"").trim();
-        const payment = ($("#s_pay").value||"").trim();
-
+        const date = ((document.querySelector('#s_date')?.value)||"").trim();
+        const name = ((document.querySelector('#s_name')?.value)||"").trim();
+        const payment = ((document.querySelector('#s_pay')?.value)||"").trim();
         if(!/^\d{4}-\d{2}-\d{2}$/.test(date)) return;
 
-        const rows = [...itemsRoot.querySelectorAll(".rowline")];
+        const rows = [...itemsRoot.querySelectorAll('.rowline')];
         const items = [];
         for(const r of rows){
-          const pid = r.querySelector(".it_prod").value;
+          const pid = r.querySelector('.it_prod').value;
           if(!pid) continue;
-          const qty = Math.max(1, Number(r.querySelector(".it_qty").value||1));
-          const unitPrice = Math.max(0, Number(r.querySelector(".it_price").value||0));
+          const qty = Math.max(1, Number(r.querySelector('.it_qty').value || 1) || 1);
+          const unitPrice = Math.max(0, Number(r.querySelector('.it_price').value || 0) || 0);
           items.push({ productId: pid, qty, unitPrice });
         }
         if(!items.length) return;
 
-        // stock check
         for(const it of items){
           const p = prodById(it.productId);
           if(!p) return;
-          if(p.status === "soon") return;
+          if(p.status === 'soon') return;
           if(p.stock < it.qty) return;
         }
 
-        // apply stock
         for(const it of items){
           const p = prodById(it.productId);
           p.stock = Math.max(0, p.stock - it.qty);
-          if(p.stock <= 0) p.status = "out";
+          if(p.stock <= 0) p.status = 'out';
         }
 
         state.sales.push({
@@ -1099,12 +1182,18 @@ function markDirty(flags){
           items
         });
 
+        if(pre && pre.fromReservationId){
+          state.reservations = (state.reservations || []).filter(x => String(x.id) !== String(pre.fromReservationId));
+          markDirty({ reservations:true });
+        }
+
         closeModal();
         renderAll();
-        markDirty({ products:true, sales:true });
+        markDirty({ products:true, sales:true, reservations: !!(pre && pre.fromReservationId) });
       }}
     ]);
   }
+
 
   function viewSale(id){
     const s = state.sales.find(x => x.id === id);
@@ -1140,7 +1229,176 @@ function markDirty(flags){
     ]);
   }
 
-  function deleteSale(id){
+  
+
+  let _resTick = null;
+  function startReservationTicker(){
+    try{ if(_resTick) clearInterval(_resTick); }catch{}
+    _resTick = setInterval(() => {
+      try{ purgeExpiredReservations(); }catch{}
+      document.querySelectorAll('.res-timer[data-expires]').forEach(el => {
+        const ex = Number(el.dataset.expires||0) || 0;
+        const ms = ex - Date.now();
+        if(ms <= 0){
+          el.textContent = 'LEJÁRT';
+        }else{
+          el.textContent = formatRemaining(ms);
+        }
+      });
+    }, 1000);
+  }
+
+  function findReservation(id){
+    return (state.reservations || []).find(r => String(r.id) === String(id));
+  }
+
+  function deleteReservation(id){
+    const r = findReservation(id);
+    if(!r) return;
+    if(!confirm('Biztos törlöd ezt a foglalást?')) return;
+    state.reservations = (state.reservations || []).filter(x => String(x.id) !== String(id));
+    renderAll();
+    markDirty({ reservations:true });
+  }
+
+  function confirmReservation(id){
+    const r = findReservation(id);
+    if(!r) return;
+    r.confirmed = true;
+    r.expiresAt = null;
+    renderAll();
+    markDirty({ reservations:true });
+  }
+
+  function reservedByOthers(pid, excludeId){
+    let sum = 0;
+    for(const r of (state.reservations||[])){
+      if(!r) continue;
+      if(String(r.id) === String(excludeId)) continue;
+      if(isReservationExpired(r)) continue;
+      for(const it of (r.items||[])){
+        if(String(it.productId) === String(pid)) sum += Number(it.qty||0)||0;
+      }
+    }
+    return sum;
+  }
+
+  function openReservationEditModal(id){
+    const r = findReservation(id);
+    if(!r) return;
+
+    const body = document.createElement('div');
+    body.innerHTML = `
+      <div class="small-muted">#${escapeHtml(r.publicCode||'---')} • ID: ${escapeHtml(r.id)}</div>
+      <div class="small-muted" style="margin-top:6px;">${r.confirmed ? 'Megerősítve' : ('Lejárat: ' + (r.expiresAt ? new Date(Number(r.expiresAt)).toLocaleString('hu-HU') : '—'))}</div>
+      <div class="field" style="margin-top:12px;">
+        <label>Tételek</label>
+        <div id="r_items"></div>
+      </div>
+      <div class="actions">
+        <button class="ghost" id="btnAddResItem">+ Tétel</button>
+      </div>
+    `;
+
+    const itemsRoot = body.querySelector('#r_items');
+
+    const addRow = (pref) => {
+      const row = document.createElement('div');
+      row.className = 'rowline table';
+      row.innerHTML = `
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;width:100%;">
+          <img class="it-thumb" alt="" />
+          <select class="it_prod" style="min-width:280px;">
+            <option value="">Válassz terméket…</option>
+            ${state.doc.products.filter(p=>p.status!=="soon").map(p=>{
+              const n = p.name_hu || p.name_en || '—';
+              const f = p.flavor_hu || p.flavor_en || '';
+              return `<option value="${escapeHtml(p.id)}">${escapeHtml(n + (f? ' • '+f:''))}</option>`;
+            }).join('')}
+          </select>
+          <input class="it_qty" type="number" min="1" value="1" style="width:110px;">
+          <button class="danger it_del" type="button">Töröl</button>
+        </div>
+      `;
+      const sel = row.querySelector('.it_prod');
+      const qtyInp = row.querySelector('.it_qty');
+      const thumb = row.querySelector('.it-thumb');
+
+      const syncThumb = () => {
+        const p = prodById(sel.value);
+        const img = p && (p.image||'').trim();
+        if(!thumb) return;
+        if(img){
+          thumb.src = img;
+          thumb.style.visibility = 'visible';
+        }else{
+          thumb.removeAttribute('src');
+          thumb.style.visibility = 'hidden';
+        }
+      };
+
+      sel.onchange = syncThumb;
+      row.querySelector('.it_del').onclick = () => row.remove();
+
+      if(pref && pref.productId){
+        sel.value = String(pref.productId);
+        qtyInp.value = String(Math.max(1, Number(pref.qty||1)||1));
+      }
+      syncThumb();
+      itemsRoot.appendChild(row);
+    };
+
+    for(const it of (r.items||[])) addRow({ productId: it.productId, qty: it.qty });
+    body.querySelector('#btnAddResItem').onclick = () => addRow();
+
+    openModal('Foglalás szerkesztése', 'Tételek módosítása', body, [
+      { label:'Mégse', kind:'ghost', onClick: closeModal },
+      { label:'Mentés', kind:'primary', onClick: () => {
+        const rows = [...itemsRoot.querySelectorAll('.rowline')];
+        const items = [];
+        for(const rr of rows){
+          const pid = rr.querySelector('.it_prod').value;
+          if(!pid) continue;
+          const qty = Math.max(1, Number(rr.querySelector('.it_qty').value||1));
+          const p = prodById(pid);
+          if(!p || p.status === 'soon') return;
+          items.push({ productId: pid, qty, unitPrice: effectivePrice(p) });
+        }
+        if(!items.length) return;
+
+        for(const it of items){
+          const p = prodById(it.productId);
+          const other = reservedByOthers(it.productId, r.id);
+          if((Number(p.stock||0) - other) < it.qty){
+            alert('Nincs elég raktárkészlet ehhez a módosításhoz.');
+            return;
+          }
+        }
+
+        r.items = items;
+        r.modified = true;
+        r.modifiedAt = Date.now();
+        closeModal();
+        renderAll();
+        markDirty({ reservations:true });
+      }}
+    ]);
+  }
+
+  function saleFromReservation(id){
+    const r = findReservation(id);
+    if(!r) return;
+    const preItems = (r.items||[]).map(it => ({ productId: it.productId, qty: it.qty, unitPrice: it.unitPrice }));
+    openSaleModal({
+      title: `Eladás rögzítése (foglalás #${r.publicCode||'---'})`,
+      date: todayISO(),
+      name: '',
+      payment: '',
+      items: preItems,
+      fromReservationId: r.id
+    });
+  }
+function deleteSale(id){
     const idx = state.sales.findIndex(x => x.id === id);
     if(idx < 0) return;
     const s = state.sales[idx];
@@ -1533,6 +1791,9 @@ function drawChart(){
 
     // first render panels + inject settings inputs ids
     renderSettings();
+
+    // reservation expiry ticker (safe even before load)
+    startReservationTicker();
 
     // Cart -> Sale (iframe) bridge
     window.addEventListener("message", (ev)=>{
