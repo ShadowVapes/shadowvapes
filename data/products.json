@@ -83,7 +83,7 @@
       "id": "p_f93b7eb924ed1_19b4e156422",
       "categoryId": "elf30",
       "status": "ok",
-      "stock": 3,
+      "stock": 2,
       "visible": true,
       "price": null,
       "image": "https://i.ibb.co/JRHp6YcK/Polar-mint-no-bg.png",
@@ -139,7 +139,7 @@
       "id": "p_9842bfea4d24c_19b5b637a59",
       "categoryId": "elfraya25",
       "status": "ok",
-      "stock": 4,
+      "stock": 3,
       "visible": true,
       "price": null,
       "image": "https://i.ibb.co/yncZwdbP/2-watermelon-ice-NOBG.png",
@@ -251,7 +251,7 @@
       "id": "p_4b3ea070114908_19b5bc64622",
       "categoryId": "elflush40",
       "status": "ok",
-      "stock": 6,
+      "stock": 5,
       "visible": true,
       "price": null,
       "image": "https://i.ibb.co/VcjFbc5R/Cactus-Lime-NOBG.png",
@@ -565,7 +565,7 @@
   ],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1771674319559,
-    "updatedAt": "2026-02-21T11:45:19.559Z"
+    "rev": 1771725475610,
+    "updatedAt": "2026-02-22T01:57:55.610Z"
   }
 }
