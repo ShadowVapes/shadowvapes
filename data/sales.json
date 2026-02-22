@@ -697,5 +697,23 @@
         "unitPrice": 6500
       }
     ]
+  },
+  {
+    "id": "s_de02ea933c21c_19c851c2c36",
+    "date": "2026-02-20",
+    "name": "E. Tamás",
+    "payment": "Vásárláskor",
+    "items": [
+      {
+        "productId": "p_d1c0df1b50542_19c7aee39b0",
+        "qty": 2,
+        "unitPrice": 6500
+      },
+      {
+        "productId": "p_b862159bc3f608_19beb0c6380",
+        "qty": 1,
+        "unitPrice": 6500
+      }
+    ]
   }
 ]
