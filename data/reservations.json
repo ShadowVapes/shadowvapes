@@ -3,8 +3,10 @@
     "id": "r_mlxn9vwn_f3i646",
     "publicCode": "818",
     "createdAt": 1771758515399,
-    "expiresAt": 1771931315399,
-    "confirmed": false,
+    "expiresAt": null,
+    "confirmed": true,
+    "modified": false,
+    "modifiedAt": 0,
     "items": [
       {
         "productId": "p_f93b7eb924ed1_19b4e156422",
