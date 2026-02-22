@@ -917,65 +917,29 @@ function markDirty(flags){
     syncStockLock();
   }
 
+  
   function renderSales(){
-    const cats = [{id:"all", label:"Mind"}, ...state.doc.categories.map(c=>({id:c.id,label:c.label_hu||c.id}))];
-
-    const filterCat = state.filters.salesCat;
-    const q = (state.filters.salesSearch || "").toLowerCase();
-
-    let list = [...state.sales].sort((a,b)=> String(b.date).localeCompare(String(a.date)));
-    if(q){
-      list = list.filter(s => (`${s.name} ${s.payment}`).toLowerCase().includes(q));
-    }
-    if(filterCat !== "all"){
-      list = list.filter(s => saleTotals(s, filterCat).hit);
-    }
-
-    const rows = list.map(s => {
-      const tot = saleTotals(s, filterCat);
-      const itemsCount = s.items.reduce((acc,it)=> acc + Number(it.qty||0), 0);
-
-      return `
-        <div class="rowline">
-          <div class="left">
-            <div style="font-weight:900;">
-              ${escapeHtml(s.date)} • ${escapeHtml(s.name || "—")}
-              <span class="small-muted">• ${escapeHtml(s.payment || "")}</span>
-            </div>
-            <div class="small-muted">Tételek: <b>${itemsCount}</b> • Bevétel: <b>${tot.revenue.toLocaleString("hu-HU")} Ft</b></div>
-          </div>
-          <div style="display:flex;gap:10px;align-items:center;">
-            <button class="ghost" data-view="${escapeHtml(s.id)}">Megnéz</button>
-            <button class="danger" data-delsale="${escapeHtml(s.id)}">Töröl (rollback)</button>
-          </div>
-        </div>
-      `;
-    }).join("");
-
+    // Redesign: a teljes felhasználói felület (katalógus + kosár) itt fut admin módban.
+    // Ebben a nézetben a kosár alján "Eladás rögzítése" van, és az "Eladások" fülre érkeznek a foglalások is.
+    const url = `./?sv_admin=1&sv_embed=1&_=${Date.now()}`;
     $("#panelSales").innerHTML = `
-      <div class="actions table" style="align-items:center;">
-        <button class="primary" id="btnAddSale">+ Eladás</button>
-        <select id="salesCat">
-          ${cats.map(c => `<option value="${escapeHtml(c.id)}"${c.id===filterCat?" selected":""}>${escapeHtml(c.label)}</option>`).join("")}
-        </select>
-        <input id="salesSearch" placeholder="Keresés név / mód szerint..." value="${escapeHtml(state.filters.salesSearch)}" style="flex:1;min-width:220px;">
-        <div class="small-muted">Szűrés kategóriára: csak az adott kategória tételeit számolja.</div>
+      <div class="embed-top">
+        <div class="small-muted">Katalógus nézet (admin). A kosárból eladást rögzíthetsz, és itt látod a foglalásokat is.</div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+          <a class="ghost" href="./?sv_admin=1" target="_blank">Megnyit új lapon</a>
+          <button class="ghost" id="btnReloadEmbed">Újratölt</button>
+        </div>
       </div>
-      <div style="margin-top:10px;">${rows || `<div class="small-muted">Nincs eladás.</div>`}</div>
+      <div class="embed-wrap">
+        <iframe id="svSalesEmbed" src="${url}" title="ShadowVapes Admin Sales"></iframe>
+      </div>
     `;
-
-    $("#salesCat").onchange = () => { state.filters.salesCat = $("#salesCat").value; renderSales(); drawChart(); };
-    $("#salesSearch").oninput = () => { state.filters.salesSearch = $("#salesSearch").value; renderSales(); };
-
-    $("#btnAddSale").onclick = () => openSaleModal();
-
-    $("#panelSales").querySelectorAll("button[data-delsale]").forEach(b => {
-      b.onclick = () => deleteSale(b.dataset.delsale);
-    });
-    $("#panelSales").querySelectorAll("button[data-view]").forEach(b => {
-      b.onclick = () => viewSale(b.dataset.view);
-    });
+    $("#btnReloadEmbed").onclick = () => {
+      const fr = $("#svSalesEmbed");
+      fr.src = `./?sv_admin=1&sv_embed=1&_=${Date.now()}`;
+    };
   }
+
 
   function openSaleModal(){
     const body = document.createElement("div");

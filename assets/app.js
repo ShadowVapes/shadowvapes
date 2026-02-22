@@ -17,6 +17,18 @@
     docHash: "",
     salesHash: "",
     lastLiveTs: 0,
+
+    // reservations + cart
+    reservations: [],
+    resFresh: false,
+    resHash: "",
+    reservedByPid: new Map(), // productId -> reserved qty (active)
+    cart: new Map(), // productId -> qty
+    cartOpen: false,
+    editingReservationId: null, // public: modifying
+    convertReservationId: null, // admin: converting reservation -> sale
+    isAdmin: false,
+    isEmbed: false,
   };
 
   const UI = {
@@ -30,7 +42,25 @@
     understood: { hu: "Értettem", en: "Got it" },
     skipAll: { hu: "Összes átugrása", en: "Skip all" },
     dontShow: { hu: "Ne mutasd többször", en: "Don't show again" },
-    expected: { hu: "Várható", en: "Expected" }
+    expected: { hu: "Várható", en: "Expected" },
+    reserved: { hu: "Foglalva", en: "Reserved" },
+    cart: { hu: "Kosár", en: "Cart" },
+    addToCart: { hu: "Kosárba", en: "Add to cart" },
+    reserve: { hu: "Foglalás", en: "Reserve" },
+    modifyReserve: { hu: "Foglalás módosítása", en: "Update reservation" },
+    recordSale: { hu: "Eladás rögzítése", en: "Record sale" },
+    confirm: { hu: "Megerősítés", en: "Confirm" },
+    yes: { hu: "Igen", en: "Yes" },
+    no: { hu: "Mégse", en: "Cancel" },
+    myRes: { hu: "Foglalásaim", en: "My reservations" },
+    salesNav: { hu: "Eladások", en: "Sales" },
+    resId: { hu: "Foglalás ID", en: "Reservation ID" },
+    load: { hu: "Betöltés", en: "Load" },
+    orderCode: { hu: "Rendelésazonosító", en: "Order code" },
+    missingToken: { hu: "Nincs beállítva mentés (token). Nyisd meg az Admin Beállításoknál a Sync részt, és mentsd el a GitHub tokent.", en: "Missing token." },
+    reservationNotFound: { hu: "Nem találom ezt a foglalást (vagy már lejárt).", en: "Not found." },
+    deleteConfirm: { hu: "Biztos szeretnéd törölni a következő terméket?", en: "Are you sure you want to delete this item?" },
+    updated: { hu: "Módosítva", en: "Updated" }
   };
 
   const t = (k) => (UI[k] ? UI[k].hu : k);
@@ -242,6 +272,70 @@
     const popups = data && Array.isArray(data.popups) ? data.popups : [];
     const _meta = data && typeof data === "object" ? (data._meta || null) : null;
     return { categories, products, popups, _meta };
+  }
+
+
+  async function fetchReservations({ forceBust=false } = {}){
+    const { data } = await fetchJson("data/reservations.json", { forceBust, etagKey:"sv_etag_res" });
+    return data;
+  }
+
+  function normalizeReservations(list){
+    if(!Array.isArray(list)) return [];
+    const out = [];
+    for(const r of list){
+      if(!r) continue;
+      const id = String(r.id || "");
+      if(!id) continue;
+      const createdAt = Number(r.createdAt || r.ts || 0) || (typeof r.createdAt === "string" ? Date.parse(r.createdAt) : 0) || 0;
+      const expiresAt = Number(r.expiresAt || 0) || (createdAt ? (createdAt + 48*60*60*1000) : 0);
+      const status = String(r.status || "active");
+      const shortCode = String(r.shortCode || r.code || "");
+      const needsAttention = !!r.needsAttention;
+      const modifiedFrom = r.modifiedFrom ? String(r.modifiedFrom) : null;
+      const itemsRaw = Array.isArray(r.items) ? r.items : [];
+      const items = itemsRaw.map(it => ({
+        productId: String(it.productId || ""),
+        qty: Math.max(0, Number(it.qty || 0) || 0)
+      })).filter(it => it.productId && it.qty > 0);
+      out.push({ ...r, id, createdAt, expiresAt, status, shortCode, needsAttention, modifiedFrom, items });
+    }
+    return out;
+  }
+
+  function hashJson(v){
+    try{
+      return String(JSON.stringify(v));
+    }catch{
+      return String(Date.now());
+    }
+  }
+
+  function applyReservationsIfChanged(list, { fresh=false } = {}){
+    const h = hashJson(list);
+    if(h === state.resHash && state.resFresh === fresh) return false;
+    state.reservations = list;
+    state.resHash = h;
+    state.resFresh = fresh;
+    computeReservedByPid();
+    return true;
+  }
+
+  function cleanupExpiredReservations(list){
+    const now = Date.now();
+    let changed = false;
+    const kept = [];
+    for(const r of (list||[])){
+      if(!r) continue;
+      const status = String(r.status || "active");
+      if(status === "active" && Number(r.expiresAt || 0) && now >= Number(r.expiresAt || 0)){
+        changed = true;
+        // drop expired
+        continue;
+      }
+      kept.push(r);
+    }
+    return { list: kept, changed };
   }
 
   function normalizeSales(data){
@@ -470,6 +564,96 @@
     return v.toLocaleString("hu-HU") + " Ft";
   }
 
+  /* ----------------- Reservations + Cart helpers ----------------- */
+  function computeReservedByPid(){
+    const m = new Map();
+    const now = Date.now();
+    for(const r of (state.reservations||[])){
+      if(!r) continue;
+      if(String(r.status||"active") !== "active") continue;
+      if(Number(r.expiresAt||0) && now >= Number(r.expiresAt||0)) continue;
+      for(const it of (r.items||[])){
+        const pid = String(it.productId||"");
+        const q = Math.max(0, Number(it.qty||0) || 0);
+        if(!pid || !q) continue;
+        m.set(pid, (m.get(pid)||0) + q);
+      }
+    }
+    state.reservedByPid = m;
+  }
+
+  function getReservationById(id){
+    const sid = String(id||"");
+    return (state.reservations||[]).find(r => String(r.id) === sid) || null;
+  }
+
+  function getReservedQty(pid){
+    const id = String(pid||"");
+    let q = state.reservedByPid.get(id) || 0;
+    const exclude = state.editingReservationId || state.convertReservationId;
+    if(exclude){
+      const r = getReservationById(exclude);
+      if(r && String(r.status||"active") === "active" && (!r.expiresAt || Date.now() < Number(r.expiresAt||0))){
+        for(const it of (r.items||[])){
+          if(String(it.productId||"") === id){
+            q = Math.max(0, q - Math.max(0, Number(it.qty||0) || 0));
+          }
+        }
+      }
+    }
+    return Math.max(0, q);
+  }
+
+  function availableStock(p){
+    if(!p) return 0;
+    if(isSoon(p)) return 0;
+    const stock = Math.max(0, Number(p.stock || 0));
+    const reserved = getReservedQty(String(p.id));
+    return Math.max(0, stock - reserved);
+  }
+
+  function cartCount(){
+    let n = 0;
+    for(const v of state.cart.values()) n += Number(v||0) || 0;
+    return n;
+  }
+
+  function setCartQty(pid, qty){
+    const id = String(pid||"");
+    const q = Math.max(0, Number(qty||0) || 0);
+    if(!id) return;
+    if(q <= 0) state.cart.delete(id);
+    else state.cart.set(id, q);
+    updateCartBadge();
+  }
+
+  function addToCart(pid, delta){
+    const id = String(pid||"");
+    const d = Number(delta||0) || 0;
+    if(!id || !d) return;
+    const p = (state.productsDoc.products||[]).find(x => String(x.id) === id);
+    if(!p) return;
+    const maxAvail = availableStock(p);
+    const cur = state.cart.get(id) || 0;
+    const next = Math.max(0, cur + d);
+    if(next > maxAvail){
+      // cap
+      state.cart.set(id, Math.max(0, maxAvail));
+    }else{
+      if(next <= 0) state.cart.delete(id);
+      else state.cart.set(id, next);
+    }
+    updateCartBadge();
+  }
+
+  function clearCart(){
+    state.cart.clear();
+    state.editingReservationId = null;
+    state.convertReservationId = null;
+    updateCartBadge();
+  }
+
+  /* ----------------- Nav ----------------- */
   function renderNav() {
     const nav = $("#nav");
     nav.innerHTML = "";
@@ -486,6 +670,159 @@
         renderGrid();
       };
       nav.appendChild(btn);
+
+      // extra: public -> Foglalásaim, admin -> Eladások
+      if(c.id === "all"){
+        const extra = document.createElement("button");
+        const extraId = state.isAdmin ? "sales" : "myres";
+        extra.textContent = state.isAdmin ? t("salesNav") : t("myRes");
+        if(state.active === extraId) extra.classList.add("active");
+        extra.onclick = () => {
+          state.active = extraId;
+          $("#title").textContent = extra.textContent;
+          renderNav();
+          renderGrid();
+        };
+        nav.appendChild(extra);
+      }
+    }
+  }
+
+  function renderMyReservationsView(){
+    const grid = $("#grid");
+    const empty = $("#empty");
+    empty.style.display = "none";
+    grid.innerHTML = "";
+    $("#count").textContent = "0";
+    const wrap = document.createElement("div");
+    wrap.className = "panel-card";
+    wrap.innerHTML = `
+      <div class="panel-card-title">${t("myRes")}</div>
+      <div class="panel-card-sub">${t("resId")}: (admin által megadott)</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px;">
+        <input id="myResInput" placeholder="${t("resId")}" style="flex:1;min-width:240px;border-radius:14px;border:1px solid rgba(255,255,255,.08);background:rgba(11,15,23,.35);color:var(--text);padding:10px 12px;outline:none;">
+        <button class="primary" id="btnLoadRes">${t("load")}</button>
+      </div>
+      <div class="small-muted" id="myResMsg" style="margin-top:10px;"></div>
+    `;
+    grid.appendChild(wrap);
+    wrap.querySelector("#btnLoadRes").onclick = async () => {
+      const id = String(wrap.querySelector("#myResInput").value||"").trim();
+      if(!id) return;
+      try{
+        await loadAll({ forceBust:true });
+        const r = getReservationById(id);
+        const ok = r && String(r.status||"active") === "active" && (!r.expiresAt || Date.now() < Number(r.expiresAt||0));
+        if(!ok){
+          wrap.querySelector("#myResMsg").textContent = t("reservationNotFound");
+          return;
+        }
+        // load items to cart
+        state.cart.clear();
+        for(const it of (r.items||[])){
+          state.cart.set(String(it.productId), Math.max(0, Number(it.qty||0)||0));
+        }
+        state.editingReservationId = String(r.id);
+        updateCartBadge();
+        openCart();
+        wrap.querySelector("#myResMsg").textContent = `${t("updated")}: ${String(r.id)}`;
+      }catch(e){
+        wrap.querySelector("#myResMsg").textContent = String(e && e.message ? e.message : e);
+      }
+    };
+  }
+
+  function renderSalesView(){
+    const grid = $("#grid");
+    const empty = $("#empty");
+    empty.style.display = "none";
+    grid.innerHTML = "";
+    const q = (state.search||"").toLowerCase();
+    const now = Date.now();
+    const activeRes = (state.reservations||[]).filter(r => r && String(r.status||"active") === "active" && (!r.expiresAt || now < Number(r.expiresAt||0)));
+    let resList = [...activeRes].sort((a,b)=> Number(b.createdAt||0) - Number(a.createdAt||0));
+    if(q){
+      resList = resList.filter(r => `${r.id} ${r.shortCode}`.toLowerCase().includes(q));
+    }
+    let salesList = [...(state.sales||[])].sort((a,b)=> String(b.date).localeCompare(String(a.date)));
+    if(q){
+      salesList = salesList.filter(s => (`${s.name||""} ${s.payment||""} ${s.id||""}`).toLowerCase().includes(q));
+    }
+    $("#count").textContent = String(resList.length + salesList.length);
+    const secLeft = (ms)=> Math.max(0, Math.ceil(ms/1000));
+    const fmtLeft = (r)=>{
+      const left = Number(r.expiresAt||0) - now;
+      const h = Math.floor(left/3600000);
+      const m = Math.floor((left%3600000)/60000);
+      return `${h}ó ${m}p`;
+    };
+    // reservations
+    if(resList.length){
+      const h = document.createElement("div");
+      h.className = "panel-card-title";
+      h.style.margin = "6px 0 10px";
+      h.textContent = "Foglalások";
+      grid.appendChild(h);
+      for(const r of resList){
+        const row = document.createElement("div");
+        row.className = "rowline highlight";
+        const itemsCount = (r.items||[]).reduce((a,it)=> a + Number(it.qty||0), 0);
+        const leftStr = fmtLeft(r);
+        row.innerHTML = `
+          <div class="left" style="display:flex;gap:10px;align-items:flex-start;">
+            ${r.needsAttention ? `<button class="warn" data-warn="1" title="Módosítva">!</button>` : ``}
+            <div>
+              <div style="font-weight:900;">${t("orderCode")}: ${escapeHtml(r.shortCode || "—")} <span class="small-muted">• ID: <b>${escapeHtml(r.id)}</b></span></div>
+              <div class="small-muted">Tételek: <b>${itemsCount}</b> • Lejár: <b>${escapeHtml(leftStr)}</b></div>
+            </div>
+          </div>
+          <div style="display:flex;gap:10px;align-items:center;">
+            <button class="primary" data-sell="${escapeHtml(r.id)}">${t("recordSale")}</button>
+          </div>
+        `;
+        grid.appendChild(row);
+        const warnBtn = row.querySelector("button.warn");
+        if(warnBtn){
+          warnBtn.onclick = async (e)=>{
+            e.stopPropagation();
+            try{ await markReservationSeen(r.id); await loadAll({ forceBust:true }); renderSalesView(); }catch{}
+          };
+        }
+        row.querySelector("button[data-sell]").onclick = (e)=>{
+          e.stopPropagation();
+          state.cart.clear();
+          for(const it of (r.items||[])) state.cart.set(String(it.productId), Math.max(0, Number(it.qty||0)||0));
+          state.convertReservationId = String(r.id);
+          updateCartBadge();
+          openCart();
+        };
+      }
+    }
+    // sales
+    const h2 = document.createElement("div");
+    h2.className = "panel-card-title";
+    h2.style.margin = "16px 0 10px";
+    h2.textContent = "Eladások";
+    grid.appendChild(h2);
+    if(!salesList.length){
+      const em = document.createElement("div");
+      em.className = "small-muted";
+      em.textContent = "Nincs eladás.";
+      grid.appendChild(em);
+      return;
+    }
+    for(const s of salesList.slice(0, 250)){
+      const row = document.createElement("div");
+      row.className = "rowline";
+      const itemsCount = (s.items||[]).reduce((a,it)=> a + Number(it.qty||0), 0);
+      const rev = (s.items||[]).reduce((a,it)=> a + (Number(it.qty||0)||0) * (Number(it.unitPrice||0)||0), 0);
+      row.innerHTML = `
+        <div class="left">
+          <div style="font-weight:900;">${escapeHtml(s.date)} • ${escapeHtml(s.name||"—")} <span class="small-muted">• ${escapeHtml(s.payment||"")}</span></div>
+          <div class="small-muted">Tételek: <b>${itemsCount}</b> • Bevétel: <b>${rev.toLocaleString("hu-HU")} Ft</b></div>
+        </div>
+      `;
+      grid.appendChild(row);
     }
   }
 
@@ -506,6 +843,16 @@
     const grid = $("#grid");
     const empty = $("#empty");
     grid.innerHTML = "";
+
+    // special views
+    if(state.active === "myres"){
+      renderMyReservationsView();
+      return;
+    }
+    if(state.active === "sales"){
+      renderSalesView();
+      return;
+    }
 
     let list = filterList();
 
@@ -541,10 +888,16 @@
     for (const p of list) {
       const name = getName(p);
       const flavor = getFlavor(p);
-      const out = isOut(p);
       const soon = isSoon(p);
       const featured = featuredIds.has(String(p.id));
-      const stockShown = out ? 0 : (soon ? Math.max(0, Number(p.stock || 0)) : Math.max(0, Number(p.stock || 0)));
+
+      const reservedTotal = state.reservedByPid.get(String(p.id)) || 0;
+      const reservedEff = getReservedQty(String(p.id));
+      const stockRaw = Math.max(0, Number(p.stock || 0));
+      const avail = soon ? 0 : Math.max(0, stockRaw - reservedEff);
+
+      const out = isOut(p) || (!soon && avail <= 0);
+      const stockShown = out ? 0 : (soon ? stockRaw : avail);
       const price = effectivePrice(p);
 
       // Determine card classes based on status
@@ -615,6 +968,23 @@
       hero.appendChild(badges);
       hero.appendChild(overlay);
 
+      // add-to-cart button (keeps layout)
+      const addBtn = document.createElement("button");
+      addBtn.className = "add-btn";
+      addBtn.type = "button";
+      addBtn.title = t("addToCart");
+      addBtn.innerHTML = `<span>+</span>`;
+      if(soon || out){
+        addBtn.disabled = true;
+      }
+      addBtn.onclick = (e) => {
+        e.stopPropagation();
+        addToCart(String(p.id), 1);
+        // quick feedback
+        if(!state.cartOpen) flashCart();
+      };
+      hero.appendChild(addBtn);
+
       const body = document.createElement("div");
       body.className = "card-body";
 
@@ -625,12 +995,22 @@
       priceEl.className = "price";
       priceEl.textContent = fmtFt(price);
 
+      const stockWrap = document.createElement("div");
+      stockWrap.className = "stock-wrap";
+
       const stockEl = document.createElement("div");
       stockEl.className = "stock";
       stockEl.innerHTML = `${t("stock")}: <b>${soon ? "—" : stockShown} ${soon ? "" : t("pcs")}</b>`;
 
+      const resEl = document.createElement("div");
+      resEl.className = "reserved";
+      resEl.innerHTML = `${t("reserved")}: <b>${soon ? "—" : reservedTotal} ${soon ? "" : t("pcs")}</b>`;
+
+      stockWrap.appendChild(stockEl);
+      stockWrap.appendChild(resEl);
+
       meta.appendChild(priceEl);
-      meta.appendChild(stockEl);
+      meta.appendChild(stockWrap);
       body.appendChild(meta);
 
       card.appendChild(hero);
@@ -639,6 +1019,507 @@
       grid.appendChild(card);
     }
   }
+
+
+  /* ----------------- Cart UI ----------------- */
+  let cartEls = null;
+
+  function initCartUI(){
+    // topbar: wrap search + add cart button
+    try{
+      const topbar = document.querySelector(".topbar");
+      const search = document.getElementById("search");
+      if(topbar && search && !document.getElementById("cartBtn")){
+        // create right container and move search into it
+        const right = document.createElement("div");
+        right.className = "topbar-right";
+        search.parentNode.insertBefore(right, search);
+        right.appendChild(search);
+
+        const btn = document.createElement("button");
+        btn.id = "cartBtn";
+        btn.className = "cart-btn";
+        btn.type = "button";
+        btn.innerHTML = `🛒 <span class="cart-badge" id="cartBadge">0</span>`;
+        right.appendChild(btn);
+        btn.onclick = () => openCart();
+      }
+    }catch{}
+
+    // drawer + backdrop
+    if(!document.getElementById("cartDrawer")){
+      const bg = document.createElement("div");
+      bg.className = "cart-backdrop";
+      bg.id = "cartBg";
+
+      const drawer = document.createElement("div");
+      drawer.className = "cart-drawer";
+      drawer.id = "cartDrawer";
+      drawer.innerHTML = `
+        <div class="cart-head">
+          <div style="font-weight:900;">${t("cart")}</div>
+          <button class="ghost" id="cartClose">✕</button>
+        </div>
+        <div class="cart-body" id="cartBody"></div>
+        <div class="cart-foot">
+          <div class="small-muted" id="cartHint"></div>
+          <button class="primary" id="cartAction">${t("reserve")}</button>
+        </div>
+      `;
+      bg.appendChild(drawer);
+      document.body.appendChild(bg);
+
+      cartEls = {
+        bg,
+        drawer,
+        body: drawer.querySelector("#cartBody"),
+        close: drawer.querySelector("#cartClose"),
+        action: drawer.querySelector("#cartAction"),
+        hint: drawer.querySelector("#cartHint"),
+        badge: document.getElementById("cartBadge")
+      };
+
+      cartEls.bg.onclick = (e) => { if(e.target === cartEls.bg) closeCart(); };
+      cartEls.close.onclick = () => closeCart();
+      cartEls.action.onclick = () => onCartAction();
+    }else{
+      cartEls = {
+        bg: document.getElementById("cartBg"),
+        drawer: document.getElementById("cartDrawer"),
+        body: document.getElementById("cartBody"),
+        close: document.getElementById("cartClose"),
+        action: document.getElementById("cartAction"),
+        hint: document.getElementById("cartHint"),
+        badge: document.getElementById("cartBadge")
+      };
+    }
+
+    updateCartBadge();
+  }
+
+  function openCart(){
+    if(!cartEls) initCartUI();
+    state.cartOpen = true;
+    cartEls.bg.classList.add("open");
+    cartEls.drawer.classList.add("open");
+    renderCart();
+  }
+
+  function closeCart(){
+    if(!cartEls) return;
+    state.cartOpen = false;
+    cartEls.drawer.classList.remove("open");
+    cartEls.bg.classList.remove("open");
+  }
+
+  function flashCart(){
+    // subtle pulse on cart badge
+    try{
+      const b = document.getElementById("cartBtn");
+      if(!b) return;
+      b.classList.add("pulse");
+      setTimeout(() => b.classList.remove("pulse"), 260);
+    }catch{}
+  }
+
+  function updateCartBadge(){
+    try{
+      const el = document.getElementById("cartBadge");
+      if(el) el.textContent = String(cartCount());
+    }catch{}
+    if(state.cartOpen) renderCart();
+  }
+
+  function renderCart(){
+    if(!cartEls) return;
+    const items = [...state.cart.entries()];
+    if(!items.length){
+      cartEls.body.innerHTML = `<div class="small-muted">Üres.</div>`;
+      cartEls.action.disabled = true;
+      cartEls.hint.textContent = "";
+      cartEls.action.textContent = state.isAdmin ? t("recordSale") : (state.editingReservationId ? t("modifyReserve") : t("reserve"));
+      return;
+    }
+
+    cartEls.action.disabled = false;
+    cartEls.action.textContent = state.isAdmin ? t("recordSale") : (state.editingReservationId ? t("modifyReserve") : t("reserve"));
+    cartEls.hint.textContent = state.isAdmin
+      ? "Kosár → Eladás rögzítése"
+      : (state.editingReservationId ? `Foglalás módosítása • ID: ${state.editingReservationId}` : "Kosár → Foglalás");
+
+    const rows = items.map(([pid, qty]) => {
+      const p = (state.productsDoc.products||[]).find(x => String(x.id) === String(pid));
+      const name = p ? getName(p) : pid;
+      const flavor = p ? getFlavor(p) : "";
+      const label = (name + (flavor ? " • " + flavor : "")).trim();
+      const maxAvail = p ? availableStock(p) : qty;
+
+      return `
+        <div class="cart-item">
+          <div class="cart-item-left">
+            <div class="cart-item-name">${escapeHtml(label)}</div>
+            <div class="small-muted">Max: <b>${maxAvail}</b></div>
+          </div>
+          <div class="cart-qty">
+            <button class="ghost" data-minus="${escapeHtml(pid)}">−</button>
+            <div class="cart-qty-num">${qty}</div>
+            <button class="ghost" data-plus="${escapeHtml(pid)}">+</button>
+          </div>
+        </div>
+      `;
+    }).join("");
+
+    cartEls.body.innerHTML = rows;
+
+    cartEls.body.querySelectorAll("button[data-plus]").forEach(b => {
+      b.onclick = (e) => { e.stopPropagation(); addToCart(b.dataset.plus, 1); };
+    });
+    cartEls.body.querySelectorAll("button[data-minus]").forEach(b => {
+      b.onclick = (e) => {
+        e.stopPropagation();
+        const pid = b.dataset.minus;
+        const cur = state.cart.get(pid) || 0;
+        if(cur <= 1){
+          const p = (state.productsDoc.products||[]).find(x => String(x.id) === String(pid));
+          const name = p ? getName(p) : pid;
+          const flavor = p ? getFlavor(p) : "";
+          const label = (name + (flavor ? ", " + flavor : "")).trim();
+          showConfirmModal(`${t("deleteConfirm")}<br><b>${escapeHtml(label)}</b>`, async (ok)=>{
+            if(ok) setCartQty(pid, 0);
+          });
+          return;
+        }
+        addToCart(pid, -1);
+      };
+    });
+  }
+
+  function showConfirmModal(html, cb){
+    const bg = document.createElement("div");
+    bg.className = "sv-modal-backdrop";
+    const modal = document.createElement("div");
+    modal.className = "sv-modal";
+    modal.innerHTML = `
+      <div class="sv-modal-title">${t("confirm")}</div>
+      <div class="sv-modal-body">${html}</div>
+      <div class="sv-modal-actions">
+        <button class="primary" id="svYes">${t("yes")}</button>
+        <button class="ghost" id="svNo">${t("no")}</button>
+      </div>
+    `;
+    bg.appendChild(modal);
+    document.body.appendChild(bg);
+    const close = (v)=>{ try{ bg.remove(); }catch{}; if(cb) cb(v); };
+    bg.onclick = (e)=>{ if(e.target===bg) close(false); };
+    modal.querySelector("#svNo").onclick = ()=> close(false);
+    modal.querySelector("#svYes").onclick = ()=> close(true);
+  }
+
+  function showSummaryAndConfirm({ title, linesHtml, onConfirm }){
+    const bg = document.createElement("div");
+    bg.className = "sv-modal-backdrop";
+    const modal = document.createElement("div");
+    modal.className = "sv-modal";
+    modal.innerHTML = `
+      <div class="sv-modal-title">${escapeHtml(title)}</div>
+      <div class="sv-modal-body">${linesHtml}</div>
+      <div class="sv-modal-actions">
+        <button class="primary" id="svConfirm" disabled>${t("confirm")}</button>
+        <button class="ghost" id="svCancel">${t("no")}</button>
+      </div>
+      <div class="small-muted" style="margin-top:8px;">3 mp...</div>
+    `;
+    bg.appendChild(modal);
+    document.body.appendChild(bg);
+
+    const btnC = modal.querySelector("#svConfirm");
+    const btnX = modal.querySelector("#svCancel");
+
+    btnX.onclick = ()=> { try{ bg.remove(); }catch{}; };
+
+    let done = false;
+    setTimeout(() => {
+      if(done) return;
+      btnC.disabled = false;
+      modal.querySelector(".small-muted").textContent = "";
+    }, 3000);
+
+    btnC.onclick = async () => {
+      if(done) return;
+      done = true;
+      btnC.disabled = true;
+      btnX.disabled = true;
+      try{
+        await onConfirm((infoHtml)=>{
+          modal.querySelector(".sv-modal-body").innerHTML = infoHtml;
+        });
+      }catch(err){
+        modal.querySelector(".sv-modal-body").innerHTML = `<div class="small-muted">Hiba: ${escapeHtml(String(err && err.message ? err.message : err))}</div>`;
+      }finally{
+        btnX.disabled = false;
+      }
+    };
+  }
+
+  async function onCartAction(){
+    const items = [...state.cart.entries()].map(([pid, qty]) => ({ pid, qty }));
+    if(!items.length) return;
+
+    const lines = items.map(({pid, qty}) => {
+      const p = (state.productsDoc.products||[]).find(x => String(x.id) === String(pid));
+      const name = p ? getName(p) : pid;
+      const flavor = p ? getFlavor(p) : "";
+      const label = (name + (flavor ? " • " + flavor : "")).trim();
+      return `<div class="rowline" style="margin:0 0 8px 0;"><div><b>${escapeHtml(label)}</b></div><div><b>${qty} ${t("pcs")}</b></div></div>`;
+    }).join("");
+
+    if(state.isAdmin){
+      // sale: ask details + confirm
+      const form = `
+        <div class="form-grid" style="margin-bottom:10px;">
+          <div class="field third"><label>Dátum</label><input id="svSaleDate" value="${todayISO()}"></div>
+          <div class="field third"><label>Név</label><input id="svSaleName" placeholder="pl. Tesó"></div>
+          <div class="field third"><label>Vásárlás módja</label><input id="svSalePay" placeholder="készpénz / utalás"></div>
+        </div>
+        ${lines}
+      `;
+      showSummaryAndConfirm({
+        title: t("recordSale"),
+        linesHtml: form,
+        onConfirm: async (setBody) => {
+          const name = String(document.getElementById("svSaleName")?.value || "").trim();
+          const payment = String(document.getElementById("svSalePay")?.value || "").trim();
+          const date = String(document.getElementById("svSaleDate")?.value || todayISO()).trim();
+          const saleId = await recordSaleFromCart({ name, payment, date, fromReservationId: state.convertReservationId });
+          setBody(`<div style="font-weight:900;margin-bottom:6px;">Eladás rögzítve ✅</div><div class="small-muted">ID: <b>${escapeHtml(saleId)}</b></div>`);
+          clearCart();
+          closeCart();
+          await loadAll({ forceBust:true });
+          renderNav(); renderGrid();
+        }
+      });
+      return;
+    }
+
+    // public reservation: confirm
+    const title = state.editingReservationId ? t("modifyReserve") : t("reserve");
+    showSummaryAndConfirm({
+      title,
+      linesHtml: lines,
+      onConfirm: async (setBody) => {
+        const r = await createOrModifyReservationFromCart();
+        setBody(`<div style="font-weight:900;margin-bottom:6px;">${t("orderCode")}: <span style="font-size:22px;">${escapeHtml(r.shortCode||"—")}</span></div><div class="small-muted">Köszönjük! (48 óráig aktív)</div>`);
+        clearCart();
+        closeCart();
+        await loadAll({ forceBust:true });
+        renderNav(); renderGrid();
+      }
+    });
+  }
+
+  function todayISO(){
+    try{ return new Date().toISOString().slice(0,10); }catch{ return ""; }
+  }
+
+  /* ----------------- GitHub write helpers (public/app) ----------------- */
+  function b64encode(str){
+    return btoa(unescape(encodeURIComponent(str)));
+  }
+  function b64decode(b64){
+    return decodeURIComponent(escape(atob(b64)));
+  }
+
+  async function getWriteCfg(){
+    const token = (localStorage.getItem("sv_token") || "").trim();
+    if(!token) return null;
+    const src = await resolveSource();
+    if(!src || !src.owner || !src.repo) return null;
+    return { token, owner: src.owner, repo: src.repo, branch: src.branch || "main" };
+  }
+
+  async function ghGetFile(cfg, path){
+    const url = `https://api.github.com/repos/${cfg.owner}/${cfg.repo}/contents/${path}?ref=${encodeURIComponent(cfg.branch)}`;
+    const r = await fetch(url, { headers: { Authorization: `token ${cfg.token}`, Accept: "application/vnd.github+json" }});
+    if(r.status === 404) return { sha:null, text:null, exists:false };
+    if(!r.ok) throw new Error(`GitHub GET hiba: ${r.status}`);
+    const j = await r.json();
+    const content = j && j.content ? b64decode((j.content||"").replace(/\n/g,"")) : "";
+    return { sha: j.sha, text: content, exists:true };
+  }
+
+  async function ghPutFile(cfg, path, text, sha, message){
+    const url = `https://api.github.com/repos/${cfg.owner}/${cfg.repo}/contents/${path}`;
+    const body = {
+      message,
+      content: b64encode(text),
+      branch: cfg.branch
+    };
+    if(sha) body.sha = sha;
+    const r = await fetch(url, {
+      method:"PUT",
+      headers: { Authorization: `token ${cfg.token}`, Accept: "application/vnd.github+json" },
+      body: JSON.stringify(body)
+    });
+    if(!r.ok){
+      const t = await r.text().catch(()=> "");
+      throw new Error(`GitHub PUT hiba: ${r.status} ${t.slice(0,200)}`);
+    }
+    const j = await r.json();
+    return { sha: j.content?.sha || null };
+  }
+
+  async function updateJsonFile(path, updater, message){
+    const cfg = await getWriteCfg();
+    if(!cfg) throw new Error(t("missingToken"));
+    for(let attempt=0; attempt<3; attempt++){
+      const cur = await ghGetFile(cfg, path);
+      const base = cur.text ? JSON.parse(cur.text) : (path.endsWith(".json") ? [] : {});
+      const next = updater(base);
+      const nextText = JSON.stringify(next, null, 2);
+      try{
+        await ghPutFile(cfg, path, nextText, cur.sha, message);
+        return next;
+      }catch(e){
+        // retry on sha mismatch
+        if(attempt === 2) throw e;
+      }
+    }
+    throw new Error("Mentés sikertelen");
+  }
+
+  function makeUid(prefix){
+    const p = String(prefix||"id_");
+    const rnd = Math.random().toString(36).slice(2, 10);
+    return `${p}${Date.now().toString(36)}_${rnd}`;
+  }
+
+  function makeShortCode(existing){
+    const used = new Set((existing||[]).map(r => String(r.shortCode||"")).filter(Boolean));
+    for(let i=0;i<25;i++){
+      const code = String(100 + Math.floor(Math.random()*900));
+      if(!used.has(code)) return code;
+    }
+    return String(100 + Math.floor(Math.random()*900));
+  }
+
+  async function createOrModifyReservationFromCart(){
+    const items = [...state.cart.entries()].map(([productId, qty]) => ({ productId: String(productId), qty: Math.max(0, Number(qty||0)||0) })).filter(it=>it.productId && it.qty>0);
+    if(!items.length) throw new Error("Üres.");
+    const now = Date.now();
+    const oldId = state.editingReservationId ? String(state.editingReservationId) : null;
+
+    const next = await updateJsonFile("data/reservations.json", (arr) => {
+      const list = Array.isArray(arr) ? [...arr] : [];
+      // cleanup expired while here
+      const kept = [];
+      for(const r of list){
+        if(!r) continue;
+        const status = String(r.status||"active");
+        const exp = Number(r.expiresAt||0);
+        if(status === "active" && exp && now >= exp) continue;
+        kept.push(r);
+      }
+      // mark old replaced
+      let resList = kept;
+      if(oldId){
+        resList = resList.map(r => String(r.id)===oldId ? ({...r, status:"replaced", replacedAt: now, replacedBy: null }) : r);
+      }
+
+      const newId = makeUid("r_");
+      const code = makeShortCode(resList);
+      const rec = {
+        id: newId,
+        shortCode: code,
+        createdAt: now,
+        updatedAt: now,
+        expiresAt: now + 48*60*60*1000,
+        status: "active",
+        items,
+        modifiedFrom: oldId,
+        needsAttention: !!oldId
+      };
+
+      // link replacedBy
+      if(oldId){
+        resList = resList.map(r => String(r.id)===oldId ? ({...r, replacedBy: newId}) : r);
+      }
+
+      resList.push(rec);
+      return resList;
+    }, oldId ? "Update reservation" : "Create reservation");
+
+    // return new record
+    const newRec = next.find(r => r && r.id && r.status==="active" && r.modifiedFrom === oldId) || next[next.length-1];
+    return newRec;
+  }
+
+  async function markReservationSeen(id){
+    const rid = String(id||"");
+    if(!rid) return;
+    await updateJsonFile("data/reservations.json", (arr) => {
+      const list = Array.isArray(arr) ? [...arr] : [];
+      return list.map(r => (r && String(r.id)===rid) ? ({...r, needsAttention:false}) : r);
+    }, "Mark reservation seen");
+  }
+
+  async function recordSaleFromCart({ name="", payment="", date="", fromReservationId=null } = {}){
+    const items = [...state.cart.entries()].map(([pid, qty]) => ({ productId: String(pid), qty: Math.max(0, Number(qty||0)||0) })).filter(it=>it.productId && it.qty>0);
+    if(!items.length) throw new Error("Üres.");
+
+    const cfg = await getWriteCfg();
+    if(!cfg) throw new Error(t("missingToken"));
+
+    // load products & sales
+    const prodFile = await ghGetFile(cfg, "data/products.json");
+    const salesFile = await ghGetFile(cfg, "data/sales.json");
+    const doc = prodFile.text ? JSON.parse(prodFile.text) : { categories:[], products:[] };
+    const sales = salesFile.text ? JSON.parse(salesFile.text) : [];
+
+    // decrement stock
+    const prods = Array.isArray(doc.products) ? doc.products : [];
+    for(const it of items){
+      const p = prods.find(x => String(x.id) === String(it.productId));
+      if(!p) throw new Error("Hiányzó termék: " + it.productId);
+      const stock = Math.max(0, Number(p.stock||0));
+      if(stock < it.qty) throw new Error("Nincs elég készlet: " + (getName(p) || p.id));
+      p.stock = stock - it.qty;
+    }
+
+    // sale record
+    const saleId = makeUid("s_");
+    const sale = {
+      id: saleId,
+      date: date || todayISO(),
+      name,
+      payment,
+      items: items.map(it => {
+        const p = prods.find(x => String(x.id)===String(it.productId));
+        return { productId: it.productId, qty: it.qty, unitPrice: Number(effectivePrice(p)||0) };
+      })
+    };
+    if(fromReservationId) sale.reservationId = String(fromReservationId);
+
+    const salesNext = Array.isArray(sales) ? [...sales, sale] : [sale];
+
+    // bump meta rev
+    doc._meta = doc._meta || {};
+    doc._meta.rev = Date.now();
+
+    // save
+    await ghPutFile(cfg, "data/products.json", JSON.stringify(doc, null, 2), prodFile.sha, "Sale: update stock");
+    await ghPutFile(cfg, "data/sales.json", JSON.stringify(salesNext, null, 2), salesFile.sha, "Sale: append");
+
+    // mark reservation sold if needed
+    if(fromReservationId){
+      await updateJsonFile("data/reservations.json", (arr) => {
+        const list = Array.isArray(arr) ? [...arr] : [];
+        return list.map(r => (r && String(r.id)===String(fromReservationId)) ? ({...r, status:"sold", soldAt: Date.now(), saleId }) : r);
+      }, "Reservation -> sold");
+    }
+
+    return saleId;
+  }
+
 
   /* ----------------- Popups (New products) ----------------- */
   function popupHideKey(pp){
@@ -1070,6 +1951,18 @@
       state.salesFresh = false;
     }
 
+    // reservations
+    try{
+      const resRaw = await fetchReservations({ forceBust });
+      const cleaned = cleanupExpiredReservations(normalizeReservations(resRaw || []));
+      const rChanged = applyReservationsIfChanged(cleaned.list, { fresh:true });
+      if(rChanged || cleaned.changed) changed = true;
+    }catch{
+      state.resFresh = false;
+      state.reservations = [];
+      state.reservedByPid = new Map();
+    }
+
     // featured depends on BOTH products+sales; csak ha változott valami (vagy ha salesFresh változott)
     if(changed || !state.salesFresh){
       computeFeaturedByCategory();
@@ -1079,9 +1972,19 @@
   }
 
   async function init() {
+    // mode flags
+    try{
+      const qs = new URLSearchParams(location.search);
+      state.isAdmin = qs.get("sv_admin") === "1";
+      state.isEmbed = qs.get("sv_embed") === "1";
+      if(state.isEmbed) document.documentElement.classList.add("sv-embed");
+    }catch{}
+
     applySyncParams();
     setLangUI();
     initLang();
+
+    initCartUI();
 
     // if admin pushed live payload (same browser) use it first
     hydrateFromLivePayload();
@@ -1097,7 +2000,7 @@
     $("#app").style.display = "grid";
 
     // popups
-    setTimeout(() => showPopupsIfNeeded(), 500);
+    if(!state.isAdmin && !state.isEmbed) setTimeout(() => showPopupsIfNeeded(), 500);
 
     // live updates from admin (same browser)
     try{
@@ -1118,7 +2021,7 @@
             computeFeaturedByCategory();
             renderNav();
             renderGrid();
-            setTimeout(() => showPopupsIfNeeded(), 100);
+            if(!state.isAdmin && !state.isEmbed) setTimeout(() => showPopupsIfNeeded(), 100);
           }
         }catch{}
       };
@@ -1131,14 +2034,14 @@
         if(changed){
           renderNav();
           renderGrid();
-          setTimeout(() => showPopupsIfNeeded(), 100);
+          if(!state.isAdmin && !state.isEmbed) setTimeout(() => showPopupsIfNeeded(), 100);
         }
       }catch{}
       setTimeout(loop, 30_000);
     };
 
     document.addEventListener("visibilitychange", () => {
-      if (!document.hidden) loadAll({ forceBust:true }).then((changed)=>{ if(changed){ renderNav(); renderGrid(); } setTimeout(() => showPopupsIfNeeded(), 100); }).catch(()=>{});
+      if (!document.hidden) loadAll({ forceBust:true }).then((changed)=>{ if(changed){ renderNav(); renderGrid(); } if(!state.isAdmin && !state.isEmbed) setTimeout(() => showPopupsIfNeeded(), 100); }).catch(()=>{});
     });
 
     loop();
