@@ -573,14 +573,21 @@
       el = document.createElement("div");
       el.id = "svToast";
       el.className = "sv-toast";
+      // inline safety: never affect layout
+      el.style.position = "fixed";
+      el.style.left = "50%";
+      el.style.top = "12px";
+      el.style.transform = "translateX(-50%) translateY(-10px)";
+      el.style.zIndex = "10000";
+      el.style.pointerEvents = "none";
       document.body.appendChild(el);
     }
     el.textContent = msg;
     el.classList.add("show");
     if(svToastTimer) clearTimeout(svToastTimer);
-    svToastTimer = setTimeout(()=>{ try{ el.classList.remove("show"); }catch{} }, 1800);
+    // longer so it can be read
+    svToastTimer = setTimeout(()=>{ try{ el.classList.remove("show"); }catch{} }, 3200);
   }
-
 
   /* ----------------- Reservations + Cart helpers ----------------- */
   function computeReservedByPid(){
@@ -635,6 +642,51 @@
     for(const v of state.cart.values()) n += Number(v||0) || 0;
     return n;
   }
+
+  function cartStorageKey(){
+    // separate carts for public vs admin mode
+    return state.isAdmin ? "sv_cart_admin_v1" : "sv_cart_v1";
+  }
+
+  function saveCartToStorage(){
+    try{
+      const key = cartStorageKey();
+      const obj = {};
+      for(const [pid, qty] of state.cart.entries()){
+        const q = Math.max(0, Number(qty||0) || 0);
+        if(q > 0) obj[String(pid)] = q;
+      }
+      localStorage.setItem(key, JSON.stringify(obj));
+    }catch{}
+  }
+
+  function loadCartFromStorage(){
+    try{
+      const key = cartStorageKey();
+      const raw = JSON.parse(localStorage.getItem(key) || "null");
+      if(!raw || typeof raw !== "object") return false;
+
+      const entries = Object.entries(raw);
+      if(!entries.length) return false;
+
+      state.cart.clear();
+
+      for(const [pid, qty] of entries){
+        const id = String(pid||"");
+        if(!id) continue;
+
+        const p = (state.productsDoc.products||[]).find(x => String(x.id) === id);
+        const maxAvail = p ? availableStock(p) : Infinity;
+        const q = Math.max(0, Math.min(maxAvail, Number(qty||0) || 0));
+        if(q > 0) state.cart.set(id, q);
+      }
+
+      return true;
+    }catch{
+      return false;
+    }
+  }
+
 
   function setCartQty(pid, qty){
     const id = String(pid||"");
@@ -738,6 +790,10 @@
       if(!id) return;
       try{
         await loadAll({ forceBust:true });
+
+    // restore cart after data load
+    loadCartFromStorage();
+    updateCartBadge();
         const r = getReservationById(id);
         const ok = r && String(r.status||"active") === "active" && (!r.expiresAt || Date.now() < Number(r.expiresAt||0));
         if(!ok){
@@ -1118,8 +1174,35 @@
     updateCartBadge();
   }
 
+
+  function ensureCartEls(){
+    try{
+      if(!cartEls) return false;
+      if(!cartEls.bg || !cartEls.drawer || !cartEls.body || !cartEls.action){
+        cartEls = {
+          bg: document.getElementById("cartBg"),
+          drawer: document.getElementById("cartDrawer"),
+          body: document.getElementById("cartBody"),
+          close: document.getElementById("cartClose"),
+          action: document.getElementById("cartAction"),
+          hint: document.getElementById("cartHint"),
+          badge: document.getElementById("cartBadge")
+        };
+      }
+      return !!(cartEls.bg && cartEls.drawer && cartEls.body && cartEls.action);
+    }catch{
+      return false;
+    }
+  }
+
   function openCart(){
     if(!cartEls) initCartUI();
+    ensureCartEls();
+    // rehydrate in case something cleared visually
+    loadCartFromStorage();
+    updateCartBadge();
+
+    if(!cartEls || !cartEls.bg || !cartEls.drawer) return;
     state.cartOpen = true;
     cartEls.bg.classList.add("open");
     cartEls.drawer.classList.add("open");
@@ -1148,11 +1231,14 @@
       const el = document.getElementById("cartBadge");
       if(el) el.textContent = String(cartCount());
     }catch{}
+    // persist cart so it never “disappears”
+    saveCartToStorage();
     if(state.cartOpen) renderCart();
   }
 
   function renderCart(){
     if(!cartEls) return;
+    if(!ensureCartEls()) return;
     const items = [...state.cart.entries()];
     if(!items.length){
       cartEls.body.innerHTML = `<div class="small-muted">Üres.</div>`;
@@ -1316,6 +1402,10 @@
           clearCart();
           closeCart();
           await loadAll({ forceBust:true });
+
+    // restore cart after data load
+    loadCartFromStorage();
+    updateCartBadge();
           renderNav(); renderGrid();
         }
       });
@@ -1333,6 +1423,10 @@
         clearCart();
         closeCart();
         await loadAll({ forceBust:true });
+
+    // restore cart after data load
+    loadCartFromStorage();
+    updateCartBadge();
         renderNav(); renderGrid();
       }
     });
@@ -2012,6 +2106,10 @@
 
     // load from network (RAW) to be sure
     await loadAll({ forceBust:true });
+
+    // restore cart after data load
+    loadCartFromStorage();
+    updateCartBadge();
 
     renderNav();
     renderGrid();
