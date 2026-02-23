@@ -553,6 +553,20 @@
       "flavor_hu": "Elfbar Raya D3 25K",
       "flavor_en": "Elfbar Raya D3 25K",
       "soonEta": ""
+    },
+    {
+      "id": "p_31d0b96bdad8c8_19c8a769de0",
+      "categoryId": "tomb",
+      "status": "ok",
+      "stock": 14,
+      "visible": true,
+      "price": null,
+      "image": "https://i.ibb.co/rfdWvLjN/tombola.png",
+      "name_hu": "Tombola",
+      "name_en": "Tombola",
+      "flavor_hu": "Elfbar Lush King Pro 40k",
+      "flavor_en": "Elfbar Lush King Pro 40k",
+      "soonEta": ""
     }
   ],
   "popups": [
@@ -606,7 +620,7 @@
   ],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1771849519447,
-    "updatedAt": "2026-02-23T12:25:19.447Z"
+    "rev": 1771849600598,
+    "updatedAt": "2026-02-23T12:26:40.598Z"
   }
 }
