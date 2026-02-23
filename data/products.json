@@ -15,7 +15,7 @@
       "label_hu": "Elfbar Raya D3  25k",
       "label_en": "Elfbar Raya D3  25k",
       "basePrice": 6000,
-      "basePriceJD": null,
+      "basePriceJD": 8000,
       "visible": true,
       "visibleJD": true,
       "featuredEnabled": true
@@ -738,7 +738,7 @@
   ],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1771881289497,
-    "updatedAt": "2026-02-23T21:14:49.497Z"
+    "rev": 1771881667493,
+    "updatedAt": "2026-02-23T21:21:07.493Z"
   }
 }
