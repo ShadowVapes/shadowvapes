@@ -533,7 +533,7 @@
       "stock": 13,
       "visible": true,
       "price": null,
-      "image": "https://ibb.co/TqWCrnfd",
+      "image": "https://i.ibb.co/rfdWvLjN/tombola.png",
       "name_hu": "Tombola",
       "name_en": "Tombola",
       "flavor_hu": "Vapsolo Quads 80k",
@@ -592,7 +592,7 @@
   ],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1771849444632,
-    "updatedAt": "2026-02-23T12:24:04.632Z"
+    "rev": 1771849463663,
+    "updatedAt": "2026-02-23T12:24:23.663Z"
   }
 }
