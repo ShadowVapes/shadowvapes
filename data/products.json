@@ -567,6 +567,20 @@
       "flavor_hu": "Elfbar Lush King Pro 40k",
       "flavor_en": "Elfbar Lush King Pro 40k",
       "soonEta": ""
+    },
+    {
+      "id": "p_4acea3da50f7e8_19c8a785fe0",
+      "categoryId": "tomb",
+      "status": "ok",
+      "stock": 8,
+      "visible": true,
+      "price": null,
+      "image": "https://i.ibb.co/rfdWvLjN/tombola.png",
+      "name_hu": "Tombola",
+      "name_en": "Tombola",
+      "flavor_hu": "BOOD Pulse Storm 12K",
+      "flavor_en": "BOOD Pulse Storm 12K",
+      "soonEta": ""
     }
   ],
   "popups": [
@@ -620,7 +634,7 @@
   ],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1771849600598,
-    "updatedAt": "2026-02-23T12:26:40.598Z"
+    "rev": 1771849713062,
+    "updatedAt": "2026-02-23T12:28:33.062Z"
   }
 }
