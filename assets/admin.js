@@ -186,7 +186,15 @@
         label_hu: c.label_hu || c.id,
         label_en: c.label_en || c.label_hu || c.id,
         basePrice: Number(c.basePrice || 0),
+
+        // ✅ JD Vapes: külön kategória ár (üres/null => SV fallback)
+        basePriceJD: (c.basePriceJD === "" || c.basePriceJD === null || c.basePriceJD === undefined)
+          ? null
+          : (Number.isFinite(Number(c.basePriceJD)) ? Number(c.basePriceJD) : null),
+
         visible: (c.visible === false) ? false : true,
+        visibleJD: (c.visibleJD === false) ? false : true,
+
         featuredEnabled: (c.featuredEnabled === false) ? false : true
       }));
 
@@ -196,8 +204,11 @@
       status: (p.status === "ok" || p.status === "out" || p.status === "soon") ? p.status : "ok",
       stock: Math.max(0, Number(p.stock || 0)),
       visible: (p.visible === false) ? false : true,
+      visibleJD: (p.visibleJD === false) ? false : true,
       // price lehet null/üres => kategória alapár
-      price: (p.price === "" || p.price === null || p.price === undefined) ? null : Number(p.price || 0),
+      price: (p.price === "" || p.price === null || p.price === undefined) ? null : (Number.isFinite(Number(p.price)) ? Number(p.price) : null),
+      // ✅ JD ár: üres/null => JD kategória ár (és ha az sincs, SV fallback)
+      priceJD: (p.priceJD === "" || p.priceJD === null || p.priceJD === undefined) ? null : (Number.isFinite(Number(p.priceJD)) ? Number(p.priceJD) : null),
       image: p.image || "",
       name_hu: p.name_hu || "",
       name_en: p.name_en || "",
@@ -267,11 +278,19 @@ state.sales = state.sales.map(s => {
         expiresAt = ex;
       }
 
-      const items = Array.isArray(r.items) ? r.items.map(it => ({
-        productId: String(it.productId || it.pid || it.product || ""),
-        qty: Math.max(1, Number(it.qty || it.quantity || 1) || 1),
-        unitPrice: Math.max(0, Number(it.unitPrice || it.price || 0) || 0),
-      })).filter(it => it.productId) : [];
+      const items = Array.isArray(r.items) ? r.items.map(it => {
+        const ujdRaw = (it.unitPriceJD === null || it.unitPriceJD === undefined || it.unitPriceJD === "")
+          ? (it.priceJD === null || it.priceJD === undefined || it.priceJD === "" ? null : it.priceJD)
+          : it.unitPriceJD;
+        const ujd = (ujdRaw === null || ujdRaw === undefined || ujdRaw === "") ? null : (Number.isFinite(Number(ujdRaw)) ? Math.max(0, Number(ujdRaw)) : null);
+
+        return {
+          productId: String(it.productId || it.pid || it.product || ""),
+          qty: Math.max(1, Number(it.qty || it.quantity || 1) || 1),
+          unitPrice: Math.max(0, Number(it.unitPrice || it.price || 0) || 0),
+          unitPriceJD: ujd
+        };
+      }).filter(it => it.productId) : [];
 
       out.push({
         id,
