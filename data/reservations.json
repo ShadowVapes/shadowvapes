@@ -19,8 +19,10 @@
     "id": "r_mlz4revu_a2i33y",
     "publicCode": "442",
     "createdAt": 1771848352794,
-    "expiresAt": 1772021152794,
-    "confirmed": false,
+    "expiresAt": null,
+    "confirmed": true,
+    "modified": false,
+    "modifiedAt": 0,
     "items": [
       {
         "productId": "p_4f4efd0510951_19b6ae36cba",
