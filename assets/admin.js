@@ -295,14 +295,37 @@ state.sales = state.sales.map(s => {
     return state.doc.products.find(p => p.id === String(id)) || null;
   }
 
-  function effectivePrice(p){
-    if(p.price !== null && p.price !== undefined && Number.isFinite(Number(p.price)) && Number(p.price) > 0){
-      return Number(p.price);
+  function effectivePriceStore(p, store="sv"){
+    const num = (v)=> (v===null || v===undefined || v==="" ? null : Number(v));
+    const pickOverride = (key)=>{
+      const v = num(p && p[key]);
+      return (v!==null && Number.isFinite(v) && v>0) ? v : null;
+    };
+
+    if(store === "jd"){
+      const ov = pickOverride("priceJD");
+      if(ov !== null) return ov;
+
+      const c = catById(p.categoryId);
+      const bpjd = c ? num(c.basePriceJD) : null;
+      if(bpjd !== null && Number.isFinite(bpjd) && bpjd > 0) return bpjd;
+
+      // fallback: SV pricing
+      return effectivePriceStore(p, "sv");
     }
+
+    // SV pricing (default)
+    const ov = pickOverride("price");
+    if(ov !== null) return ov;
+
     const c = catById(p.categoryId);
-    const bp = c ? Number(c.basePrice || 0) : 0;
-    return Number.isFinite(bp) ? bp : 0;
+    const bp = c ? num(c.basePrice) : null;
+    const out = (bp !== null && Number.isFinite(bp) && bp > 0) ? bp : 0;
+    return out;
   }
+
+  function effectivePrice(p){ return effectivePriceStore(p, "sv"); }
+  function effectivePriceJD(p){ return effectivePriceStore(p, "jd"); }
 
   function saleTotals(sale, catFilterId){
     // catFilterId: "all" or category id -> csak az adott kategória tételeit számoljuk
@@ -752,8 +775,10 @@ function markDirty(flags){
         <td><div style="display:flex;gap:8px;align-items:center;justify-content:space-between;"><b>${escapeHtml(c.id)}</b><button type="button" class="ghost" data-ren-cat="${escapeHtml(c.id)}">Szerk</button></div></td>
         <td><input data-cid="${escapeHtml(c.id)}" data-k="label_hu" value="${escapeHtml(c.label_hu)}"></td>
         <td><input data-cid="${escapeHtml(c.id)}" data-k="label_en" value="${escapeHtml(c.label_en)}"></td>
-        <td style="width:160px;"><input data-cid="${escapeHtml(c.id)}" data-k="basePrice" type="number" min="0" value="${Number(c.basePrice||0)}"></td>
-        <td style="width:110px;text-align:center;"><input type="checkbox" data-cid="${escapeHtml(c.id)}" data-k="visible"${c.visible===false?"":" checked"}></td>
+        <td style="width:150px;"><input data-cid="${escapeHtml(c.id)}" data-k="basePrice" type="number" min="0" value="${Number(c.basePrice||0)}"></td>
+        <td style="width:150px;"><input data-cid="${escapeHtml(c.id)}" data-k="basePriceJD" type="number" min="0" value="${Number((c.basePriceJD ?? c.basePrice ?? 0) || 0)}"></td>
+        <td style="width:90px;text-align:center;"><input type="checkbox" data-cid="${escapeHtml(c.id)}" data-k="visible"${c.visible===false?"":" checked"}></td>
+        <td style="width:90px;text-align:center;"><input type="checkbox" data-cid="${escapeHtml(c.id)}" data-k="visibleJD"${c.visibleJD===false?"":" checked"}></td>
         <td style="width:120px;text-align:center;"><input type="checkbox" data-cid="${escapeHtml(c.id)}" data-k="featuredEnabled"${c.featuredEnabled===false?"":" checked"}></td>
         <td style="width:110px;"><button class="danger" data-delcat="${escapeHtml(c.id)}">Töröl</button></td>
       </tr>
@@ -766,7 +791,7 @@ function markDirty(flags){
       </div>
       <table class="table">
         <thead>
-          <tr><th>ID</th><th>HU</th><th>EN</th><th>Alap ár (Ft)</th><th>Látható</th><th>Felkapott</th><th></th></tr>
+          <tr><th>ID</th><th>HU</th><th>EN</th><th>Alap ár SV (Ft)</th><th>Alap ár JD (Ft)</th><th>SV</th><th>JD</th><th>Felkapott</th><th></th></tr>
         </thead>
         <tbody>${rows}</tbody>
       </table>
@@ -778,7 +803,8 @@ function markDirty(flags){
         <div class="form-grid">
           <div class="field third"><label>ID (pl. elf)</label><input id="newCid" placeholder="elf"></div>
           <div class="field third"><label>HU</label><input id="newChu" placeholder="ELF"></div>
-          <div class="field third"><label>Alap ár</label><input id="newCprice" type="number" min="0" value="0"></div>
+          <div class="field third"><label>Alap ár SV</label><input id="newCprice" type="number" min="0" value="0"></div>
+          <div class="field third"><label>Alap ár JD</label><input id="newCpriceJD" type="number" min="0" value="0"></div>
         </div>
       `;
       openModal("Új kategória", "Nem prompt, rendes modal 😄", body, [
@@ -790,12 +816,18 @@ function markDirty(flags){
 
           const hu = ($("#newChu").value||"").trim() || id;
 
+          const bp = Math.max(0, Number($("#newCprice").value||0));
+          const bpjdInput = $("#newCpriceJD") ? $("#newCpriceJD").value : "";
+          const bpjd = (bpjdInput === "" ? bp : Math.max(0, Number(bpjdInput||0)));
+
           state.doc.categories.push({
             id,
             label_hu: hu,
             label_en: hu, // ✅ EN nem kell külön, maradjon HU
-            basePrice: Math.max(0, Number($("#newCprice").value||0)),
+            basePrice: bp,
+            basePriceJD: bpjd,
             visible: true,
+            visibleJD: true,
             featuredEnabled: true
           });
           closeModal();
@@ -812,7 +844,9 @@ function markDirty(flags){
         const c = catById(id);
         if(!c) return;
         if(k === "basePrice") c.basePrice = Math.max(0, Number(inp.value||0));
+        else if(k === "basePriceJD") c.basePriceJD = Math.max(0, Number(inp.value||0));
         else if(k === "visible") c.visible = !!inp.checked;
+        else if(k === "visibleJD") c.visibleJD = !!inp.checked;
         else if(k === "featuredEnabled") c.featuredEnabled = !!inp.checked;
         else c[k] = inp.value;
         markDirty({ products:true });
@@ -903,6 +937,7 @@ function renderProducts(){
     const rows = list.map(p => {
       const c = catById(p.categoryId);
       const eff = effectivePrice(p);
+      const effJD = effectivePriceJD(p);
       const img = (p.image || "").trim();
 
       return `
@@ -914,7 +949,7 @@ function renderProducts(){
                 <div style="font-weight:900;">${escapeHtml(p.name_hu||p.name_en||"—")} <span class="small-muted">• ${escapeHtml(p.flavor_hu||p.flavor_en||"")}</span></div>
                 <div class="small-muted">
                   Kategória: <b>${escapeHtml(c ? (c.label_hu||c.id) : "—")}</b>
-                  • Ár: <b>${eff.toLocaleString("hu-HU")} Ft</b>
+                  • Ár SV: <b>${eff.toLocaleString("hu-HU")} Ft</b> • Ár JD: <b>${effJD.toLocaleString("hu-HU")} Ft</b>
                   • Készlet: <b>${p.status==="soon" ? "—" : p.stock}</b>
                   ${p.status==="soon" && p.soonEta ? `• Várható: <b>${escapeHtml(p.soonEta)}</b>` : ""}
                 </div>
@@ -922,7 +957,8 @@ function renderProducts(){
             </div>
           </div>
           <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
-            <label class="chk"><input type="checkbox" data-pid="${escapeHtml(p.id)}" data-k="visible"${p.visible===false?"":" checked"}> Látható</label>
+            <label class="chk"><input type="checkbox" data-pid="${escapeHtml(p.id)}" data-k="visible"${p.visible===false?"":" checked"}> SV</label>
+            <label class="chk"><input type="checkbox" data-pid="${escapeHtml(p.id)}" data-k="visibleJD"${p.visibleJD===false?"":" checked"}> JD</label>
             <select data-pid="${escapeHtml(p.id)}" data-k="categoryId">
               ${state.doc.categories.map(cc => `<option value="${escapeHtml(cc.id)}"${cc.id===p.categoryId?" selected":""}>${escapeHtml(cc.label_hu||cc.id)}</option>`).join("")}
             </select>
@@ -932,7 +968,8 @@ function renderProducts(){
               <option value="soon"${p.status==="soon"?" selected":""}>soon</option>
             </select>
             <input data-pid="${escapeHtml(p.id)}" data-k="stock" type="number" min="0" value="${p.stock}" style="width:110px;">
-            <input data-pid="${escapeHtml(p.id)}" data-k="price" type="number" min="0" value="${p.price===null? "" : p.price}" placeholder="(kategória ár)" style="width:150px;">
+            <input data-pid="${escapeHtml(p.id)}" data-k="price" type="number" min="0" value="${p.price===null? "" : p.price}" placeholder="(SV kat ár)" style="width:150px;">
+            <input data-pid="${escapeHtml(p.id)}" data-k="priceJD" type="number" min="0" value="${(p.priceJD===null||p.priceJD===undefined)? "" : p.priceJD}" placeholder="(JD kat ár)" style="width:150px;">
             <button class="ghost" data-edit="${escapeHtml(p.id)}">Szerkeszt</button>
             <button class="danger" data-del="${escapeHtml(p.id)}">Töröl</button>
           </div>
@@ -969,6 +1006,8 @@ function renderProducts(){
           if(p.stock <= 0 && p.status !== "soon") p.status = "out";
         }else if(k === "price"){
           p.price = (el.value === "" ? null : Math.max(0, Number(el.value||0)));
+        }else if(k === "priceJD"){
+          p.priceJD = (el.value === "" ? null : Math.max(0, Number(el.value||0)));
         }else if(k === "status"){
           p.status = el.value;
           if(p.status === "out") p.stock = 0;
@@ -976,6 +1015,8 @@ function renderProducts(){
           p.categoryId = el.value;
         }else if(k === "visible"){
           p.visible = !!el.checked;
+        }else if(k === "visibleJD"){
+          p.visibleJD = !!el.checked;
         }
 
         markDirty({ products:true });
@@ -1015,7 +1056,9 @@ function renderProducts(){
       flavor_hu: "",
       flavor_en: "",
       soonEta: "", // ✅ Csak hónap formátum
-      visible: true
+      visible: true,
+      visibleJD: true,
+      priceJD: null
     };
 
     const body = document.createElement("div");
@@ -1037,10 +1080,13 @@ function renderProducts(){
 
         <div class="field third"><label>Várható hónap (csak "soon")</label><input id="p_eta" type="month" value="${escapeHtml(p.soonEta||"")}" placeholder="YYYY-MM"></div>
 
-        <div class="field third"><label>Látható</label><label class="chk" style="justify-content:flex-start;"><input type="checkbox" id="p_visible" ${p.visible===false?"":"checked"}> Megjelenjen</label></div>
+        <div class="field third"><label>Látható (SV)</label><label class="chk" style="justify-content:flex-start;"><input type="checkbox" id="p_visible" ${p.visible===false?"":"checked"}> SV oldalon</label></div>
+
+        <div class="field third"><label>Látható (JD)</label><label class="chk" style="justify-content:flex-start;"><input type="checkbox" id="p_visibleJD" ${p.visibleJD===false?"":"checked"}> JD oldalon</label></div>
 
         <div class="field third"><label>Készlet</label><input id="p_stock" type="number" min="0" value="${p.stock}"></div>
-        <div class="field third"><label>Ár (Ft) — üres: kategória ár</label><input id="p_price" type="number" min="0" value="${p.price===null?"":p.price}"></div>
+        <div class="field third"><label>Ár SV (Ft) — üres: SV kategória ár</label><input id="p_price" type="number" min="0" value="${p.price===null?"":p.price}"></div>
+        <div class="field third"><label>Ár JD (Ft) — üres: JD kategória ár</label><input id="p_priceJD" type="number" min="0" value="${(p.priceJD===null||p.priceJD===undefined)?"":p.priceJD}"></div>
         <div class="field full"><label>Kép URL</label><input id="p_img" value="${escapeHtml(p.image)}"></div>
 
         <div class="field third"><label>Termék neve</label><input id="p_name" value="${escapeHtml(p.name_hu)}"></div>
@@ -1061,8 +1107,10 @@ function renderProducts(){
           categoryId: $("#p_cat").value,
           status: $("#p_status").value,
           visible: !!$("#p_visible").checked,
+          visibleJD: !!$("#p_visibleJD").checked,
           stock: Math.max(0, Number($("#p_stock").value||0)),
           price: ($("#p_price").value === "" ? null : Math.max(0, Number($("#p_price").value||0))),
+          priceJD: ($("#p_priceJD").value === "" ? null : Math.max(0, Number($("#p_priceJD").value||0))),
           image: ($("#p_img").value||"").trim(),
           name_hu: ($("#p_name").value||"").trim(),
           name_en: ($("#p_name").value||"").trim(),
@@ -1229,6 +1277,7 @@ function openProductPicker(opts = {}){
             ? `<img class="picker-thumb" src="${escapeHtml(img)}" alt="" loading="lazy" onerror="this.style.display='none'">`
             : `<div class="picker-thumb ph">SV</div>`;
           const eff = effectivePrice(p);
+      const effJD = effectivePriceJD(p);
           const stockTxt = (p.status === "out") ? "Elfogyott" : (p.status === "soon" ? "Hamarosan" : `Készlet: ${Number(p.stock||0)}`);
           return `
             <button type="button" class="picker-item" data-pid="${escapeHtml(p.id)}">
