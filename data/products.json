@@ -525,6 +525,20 @@
       "flavor_hu": "Eper Jég",
       "flavor_en": "Strawberry Ice",
       "soonEta": ""
+    },
+    {
+      "id": "p_04bcb951d2f2f_19c8a741b4e",
+      "categoryId": "tomb",
+      "status": "ok",
+      "stock": 13,
+      "visible": true,
+      "price": null,
+      "image": "https://ibb.co/TqWCrnfd",
+      "name_hu": "Tombola",
+      "name_en": "Tombola",
+      "flavor_hu": "Vapsolo Quads 80k",
+      "flavor_en": "Vapsolo Quads 80k",
+      "soonEta": ""
     }
   ],
   "popups": [
@@ -578,7 +592,7 @@
   ],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1771848834339,
-    "updatedAt": "2026-02-23T12:13:54.339Z"
+    "rev": 1771849444632,
+    "updatedAt": "2026-02-23T12:24:04.632Z"
   }
 }
