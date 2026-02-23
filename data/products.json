@@ -55,7 +55,7 @@
       "label_hu": "Tombola",
       "label_en": "Tombola",
       "basePrice": 500,
-      "basePriceJD": 60,
+      "basePriceJD": 650,
       "visible": true,
       "visibleJD": true,
       "featuredEnabled": true
@@ -738,7 +738,7 @@
   ],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1771881687716,
-    "updatedAt": "2026-02-23T21:21:27.716Z"
+    "rev": 1771881868287,
+    "updatedAt": "2026-02-23T21:24:28.287Z"
   }
 }
