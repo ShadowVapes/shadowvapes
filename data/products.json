@@ -25,7 +25,7 @@
       "label_hu": "Elfbar Lush King Pro 40k",
       "label_en": "Elfbar Lush King Pro 40k",
       "basePrice": 7000,
-      "basePriceJD": null,
+      "basePriceJD": 8000,
       "visible": true,
       "visibleJD": true,
       "featuredEnabled": true
@@ -738,7 +738,7 @@
   ],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1771881281169,
-    "updatedAt": "2026-02-23T21:14:41.169Z"
+    "rev": 1771881289497,
+    "updatedAt": "2026-02-23T21:14:49.497Z"
   }
 }
