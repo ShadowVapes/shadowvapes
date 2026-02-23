@@ -581,6 +581,20 @@
       "flavor_hu": "BOOD Pulse Storm 12K",
       "flavor_en": "BOOD Pulse Storm 12K",
       "soonEta": ""
+    },
+    {
+      "id": "p_db69bf075234a8_19c8a794443",
+      "categoryId": "tomb",
+      "status": "ok",
+      "stock": 10,
+      "visible": true,
+      "price": null,
+      "image": "https://i.ibb.co/rfdWvLjN/tombola.png",
+      "name_hu": "Tombola",
+      "name_en": "Tombola",
+      "flavor_hu": "Elfbar Ice King 30k",
+      "flavor_en": "Elfbar Ice King 30k",
+      "soonEta": ""
     }
   ],
   "popups": [
@@ -634,7 +648,7 @@
   ],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1771849713062,
-    "updatedAt": "2026-02-23T12:28:33.062Z"
+    "rev": 1771849759021,
+    "updatedAt": "2026-02-23T12:29:19.021Z"
   }
 }
