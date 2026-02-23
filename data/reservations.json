@@ -11,7 +11,8 @@
       {
         "productId": "p_f528825b171d1_19b5b6659bb",
         "qty": 1,
-        "unitPrice": 6000
+        "unitPrice": 6000,
+        "unitPriceJD": null
       }
     ]
   },
@@ -27,12 +28,14 @@
       {
         "productId": "p_4f4efd0510951_19b6ae36cba",
         "qty": 1,
-        "unitPrice": 6500
+        "unitPrice": 6500,
+        "unitPriceJD": null
       },
       {
         "productId": "p_03568182a15ac_19c7ae3aa7d",
         "qty": 2,
-        "unitPrice": 6500
+        "unitPrice": 6500,
+        "unitPriceJD": null
       }
     ]
   },
@@ -42,6 +45,8 @@
     "createdAt": 1771881734321,
     "expiresAt": 1772054534321,
     "confirmed": false,
+    "modified": false,
+    "modifiedAt": 0,
     "items": [
       {
         "productId": "p_04bcb951d2f2f_19c8a741b4e",
@@ -66,30 +71,6 @@
         "qty": 1,
         "unitPrice": 4000,
         "unitPriceJD": 6000
-      }
-    ]
-  },
-  {
-    "id": "r_mlzoodew_a66vni",
-    "publicCode": "714",
-    "createdAt": 1771881803240,
-    "expiresAt": 1772054603240,
-    "confirmed": false,
-    "items": [
-      {
-        "productId": "p_04bcb951d2f2f_19c8a741b4e",
-        "qty": 2,
-        "unitPrice": 500
-      },
-      {
-        "productId": "p_9842bfea4d24c_19b5b637a59",
-        "qty": 2,
-        "unitPrice": 6000
-      },
-      {
-        "productId": "p_4b3ea070114908_19b5bc64622",
-        "qty": 2,
-        "unitPrice": 7000
       }
     ]
   }
