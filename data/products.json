@@ -717,12 +717,28 @@
       "flavor_hu": "Jolly Rancher Cukorka & Sex On The Beach & Dinnye Kókusz & Cseresznye Bogyó",
       "flavor_en": "Happy Ranch & Sex On The Beach & Watermelon Coconut & Cherry Berry",
       "soonEta": ""
+    },
+    {
+      "id": "p_a52ce38bb9b78_19cae8202a0",
+      "categoryId": "vapsolo80k",
+      "status": "ok",
+      "stock": 10,
+      "visible": true,
+      "visibleJD": true,
+      "price": null,
+      "priceJD": null,
+      "image": "https://i.ibb.co/rKmbm6KJ/12-BLUEBERRY-CURRANT-CHEESE-CAKE-BLACKBERRY-RED-RASPBERRY-LIME-PASSION-FRUIT.png",
+      "name_hu": "Vapsolo Quads 80k",
+      "name_en": "Vapsolo Quads 80k",
+      "flavor_hu": "Kék Áfonya Ribizli & Szeder Vörös Málna & Sajttorta & Lime Maracuja",
+      "flavor_en": "Blueberry Currant & Blackberry Red Raspberry & Cheese Cake & Lime Passiom Fruit",
+      "soonEta": ""
     }
   ],
   "popups": [],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1772454027303,
-    "updatedAt": "2026-03-02T12:20:27.303Z"
+    "rev": 1772454621991,
+    "updatedAt": "2026-03-02T12:30:21.991Z"
   }
 }
