@@ -765,12 +765,28 @@
       "flavor_hu": "Mangó Ananász & Kék Málna Cseresznye & Dinnye Cseresznye & Szeder Menta",
       "flavor_en": "Mango Pineapple & Blue Razz Cherry & Watermelon Cherry & Blackberry Mint",
       "soonEta": ""
+    },
+    {
+      "id": "p_4895703c991ba8_19cae9ce8a4",
+      "categoryId": "vapsolo80k",
+      "status": "ok",
+      "stock": 0,
+      "visible": true,
+      "visibleJD": true,
+      "price": null,
+      "priceJD": null,
+      "image": "https://i.ibb.co/Y4SZZj6X/15-MIXED-BERRY-STRAWBERRY-MANGO-GREEN-GRAPE-GRAPEFRUIT-GREENTEA-PEACH-ICED-TEA.png",
+      "name_hu": "Vapsolo Quads 80k",
+      "name_en": "Vapsolo Quads 80k",
+      "flavor_hu": "Vegyes Bogyó & Eper Mangó & Zöld Szőlő Grépfrút Zöld Tea & Barack Jeges Tea",
+      "flavor_en": "Mixed Berry & Strawberry Mango & Green Grape Grapefruit Green Tea & Peach Iced Tea",
+      "soonEta": ""
     }
   ],
   "popups": [],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1772455860253,
-    "updatedAt": "2026-03-02T12:51:00.253Z"
+    "rev": 1772456180385,
+    "updatedAt": "2026-03-02T12:56:20.385Z"
   }
 }
