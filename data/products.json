@@ -703,39 +703,10 @@
       "soonEta": ""
     }
   ],
-  "popups": [
-    {
-      "id": "popup_d84c5159f34e68_19c7b081ae2",
-      "enabled": true,
-      "rev": 1771590665152,
-      "title_hu": "Új termékek elérhetőek",
-      "title_en": "Új termékek elérhetőek",
-      "categoryIds": [],
-      "productIds": [
-        "p_f711f17c5fdd3_19b6a7bed1f"
-      ],
-      "createdAt": 1771590665152,
-      "updatedAt": 1771590665152
-    },
-    {
-      "id": "popup_f37108859f77f8_19c7b0847ff",
-      "enabled": true,
-      "rev": 1771590731753,
-      "title_hu": "Új termékek elérhetőek",
-      "title_en": "Új termékek elérhetőek",
-      "categoryIds": [],
-      "productIds": [
-        "p_0b0caf39ccc8_19c7b06f9d2",
-        "p_f93b7eb924ed1_19b4e156422",
-        "p_96e473e02863_19b6a6106ac"
-      ],
-      "createdAt": 1771590731753,
-      "updatedAt": 1771590731753
-    }
-  ],
+  "popups": [],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1772453359280,
-    "updatedAt": "2026-03-02T12:09:19.280Z"
+    "rev": 1772453360395,
+    "updatedAt": "2026-03-02T12:09:20.395Z"
   }
 }
