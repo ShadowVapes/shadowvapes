@@ -901,5 +901,18 @@
         "unitPrice": 6500
       }
     ]
+  },
+  {
+    "id": "s_1fa3e7f81b1d48_19cbf1e61d1",
+    "date": "2026-03-05",
+    "name": "B. Roli",
+    "payment": "Vásárláskor",
+    "items": [
+      {
+        "productId": "p_f711f17c5fdd3_19b6a7bed1f",
+        "qty": 1,
+        "unitPrice": 4000
+      }
+    ]
   }
 ]
