@@ -1022,5 +1022,18 @@
         "unitPrice": 6000
       }
     ]
+  },
+  {
+    "id": "s_c62ea06e48fe38_19cd88ce786",
+    "date": "2026-03-10",
+    "name": "Balázs",
+    "payment": "Vásárláskor (12-es anyué)",
+    "items": [
+      {
+        "productId": "p_a52ce38bb9b78_19cae8202a0",
+        "qty": 2,
+        "unitPrice": 6500
+      }
+    ]
   }
 ]
