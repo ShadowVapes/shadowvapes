@@ -15,22 +15,5 @@
         "unitPriceJD": null
       }
     ]
-  },
-  {
-    "id": "r_mmks1mwk_xb8l5y",
-    "publicCode": "975",
-    "createdAt": 1773157250612,
-    "expiresAt": null,
-    "confirmed": true,
-    "modified": false,
-    "modifiedAt": 0,
-    "items": [
-      {
-        "productId": "p_a52ce38bb9b78_19cae8202a0",
-        "qty": 2,
-        "unitPrice": 6500,
-        "unitPriceJD": null
-      }
-    ]
   }
 ]
