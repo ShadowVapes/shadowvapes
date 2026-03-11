@@ -20,13 +20,16 @@
     "id": "r_mmlozq3j_7ralfk",
     "publicCode": "810",
     "createdAt": 1773212588767,
-    "expiresAt": 1773385388767,
-    "confirmed": false,
+    "expiresAt": null,
+    "confirmed": true,
+    "modified": false,
+    "modifiedAt": 0,
     "items": [
       {
         "productId": "p_96e473e02863_19b6a6106ac",
         "qty": 2,
-        "unitPrice": 5000
+        "unitPrice": 5000,
+        "unitPriceJD": null
       }
     ]
   }
