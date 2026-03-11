@@ -1035,5 +1035,23 @@
         "unitPrice": 6500
       }
     ]
+  },
+  {
+    "id": "s_a1c5cfa5daa02_19cdcd5cda9",
+    "date": "2026-03-11",
+    "name": "B. Zs Munk. Zoli (11-es Ákié)",
+    "payment": "Vásárláskor",
+    "items": [
+      {
+        "productId": "p_bdf2876c776fe_19cae8d647b",
+        "qty": 1,
+        "unitPrice": 6500
+      },
+      {
+        "productId": "p_7e90788f76589_19b6adc49b6",
+        "qty": 1,
+        "unitPrice": 6500
+      }
+    ]
   }
 ]
