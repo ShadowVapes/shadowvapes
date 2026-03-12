@@ -1066,5 +1066,23 @@
         "unitPrice": 6500
       }
     ]
+  },
+  {
+    "id": "s_9e6fab2473802_19ce3ec0f21",
+    "date": "2026-02-24",
+    "name": "B. Zs munkatársai",
+    "payment": "Hitelre ( Fizetve: 03.10 és 03.12-án  )",
+    "items": [
+      {
+        "productId": "p_03568182a15ac_19c7ae3aa7d",
+        "qty": 1,
+        "unitPrice": 6500
+      },
+      {
+        "productId": "p_7e90788f76589_19b6adc49b6",
+        "qty": 1,
+        "unitPrice": 6500
+      }
+    ]
   }
 ]
