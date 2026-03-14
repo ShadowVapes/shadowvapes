@@ -402,7 +402,7 @@
       "id": "p_96e473e02863_19b6a6106ac",
       "categoryId": "elf30",
       "status": "ok",
-      "stock": 2,
+      "stock": 1,
       "visible": true,
       "visibleJD": true,
       "price": null,
@@ -805,7 +805,7 @@
   ],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1773350441628,
-    "updatedAt": "2026-03-12T21:20:41.628Z"
+    "rev": 1773481548689,
+    "updatedAt": "2026-03-14T09:45:48.689Z"
   }
 }
