@@ -14,21 +14,5 @@
         "unitPrice": 7000
       }
     ]
-  },
-  {
-    "id": "r_momuseuo_g3pzo3",
-    "publicCode": "581",
-    "createdAt": 1777636356144,
-    "expiresAt": null,
-    "confirmed": true,
-    "modified": false,
-    "modifiedAt": 0,
-    "items": [
-      {
-        "productId": "p_441538bc936fa_19be641e8b6",
-        "qty": 1,
-        "unitPrice": 6500
-      }
-    ]
   }
 ]
