@@ -2493,5 +2493,18 @@
         "unitPrice": 6500
       }
     ]
+  },
+  {
+    "id": "s_e4478b8a5c3ab8_19df435b063",
+    "date": "2026-05-04",
+    "name": "Erik. G",
+    "payment": "Vásárláskor",
+    "items": [
+      {
+        "productId": "p_91055a9de76e18_19b5b67c25f",
+        "qty": 1,
+        "unitPrice": 6000
+      }
+    ]
   }
 ]
