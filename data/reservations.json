@@ -30,26 +30,5 @@
         "unitPrice": 6500
       }
     ]
-  },
-  {
-    "id": "r_mor0n8i5_7e2wrx",
-    "publicCode": "624",
-    "createdAt": 1777888057038,
-    "expiresAt": null,
-    "confirmed": true,
-    "modified": true,
-    "modifiedAt": 1777908744558,
-    "items": [
-      {
-        "productId": "p_d44a935527ac98_19b5b68e535",
-        "qty": 2,
-        "unitPrice": 6000
-      },
-      {
-        "productId": "p_b862159bc3f608_19beb0c6380",
-        "qty": 2,
-        "unitPrice": 6500
-      }
-    ]
   }
 ]
