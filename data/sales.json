@@ -2462,5 +2462,23 @@
         "unitPrice": 6500
       }
     ]
+  },
+  {
+    "id": "s_da6f1b40f0c0f_19df3bb2fbd",
+    "date": "2026-05-04",
+    "name": "Cs. Attila",
+    "payment": "Vásárláskor | tc: 3 (6)",
+    "items": [
+      {
+        "productId": "p_d44a935527ac98_19b5b68e535",
+        "qty": 2,
+        "unitPrice": 6000
+      },
+      {
+        "productId": "p_b862159bc3f608_19beb0c6380",
+        "qty": 2,
+        "unitPrice": 6500
+      }
+    ]
   }
 ]
