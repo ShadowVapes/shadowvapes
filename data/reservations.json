@@ -1,18 +1,1 @@
-[
-  {
-    "id": "r_mo92d9vn_xvajpa",
-    "publicCode": "686",
-    "createdAt": 1776802560323,
-    "expiresAt": null,
-    "confirmed": true,
-    "modified": false,
-    "modifiedAt": 0,
-    "items": [
-      {
-        "productId": "p_8b084c694c4ac_19bffc068b4",
-        "qty": 1,
-        "unitPrice": 7000
-      }
-    ]
-  }
-]
+[]
