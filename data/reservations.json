@@ -19,8 +19,8 @@
     "id": "r_moydp4hi_71irgn",
     "publicCode": "972",
     "createdAt": 1778333243382,
-    "expiresAt": 1778506043382,
-    "confirmed": false,
+    "expiresAt": null,
+    "confirmed": true,
     "modified": false,
     "modifiedAt": 0,
     "items": [
@@ -35,8 +35,8 @@
     "id": "r_moyds3em_9rs96l",
     "publicCode": "876",
     "createdAt": 1778333381951,
-    "expiresAt": 1778506181951,
-    "confirmed": false,
+    "expiresAt": null,
+    "confirmed": true,
     "modified": false,
     "modifiedAt": 0,
     "items": [
