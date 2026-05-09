@@ -19,21 +19,5 @@
         "unitPrice": 7000
       }
     ]
-  },
-  {
-    "id": "r_moyvb8n4_gomr5o",
-    "publicCode": "742",
-    "createdAt": 1778362828672,
-    "expiresAt": null,
-    "confirmed": true,
-    "modified": false,
-    "modifiedAt": 0,
-    "items": [
-      {
-        "productId": "p_6db677a6c8739_19b5bd13894",
-        "qty": 1,
-        "unitPrice": 7000
-      }
-    ]
   }
 ]
