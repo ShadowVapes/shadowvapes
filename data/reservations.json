@@ -19,21 +19,5 @@
         "unitPrice": 7000
       }
     ]
-  },
-  {
-    "id": "r_moyuztfv_rpic8y",
-    "publicCode": "358",
-    "createdAt": 1778362295755,
-    "expiresAt": null,
-    "confirmed": true,
-    "modified": false,
-    "modifiedAt": 0,
-    "items": [
-      {
-        "productId": "p_6db677a6c8739_19b5bd13894",
-        "qty": 1,
-        "unitPrice": 7000
-      }
-    ]
   }
 ]
