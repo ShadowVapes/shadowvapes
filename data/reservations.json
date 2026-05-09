@@ -3,12 +3,10 @@
     "id": "r_moyddp7w_gfsyu8",
     "publicCode": "108",
     "createdAt": 1778332710381,
-    "expiresAt": 1778505510381,
-    "confirmed": false,
-    "editCount": 0,
-    "recorded": false,
-    "deleted": false,
-    "lastAction": "ÃÂj foglalÃÂ¡s ÃÂ©rkezett",
+    "expiresAt": null,
+    "confirmed": true,
+    "modified": false,
+    "modifiedAt": 0,
     "items": [
       {
         "productId": "p_27f5bd691fa03_19b5b64ea4a",
@@ -23,10 +21,8 @@
     "createdAt": 1778333243382,
     "expiresAt": 1778506043382,
     "confirmed": false,
-    "editCount": 0,
-    "recorded": false,
-    "deleted": false,
-    "lastAction": "Ãj foglalÃ¡s Ã©rkezett",
+    "modified": false,
+    "modifiedAt": 0,
     "items": [
       {
         "productId": "p_8899c25f039f48_19beb1d7e76",
@@ -41,10 +37,8 @@
     "createdAt": 1778333381951,
     "expiresAt": 1778506181951,
     "confirmed": false,
-    "editCount": 0,
-    "recorded": false,
-    "deleted": false,
-    "lastAction": "Új foglalás érkezett",
+    "modified": false,
+    "modifiedAt": 0,
     "items": [
       {
         "productId": "p_d1c0df1b50542_19c7aee39b0",
