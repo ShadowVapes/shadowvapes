@@ -8,12 +8,30 @@
     "editCount": 0,
     "recorded": false,
     "deleted": false,
-    "lastAction": "Új foglalás érkezett",
+    "lastAction": "Ãj foglalÃ¡s Ã©rkezett",
     "items": [
       {
         "productId": "p_27f5bd691fa03_19b5b64ea4a",
         "qty": 1,
         "unitPrice": 6000
+      }
+    ]
+  },
+  {
+    "id": "r_moydp4hi_71irgn",
+    "publicCode": "972",
+    "createdAt": 1778333243382,
+    "expiresAt": 1778506043382,
+    "confirmed": false,
+    "editCount": 0,
+    "recorded": false,
+    "deleted": false,
+    "lastAction": "Új foglalás érkezett",
+    "items": [
+      {
+        "productId": "p_8899c25f039f48_19beb1d7e76",
+        "qty": 2,
+        "unitPrice": 6500
       }
     ]
   }
