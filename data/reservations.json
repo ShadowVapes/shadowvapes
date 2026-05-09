@@ -16,22 +16,6 @@
     ]
   },
   {
-    "id": "r_moydp4hi_71irgn",
-    "publicCode": "972",
-    "createdAt": 1778333243382,
-    "expiresAt": null,
-    "confirmed": true,
-    "modified": false,
-    "modifiedAt": 0,
-    "items": [
-      {
-        "productId": "p_8899c25f039f48_19beb1d7e76",
-        "qty": 2,
-        "unitPrice": 6500
-      }
-    ]
-  },
-  {
     "id": "r_moyds3em_9rs96l",
     "publicCode": "876",
     "createdAt": 1778333381951,
