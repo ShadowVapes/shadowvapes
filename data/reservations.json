@@ -6,7 +6,7 @@
     "expiresAt": null,
     "confirmed": true,
     "modified": true,
-    "modifiedAt": 1778362434185,
+    "modifiedAt": 1778362877725,
     "items": [
       {
         "productId": "p_8a393a08657b48_19b6ad67348",
@@ -15,7 +15,7 @@
       },
       {
         "productId": "p_6db677a6c8739_19b5bd13894",
-        "qty": 1,
+        "qty": 2,
         "unitPrice": 7000
       }
     ]
