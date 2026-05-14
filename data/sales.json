@@ -2749,7 +2749,7 @@
     "id": "s_8b60f2e98a90a8_19e21d2e0d9",
     "date": "2026-05-13",
     "name": "Bandi rendelése",
-    "payment": "Vásárláskor",
+    "payment": "-",
     "items": [
       {
         "productId": "p_dff7056a3eded8_19cae7977fb",
