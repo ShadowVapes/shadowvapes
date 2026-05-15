@@ -2808,5 +2808,23 @@
         "unitPrice": 6500
       }
     ]
+  },
+  {
+    "id": "s_cd710d8bba8338_19e2cdf647e",
+    "date": "2026-05-15",
+    "name": "P. Geri",
+    "payment": "Vásárláskor | tc: 2 (6)",
+    "items": [
+      {
+        "productId": "p_dff7056a3eded8_19cae7977fb",
+        "qty": 2,
+        "unitPrice": 6500
+      },
+      {
+        "productId": "p_8a393a08657b48_19b6ad67348",
+        "qty": 1,
+        "unitPrice": 6500
+      }
+    ]
   }
 ]
