@@ -2826,5 +2826,23 @@
         "unitPrice": 6500
       }
     ]
+  },
+  {
+    "id": "s_45b9259b2af83_19e31761674",
+    "date": "2026-05-16",
+    "name": "B. Geri haverja",
+    "payment": "Vásárláskor | tc: 4 (6)",
+    "items": [
+      {
+        "productId": "p_7e90788f76589_19b6adc49b6",
+        "qty": 1,
+        "unitPrice": 6500
+      },
+      {
+        "productId": "p_a52ce38bb9b78_19cae8202a0",
+        "qty": 1,
+        "unitPrice": 6500
+      }
+    ]
   }
 ]
