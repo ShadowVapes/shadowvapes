@@ -14,5 +14,38 @@
         "unitPrice": 6500
       }
     ]
+  },
+  {
+    "id": "r_mpcsa79k_xv0ejx",
+    "publicCode": "535",
+    "createdAt": 1779204267848,
+    "expiresAt": 1779377067848,
+    "confirmed": false,
+    "editCount": 0,
+    "recorded": false,
+    "deleted": false,
+    "lastAction": "Új foglalás érkezett",
+    "items": [
+      {
+        "productId": "p_bdf2876c776fe_19cae8d647b",
+        "qty": 1,
+        "unitPrice": 6500
+      },
+      {
+        "productId": "p_441538bc936fa_19be641e8b6",
+        "qty": 1,
+        "unitPrice": 6500
+      },
+      {
+        "productId": "p_7de60a56fee0d8_19cae6f3ed7",
+        "qty": 1,
+        "unitPrice": 6500
+      },
+      {
+        "productId": "p_dff7056a3eded8_19cae7977fb",
+        "qty": 1,
+        "unitPrice": 6500
+      }
+    ]
   }
 ]
