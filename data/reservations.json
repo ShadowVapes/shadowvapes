@@ -19,12 +19,10 @@
     "id": "r_mpecirmi_ws8isy",
     "publicCode": "761",
     "createdAt": 1779298725979,
-    "expiresAt": 1779471525979,
-    "confirmed": false,
-    "editCount": 0,
-    "recorded": false,
-    "deleted": false,
-    "lastAction": "Új foglalás érkezett",
+    "expiresAt": null,
+    "confirmed": true,
+    "modified": false,
+    "modifiedAt": 0,
     "items": [
       {
         "productId": "p_dff7056a3eded8_19cae7977fb",
