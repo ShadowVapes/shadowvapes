@@ -14,26 +14,5 @@
         "unitPrice": 6500
       }
     ]
-  },
-  {
-    "id": "r_mpecirmi_ws8isy",
-    "publicCode": "761",
-    "createdAt": 1779298725979,
-    "expiresAt": null,
-    "confirmed": true,
-    "modified": true,
-    "modifiedAt": 1779359871885,
-    "items": [
-      {
-        "productId": "p_dff7056a3eded8_19cae7977fb",
-        "qty": 1,
-        "unitPrice": 6500
-      },
-      {
-        "productId": "p_81909e3d929628_19c7af58890",
-        "qty": 1,
-        "unitPrice": 6500
-      }
-    ]
   }
 ]
