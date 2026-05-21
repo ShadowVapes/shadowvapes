@@ -14,21 +14,5 @@
         "unitPrice": 6500
       }
     ]
-  },
-  {
-    "id": "r_mpft5hom_y7p1w3",
-    "publicCode": "625",
-    "createdAt": 1779387126214,
-    "expiresAt": null,
-    "confirmed": true,
-    "modified": true,
-    "modifiedAt": 1779389804384,
-    "items": [
-      {
-        "productId": "p_27f5bd691fa03_19b5b64ea4a",
-        "qty": 1,
-        "unitPrice": 6000
-      }
-    ]
   }
 ]
