@@ -824,7 +824,7 @@
     {
       "id": "p_vapsolo_sixer_01",
       "categoryId": "vapsolosixer",
-      "status": "soon",
+      "status": "ok",
       "stock": 4,
       "visible": true,
       "secret": false,
@@ -832,9 +832,9 @@
       "image": "https://ezigisales.com/wp-content/uploads/2026/05/Pineapple-apple-pear-Red-bull-Cherry-cola-Solo-1-strawbenry-kiwi-Sex-on-the-beach-600x600.png",
       "name_hu": "Vapsolo Sixer",
       "name_en": "Vapsolo Sixer",
-      "flavor_hu": "Ananász Alma Körte & Red Bull & Cseresznye Kóla & Solo #1 & Eper Kiwi & Sex On The Beach",
-      "flavor_en": "Pineapple Apple Pear & Red Bull & Cherry Cola & Solo #1 & Strawberry Kiwi & Sex On The Beach",
-      "soonEta": "2026-05"
+      "flavor_hu": "10. Ananász Alma Körte & Red Bull & Cseresznye Kóla & Solo #1 & Eper Kiwi & Sex On The Beach",
+      "flavor_en": "10. Pineapple Apple Pear & Red Bull & Cherry Cola & Solo #1 & Strawberry Kiwi & Sex On The Beach",
+      "soonEta": ""
     },
     {
       "id": "p_vapsolo_sixer_02",
@@ -1695,8 +1695,8 @@
   "popups": [],
   "updatedAt": 1779394682680,
   "_meta": {
-    "rev": 1779474756250,
-    "updatedAt": "2026-05-22T18:32:36.250Z",
+    "rev": 1779474824248,
+    "updatedAt": "2026-05-22T18:33:44.248Z",
     "secretAccess": {
       "passwordHash": "60849c66285e827488bac601286f41bfd2d90bec7f151916432e4ad5d55c22c7",
       "durationMs": 900000
