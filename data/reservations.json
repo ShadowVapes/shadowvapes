@@ -14,5 +14,28 @@
         "unitPrice": 6500
       }
     ]
+  },
+  {
+    "id": "r_mph9koyi_e6jnjc",
+    "publicCode": "797",
+    "createdAt": 1779475175514,
+    "expiresAt": 1779647975514,
+    "confirmed": false,
+    "editCount": 0,
+    "recorded": false,
+    "deleted": false,
+    "lastAction": "Új foglalás érkezett",
+    "items": [
+      {
+        "productId": "p_vapsolo_sixer_06",
+        "qty": 1,
+        "unitPrice": 10000
+      },
+      {
+        "productId": "p_vapsolo_sixer_05",
+        "qty": 1,
+        "unitPrice": 10000
+      }
+    ]
   }
 ]
