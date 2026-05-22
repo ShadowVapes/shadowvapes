@@ -2947,5 +2947,18 @@
         "unitPrice": 6000
       }
     ]
+  },
+  {
+    "id": "s_66b2130f2c16f8_19e5102953f",
+    "date": "2026-05-22",
+    "name": "Saját",
+    "payment": "-",
+    "items": [
+      {
+        "productId": "p_vapsolo_sixer_09",
+        "qty": 1,
+        "unitPrice": 0
+      }
+    ]
   }
 ]
