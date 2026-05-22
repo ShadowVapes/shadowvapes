@@ -967,8 +967,8 @@
       "image": "https://ezigisales.com/wp-content/uploads/2026/05/Strawberry-banana-Lemon-lime-Watermelon-ice-Peach-mango-pineapple-Sour-triple-berry-Hammi-melon-600x600.png",
       "name_hu": "Vapsolo Sixer",
       "name_en": "Vapsolo Sixer",
-      "flavor_hu": "Eper Banán & Citrom Lime & Dinnye Jég & Barack Mangó Ananász & Savanyú Tripla Bogyó & Hammi Dinnye",
-      "flavor_en": "Strawberry Banana & Lemon Lime & Watermelon Ice & Peach Mango Pineapple & Sour Triple Berry & Hammi Melon",
+      "flavor_hu": "1. Eper Banán & Citrom Lime & Dinnye Jég & Barack Mangó Ananász & Savanyú Tripla Bogyó & Hammi Dinnye",
+      "flavor_en": "1. Strawberry Banana & Lemon Lime & Watermelon Ice & Peach Mango Pineapple & Sour Triple Berry & Hammi Melon",
       "soonEta": ""
     },
     {
@@ -1695,8 +1695,8 @@
   "popups": [],
   "updatedAt": 1779394682680,
   "_meta": {
-    "rev": 1779474107505,
-    "updatedAt": "2026-05-22T18:21:47.505Z",
+    "rev": 1779474127324,
+    "updatedAt": "2026-05-22T18:22:07.324Z",
     "secretAccess": {
       "passwordHash": "60849c66285e827488bac601286f41bfd2d90bec7f151916432e4ad5d55c22c7",
       "durationMs": 900000
