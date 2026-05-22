@@ -899,7 +899,7 @@
     {
       "id": "p_vapsolo_sixer_06",
       "categoryId": "vapsolosixer",
-      "status": "soon",
+      "status": "ok",
       "stock": 4,
       "visible": true,
       "secret": false,
@@ -907,9 +907,9 @@
       "image": "https://ezigisales.com/wp-content/uploads/2026/05/Cheesecake-Pineapple-lemon-Blueberry-Sour-Raspberry-Strawberry-mango-Lemon-lime-Watermelon-coconut-600x600.png",
       "name_hu": "Vapsolo Sixer",
       "name_en": "Vapsolo Sixer",
-      "flavor_hu": "Sajttorta & Ananász Citrom & Áfonya Savanyú Málna & Eper Mangó & Citrom Lime & Dinnye Kókusz",
-      "flavor_en": "Cheesecake & Pineapple Lemon & Blueberry Sour Raspberry & Strawberry Mango & Lemon Lime & Watermelon Coconut",
-      "soonEta": "2026-05"
+      "flavor_hu": "5. Sajttorta & Ananász Citrom & Áfonya Savanyú Málna & Eper Mangó & Citrom Lime & Dinnye Kókusz",
+      "flavor_en": "5. Cheesecake & Pineapple Lemon & Blueberry Sour Raspberry & Strawberry Mango & Lemon Lime & Watermelon Coconut",
+      "soonEta": ""
     },
     {
       "id": "p_vapsolo_sixer_07",
@@ -1695,8 +1695,8 @@
   "popups": [],
   "updatedAt": 1779394682680,
   "_meta": {
-    "rev": 1779474441251,
-    "updatedAt": "2026-05-22T18:27:21.251Z",
+    "rev": 1779474502253,
+    "updatedAt": "2026-05-22T18:28:22.253Z",
     "secretAccess": {
       "passwordHash": "60849c66285e827488bac601286f41bfd2d90bec7f151916432e4ad5d55c22c7",
       "durationMs": 900000
