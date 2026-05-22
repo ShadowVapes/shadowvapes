@@ -959,7 +959,7 @@
     {
       "id": "p_vapsolo_sixer_10",
       "categoryId": "vapsolosixer",
-      "status": "soon",
+      "status": "ok",
       "stock": 4,
       "visible": true,
       "secret": false,
@@ -969,7 +969,7 @@
       "name_en": "Vapsolo Sixer",
       "flavor_hu": "Eper Banán & Citrom Lime & Dinnye Jég & Barack Mangó Ananász & Savanyú Tripla Bogyó & Hammi Dinnye",
       "flavor_en": "Strawberry Banana & Lemon Lime & Watermelon Ice & Peach Mango Pineapple & Sour Triple Berry & Hammi Melon",
-      "soonEta": "2026-05"
+      "soonEta": ""
     },
     {
       "id": "p_gamer_001",
@@ -1695,8 +1695,8 @@
   "popups": [],
   "updatedAt": 1779394682680,
   "_meta": {
-    "rev": 1779472189888,
-    "updatedAt": "2026-05-22T17:49:49.888Z",
+    "rev": 1779474107505,
+    "updatedAt": "2026-05-22T18:21:47.505Z",
     "secretAccess": {
       "passwordHash": "60849c66285e827488bac601286f41bfd2d90bec7f151916432e4ad5d55c22c7",
       "durationMs": 900000
