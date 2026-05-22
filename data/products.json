@@ -270,7 +270,7 @@
       "id": "p_27f5bd691fa03_19b5b64ea4a",
       "categoryId": "elfraya25",
       "status": "ok",
-      "stock": 3,
+      "stock": 2,
       "visible": true,
       "secret": false,
       "price": null,
@@ -1695,8 +1695,8 @@
   "popups": [],
   "updatedAt": 1779394682680,
   "_meta": {
-    "rev": 1779394682680,
-    "updatedAt": "2026-05-21T20:18:02.000Z",
+    "rev": 1779472189888,
+    "updatedAt": "2026-05-22T17:49:49.888Z",
     "secretAccess": {
       "passwordHash": "60849c66285e827488bac601286f41bfd2d90bec7f151916432e4ad5d55c22c7",
       "durationMs": 900000
