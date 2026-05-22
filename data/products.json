@@ -944,17 +944,17 @@
     {
       "id": "p_vapsolo_sixer_09",
       "categoryId": "vapsolosixer",
-      "status": "soon",
-      "stock": 4,
+      "status": "ok",
+      "stock": 5,
       "visible": true,
       "secret": false,
       "price": null,
       "image": "https://ezigisales.com/wp-content/uploads/2026/05/San-francisco-Mixed-berry-Cocoloco-Cherry-lemon-Black-ice-dragonfruit-Strawberry-kiwi-600x600.png",
       "name_hu": "Vapsolo Sixer",
       "name_en": "Vapsolo Sixer",
-      "flavor_hu": "San Francisco & Vegyes Bogyó & Cocoloco & Cseresznye Citrom & Black Ice Sárkánygyümölcs & Eper Kiwi",
-      "flavor_en": "San Francisco & Mixed Berry & Cocoloco & Cherry Lemon & Black Ice Dragonfruit & Strawberry Kiwi",
-      "soonEta": "2026-05"
+      "flavor_hu": "2. San Francisco & Vegyes Bogyó & Cocoloco & Cseresznye Citrom & Fekete Jég Sárkánygyümölcs & Eper Kiwi",
+      "flavor_en": "2. San Francisco & Mixed Berry & Cocoloco & Cherry Lemon & Black Ice Dragonfruit & Strawberry Kiwi",
+      "soonEta": ""
     },
     {
       "id": "p_vapsolo_sixer_10",
@@ -1695,8 +1695,8 @@
   "popups": [],
   "updatedAt": 1779394682680,
   "_meta": {
-    "rev": 1779474127324,
-    "updatedAt": "2026-05-22T18:22:07.324Z",
+    "rev": 1779474257377,
+    "updatedAt": "2026-05-22T18:24:17.377Z",
     "secretAccess": {
       "passwordHash": "60849c66285e827488bac601286f41bfd2d90bec7f151916432e4ad5d55c22c7",
       "durationMs": 900000
