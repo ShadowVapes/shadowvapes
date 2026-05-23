@@ -14,26 +14,5 @@
         "unitPrice": 6500
       }
     ]
-  },
-  {
-    "id": "r_mpiszn4b_q86uev",
-    "publicCode": "537",
-    "createdAt": 1779568251852,
-    "expiresAt": null,
-    "confirmed": true,
-    "modified": false,
-    "modifiedAt": 0,
-    "items": [
-      {
-        "productId": "p_7e90788f76589_19b6adc49b6",
-        "qty": 1,
-        "unitPrice": 6500
-      },
-      {
-        "productId": "p_vapsolo_sixer_07",
-        "qty": 1,
-        "unitPrice": 10000
-      }
-    ]
   }
 ]
