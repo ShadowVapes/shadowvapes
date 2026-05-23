@@ -14,21 +14,5 @@
         "unitPrice": 6500
       }
     ]
-  },
-  {
-    "id": "r_mpie6jvy_1dqsmh",
-    "publicCode": "797",
-    "createdAt": 1779543380014,
-    "expiresAt": null,
-    "confirmed": true,
-    "modified": false,
-    "modifiedAt": 0,
-    "items": [
-      {
-        "productId": "p_27f5bd691fa03_19b5b64ea4a",
-        "qty": 1,
-        "unitPrice": 6000
-      }
-    ]
   }
 ]
