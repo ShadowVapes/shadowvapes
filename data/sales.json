@@ -2960,5 +2960,23 @@
         "unitPrice": 0
       }
     ]
+  },
+  {
+    "id": "s_290511b7f5b26_19e54b6199a",
+    "date": "2026-05-23",
+    "name": "Szabi",
+    "payment": "Vásárláskor",
+    "items": [
+      {
+        "productId": "p_vapsolo_sixer_06",
+        "qty": 1,
+        "unitPrice": 10000
+      },
+      {
+        "productId": "p_vapsolo_sixer_05",
+        "qty": 1,
+        "unitPrice": 10000
+      }
+    ]
   }
 ]
