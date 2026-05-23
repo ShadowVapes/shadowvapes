@@ -19,12 +19,10 @@
     "id": "r_mpie6jvy_1dqsmh",
     "publicCode": "797",
     "createdAt": 1779543380014,
-    "expiresAt": 1779716180014,
-    "confirmed": false,
-    "editCount": 0,
-    "recorded": false,
-    "deleted": false,
-    "lastAction": "Új foglalás érkezett",
+    "expiresAt": null,
+    "confirmed": true,
+    "modified": false,
+    "modifiedAt": 0,
     "items": [
       {
         "productId": "p_27f5bd691fa03_19b5b64ea4a",
