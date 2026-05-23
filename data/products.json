@@ -885,7 +885,7 @@
       "id": "p_vapsolo_sixer_05",
       "categoryId": "vapsolosixer",
       "status": "ok",
-      "stock": 4,
+      "stock": 3,
       "visible": true,
       "secret": false,
       "price": null,
@@ -900,7 +900,7 @@
       "id": "p_vapsolo_sixer_06",
       "categoryId": "vapsolosixer",
       "status": "ok",
-      "stock": 4,
+      "stock": 3,
       "visible": true,
       "secret": false,
       "price": null,
@@ -1695,8 +1695,8 @@
   "popups": [],
   "updatedAt": 1779394682680,
   "_meta": {
-    "rev": 1779475585812,
-    "updatedAt": "2026-05-22T18:46:25.812Z",
+    "rev": 1779537682252,
+    "updatedAt": "2026-05-23T12:01:22.252Z",
     "secretAccess": {
       "passwordHash": "60849c66285e827488bac601286f41bfd2d90bec7f151916432e4ad5d55c22c7",
       "durationMs": 900000
