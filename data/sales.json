@@ -2978,5 +2978,18 @@
         "unitPrice": 10000
       }
     ]
+  },
+  {
+    "id": "s_870843c504c8d8_19e5537bbea",
+    "date": "2026-05-23",
+    "name": "E. Geri haverja",
+    "payment": "Vásárláskor",
+    "items": [
+      {
+        "productId": "p_27f5bd691fa03_19b5b64ea4a",
+        "qty": 1,
+        "unitPrice": 6000
+      }
+    ]
   }
 ]
