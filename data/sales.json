@@ -3009,5 +3009,18 @@
         "unitPrice": 8000
       }
     ]
+  },
+  {
+    "id": "s_c43e8bbd352f7_19e5a0bbda1",
+    "date": "2026-05-24",
+    "name": "Niki munkatársa",
+    "payment": "Vásárláskor",
+    "items": [
+      {
+        "productId": "p_vapsolo_sixer_08",
+        "qty": 1,
+        "unitPrice": 10000
+      }
+    ]
   }
 ]
