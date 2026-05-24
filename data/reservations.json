@@ -1,18 +1,1 @@
-[
-  {
-    "id": "r_mpebifm9_9h8l7i",
-    "publicCode": "822",
-    "createdAt": 1779297030802,
-    "expiresAt": null,
-    "confirmed": true,
-    "modified": false,
-    "modifiedAt": 0,
-    "items": [
-      {
-        "productId": "p_7e90788f76589_19b6adc49b6",
-        "qty": 2,
-        "unitPrice": 6500
-      }
-    ]
-  }
-]
+[]
