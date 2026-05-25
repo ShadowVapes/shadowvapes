@@ -3022,5 +3022,18 @@
         "unitPrice": 10000
       }
     ]
+  },
+  {
+    "id": "s_cfdb4c6f5125d_19e60100bf3",
+    "date": "2026-05-25",
+    "name": "L. Árpi",
+    "payment": "Vásárláskor",
+    "items": [
+      {
+        "productId": "p_vapsolo_sixer_05",
+        "qty": 1,
+        "unitPrice": 10000
+      }
+    ]
   }
 ]
