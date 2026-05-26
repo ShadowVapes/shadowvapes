@@ -3035,5 +3035,18 @@
         "unitPrice": 10000
       }
     ]
+  },
+  {
+    "id": "s_e42e342fb97b6_19e644eae8b",
+    "date": "2026-05-26",
+    "name": "Áki",
+    "payment": "gls",
+    "items": [
+      {
+        "productId": "p_vapsolo_sixer_02",
+        "qty": 1,
+        "unitPrice": 4500
+      }
+    ]
   }
 ]
