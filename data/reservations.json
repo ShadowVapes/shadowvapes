@@ -19,31 +19,5 @@
         "unitPrice": 6500
       }
     ]
-  },
-  {
-    "id": "r_mpmxo380_vuzsds",
-    "publicCode": "675",
-    "createdAt": 1779817975632,
-    "expiresAt": null,
-    "confirmed": true,
-    "modified": false,
-    "modifiedAt": 0,
-    "items": [
-      {
-        "productId": "p_vapsolo_sixer_07",
-        "qty": 1,
-        "unitPrice": 10000
-      },
-      {
-        "productId": "p_vapsolo_sixer_03",
-        "qty": 1,
-        "unitPrice": 10000
-      },
-      {
-        "productId": "p_dff7056a3eded8_19cae7977fb",
-        "qty": 1,
-        "unitPrice": 6500
-      }
-    ]
   }
 ]
