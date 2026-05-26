@@ -3048,5 +3048,28 @@
         "unitPrice": 4500
       }
     ]
+  },
+  {
+    "id": "s_92ab61ac0ccb48_19e659568e2",
+    "date": "2026-05-26",
+    "name": "P. Geri",
+    "payment": "Vásárláskor | tc: 0 (5) (11-es anyué)",
+    "items": [
+      {
+        "productId": "p_vapsolo_sixer_07",
+        "qty": 1,
+        "unitPrice": 10000
+      },
+      {
+        "productId": "p_vapsolo_sixer_03",
+        "qty": 1,
+        "unitPrice": 10000
+      },
+      {
+        "productId": "p_dff7056a3eded8_19cae7977fb",
+        "qty": 1,
+        "unitPrice": 6500
+      }
+    ]
   }
 ]
