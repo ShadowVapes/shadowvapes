@@ -1,21 +1,5 @@
 [
   {
-    "id": "r_mpkarqot_9nljdp",
-    "publicCode": "182",
-    "createdAt": 1779658582493,
-    "expiresAt": null,
-    "confirmed": true,
-    "modified": false,
-    "modifiedAt": 0,
-    "items": [
-      {
-        "productId": "p_vapsolo_sixer_02",
-        "qty": 1,
-        "unitPrice": 10000
-      }
-    ]
-  },
-  {
     "id": "r_mpm8oyyp_gn3csi",
     "publicCode": "533",
     "createdAt": 1779776026369,
