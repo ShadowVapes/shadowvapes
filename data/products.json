@@ -510,7 +510,7 @@
       "id": "p_7e90788f76589_19b6adc49b6",
       "categoryId": "vapsolo80k",
       "status": "ok",
-      "stock": 2,
+      "stock": 1,
       "visible": true,
       "secret": false,
       "price": null,
@@ -795,7 +795,7 @@
       "id": "p_5aaf6d03437c8_19cae96fb2e",
       "categoryId": "vapsolo80k",
       "status": "ok",
-      "stock": 4,
+      "stock": 3,
       "visible": true,
       "secret": false,
       "price": null,
@@ -1695,8 +1695,8 @@
   "popups": [],
   "updatedAt": 1779394682680,
   "_meta": {
-    "rev": 1779905598927,
-    "updatedAt": "2026-05-27T18:13:18.927Z",
+    "rev": 1779905628622,
+    "updatedAt": "2026-05-27T18:13:48.622Z",
     "secretAccess": {
       "passwordHash": "60849c66285e827488bac601286f41bfd2d90bec7f151916432e4ad5d55c22c7",
       "durationMs": 900000
