@@ -19,31 +19,5 @@
         "unitPrice": 6500
       }
     ]
-  },
-  {
-    "id": "r_mpobyxs5_xhq4ju",
-    "publicCode": "446",
-    "createdAt": 1779902462597,
-    "expiresAt": null,
-    "confirmed": true,
-    "modified": true,
-    "modifiedAt": 1779902856722,
-    "items": [
-      {
-        "productId": "p_27f5bd691fa03_19b5b64ea4a",
-        "qty": 1,
-        "unitPrice": 6000
-      },
-      {
-        "productId": "p_4895703c991ba8_19cae9ce8a4",
-        "qty": 1,
-        "unitPrice": 6500
-      },
-      {
-        "productId": "p_f711f17c5fdd3_19b6a7bed1f",
-        "qty": 1,
-        "unitPrice": 4000
-      }
-    ]
   }
 ]
