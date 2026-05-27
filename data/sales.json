@@ -3104,5 +3104,28 @@
         "unitPrice": 6500
       }
     ]
+  },
+  {
+    "id": "s_38c99fb1c9ce18_19e6aa40f76",
+    "date": "2026-05-27",
+    "name": "E. Geri keresztapja",
+    "payment": "Vásárláskor | tc: 1 (6) (a bood részesedés)",
+    "items": [
+      {
+        "productId": "p_27f5bd691fa03_19b5b64ea4a",
+        "qty": 1,
+        "unitPrice": 6000
+      },
+      {
+        "productId": "p_4895703c991ba8_19cae9ce8a4",
+        "qty": 1,
+        "unitPrice": 6500
+      },
+      {
+        "productId": "p_f711f17c5fdd3_19b6a7bed1f",
+        "qty": 1,
+        "unitPrice": 0
+      }
+    ]
   }
 ]
