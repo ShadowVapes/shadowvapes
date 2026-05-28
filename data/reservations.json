@@ -29,5 +29,23 @@
         "unitPrice": 10000
       }
     ]
+  },
+  {
+    "id": "r_mpp72s9u_2j6li7",
+    "publicCode": "167",
+    "createdAt": 1779954710178,
+    "expiresAt": 1780127510178,
+    "confirmed": false,
+    "editCount": 0,
+    "recorded": false,
+    "deleted": false,
+    "lastAction": "Új foglalás érkezett",
+    "items": [
+      {
+        "productId": "p_f528825b171d1_19b5b6659bb",
+        "qty": 1,
+        "unitPrice": 6000
+      }
+    ]
   }
 ]
