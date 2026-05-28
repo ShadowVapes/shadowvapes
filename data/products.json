@@ -4,7 +4,7 @@
       "id": "elf30",
       "label_hu": "Elfbar Ice King 30k",
       "label_en": "Elfbar Ice King 30k",
-      "basePrice": 5000,
+      "basePrice": 45,
       "visible": true,
       "featuredEnabled": true,
       "secret": true
@@ -1695,8 +1695,8 @@
   "popups": [],
   "updatedAt": 1779394682680,
   "_meta": {
-    "rev": 1780006832996,
-    "updatedAt": "2026-05-28T22:20:32.996Z",
+    "rev": 1780006839917,
+    "updatedAt": "2026-05-28T22:20:39.917Z",
     "secretAccess": {
       "passwordHash": "60849c66285e827488bac601286f41bfd2d90bec7f151916432e4ad5d55c22c7",
       "durationMs": 900000
