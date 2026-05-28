@@ -29,21 +29,5 @@
         "unitPrice": 10000
       }
     ]
-  },
-  {
-    "id": "r_mpp72s9u_2j6li7",
-    "publicCode": "167",
-    "createdAt": 1779954710178,
-    "expiresAt": null,
-    "confirmed": true,
-    "modified": false,
-    "modifiedAt": 0,
-    "items": [
-      {
-        "productId": "p_f528825b171d1_19b5b6659bb",
-        "qty": 1,
-        "unitPrice": 6000
-      }
-    ]
   }
 ]
