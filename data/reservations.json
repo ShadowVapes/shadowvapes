@@ -1,18 +1,1 @@
-[
-  {
-    "id": "r_mppudz0d_b6wytm",
-    "publicCode": "670",
-    "createdAt": 1779993863293,
-    "expiresAt": null,
-    "confirmed": true,
-    "modified": false,
-    "modifiedAt": 0,
-    "items": [
-      {
-        "productId": "p_vapsolo_sixer_09",
-        "qty": 1,
-        "unitPrice": 10000
-      }
-    ]
-  }
-]
+[]
