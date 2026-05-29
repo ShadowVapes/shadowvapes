@@ -3191,5 +3191,18 @@
         "unitPrice": 8000
       }
     ]
+  },
+  {
+    "id": "s_ed5424b68c9068_19e7546adf0",
+    "date": "2026-05-29",
+    "name": "B. Zs munkatársa zoli",
+    "payment": "hitelre",
+    "items": [
+      {
+        "productId": "p_vapsolo_sixer_07",
+        "qty": 1,
+        "unitPrice": 10000
+      }
+    ]
   }
 ]
