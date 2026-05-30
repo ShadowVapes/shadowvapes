@@ -3235,5 +3235,33 @@
         "unitPrice": 10000
       }
     ]
+  },
+  {
+    "id": "s_c4969e077a62c8_19e7a1a7aa7",
+    "date": "2026-05-30",
+    "name": "Niki és munkatársai",
+    "payment": "Vásárláskor | tc: 0 (5) (quads anyué)",
+    "items": [
+      {
+        "productId": "p_vapsolo_sixer_08",
+        "qty": 1,
+        "unitPrice": 10000
+      },
+      {
+        "productId": "p_vapsolo_sixer_05",
+        "qty": 1,
+        "unitPrice": 10000
+      },
+      {
+        "productId": "p_bdf2876c776fe_19cae8d647b",
+        "qty": 1,
+        "unitPrice": 6500
+      },
+      {
+        "productId": "p_0b0caf39ccc8_19c7b06f9d2",
+        "qty": 1,
+        "unitPrice": 4500
+      }
+    ]
   }
 ]
