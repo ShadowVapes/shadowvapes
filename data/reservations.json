@@ -1,1 +1,25 @@
-[]
+[
+  {
+    "id": "r_mpsf00x4_7tux9n",
+    "publicCode": "548",
+    "createdAt": 1780149416872,
+    "expiresAt": 1780322216872,
+    "confirmed": false,
+    "editCount": 0,
+    "recorded": false,
+    "deleted": false,
+    "lastAction": "Új foglalás érkezett",
+    "items": [
+      {
+        "productId": "p_vapsolo_sixer_08",
+        "qty": 1,
+        "unitPrice": 10000
+      },
+      {
+        "productId": "p_vapsolo_sixer_05",
+        "qty": 1,
+        "unitPrice": 10000
+      }
+    ]
+  }
+]
