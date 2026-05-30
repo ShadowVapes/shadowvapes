@@ -3,12 +3,10 @@
     "id": "r_mpsf00x4_7tux9n",
     "publicCode": "548",
     "createdAt": 1780149416872,
-    "expiresAt": 1780322216872,
-    "confirmed": false,
-    "editCount": 0,
-    "recorded": false,
-    "deleted": false,
-    "lastAction": "Új foglalás érkezett",
+    "expiresAt": null,
+    "confirmed": true,
+    "modified": false,
+    "modifiedAt": 0,
     "items": [
       {
         "productId": "p_vapsolo_sixer_08",
