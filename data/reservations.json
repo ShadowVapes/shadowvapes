@@ -1,18 +1,1 @@
-[
-  {
-    "id": "r_mpv5w17h_m41oc5",
-    "publicCode": "665",
-    "createdAt": 1780315512605,
-    "expiresAt": null,
-    "confirmed": true,
-    "modified": false,
-    "modifiedAt": 0,
-    "items": [
-      {
-        "productId": "p_vapsolo_sixer_01",
-        "qty": 1,
-        "unitPrice": 10000
-      }
-    ]
-  }
-]
+[]
