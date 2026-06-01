@@ -3281,7 +3281,7 @@
     "id": "s_edbdc36d9e99_19e8363fb0e",
     "date": "2026-06-01",
     "name": "Imi",
-    "payment": "Vásárláskor",
+    "payment": "Vásárláskor | tc: 1 (5)",
     "items": [
       {
         "productId": "p_7de60a56fee0d8_19cae6f3ed7",
