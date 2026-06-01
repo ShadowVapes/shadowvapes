@@ -3289,5 +3289,18 @@
         "unitPrice": 6500
       }
     ]
+  },
+  {
+    "id": "s_9df49088b1521_19e83b604a4",
+    "date": "2026-06-01",
+    "name": "Gy. Fruzsi",
+    "payment": "Vásárláskor",
+    "items": [
+      {
+        "productId": "p_vapsolo_sixer_01",
+        "qty": 1,
+        "unitPrice": 10000
+      }
+    ]
   }
 ]
